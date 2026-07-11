@@ -1,7 +1,9 @@
-import "dotenv/config";
+import { config } from "dotenv";
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { createClient, type Client } from "@libsql/client";
+
+config({ path: path.join(__dirname, "..", ".env.local") });
 
 const MIGRATIONS_DIR = path.join(__dirname, "migrations");
 
