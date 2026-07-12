@@ -670,6 +670,14 @@ Track `opened_at` and `completed_at` so COMMS can see who has and hasn't respond
   `Authors (Year). <a href="{url}">Title</a>. <em>Journal</em>, Volume(Issue), Pages.`
   - Authors joined with commas, `&` before the last, **in original citation order**.
   - `chps_faculty` → `<strong>`; `grad_student` → suffix `**`; `undergrad_student` → suffix `*`.
+  - **Verified against the live post (Phase 1, item 3):** one long-author-list citation
+    in the live post — the Rovito/Brazendale testicular-cancer paper, 10 authors — omits
+    the `&` before the final author (`..., Langan, J., Leslie, M.K.` — no `&`). Every
+    other multi-author citation in the same post includes it. This is almost certainly
+    a copy/paste or Word-export artifact on that one entry, not an intentional rule tied
+    to list length. The generator always inserts `&` before the final author regardless
+    of how many authors precede it — confirmed against
+    `tests/fixtures/live-post-citations.html` (snippet 3) in `tests/citation.test.ts`.
 - Outputs: **live preview** + **raw HTML source** with copy-to-clipboard and download buttons.
 - **Pre-flight warnings (do not block publishing — but never fail silently, §15.11):**
   > ⚠️ *14 publications have unreviewed co-authors (`unknown`). They will publish with no student asterisks.*

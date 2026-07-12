@@ -1,0 +1,95 @@
+<!--
+  SOURCE: https://healthprofessions.ucf.edu/news/research-roundup-publications-by-chps-faculty-spring-and-summer-2025/
+  Captured via browser Inspect → Copy outerHTML, July 2026. This is REAL markup from the
+  published post, not a reconstruction.
+
+  READ THIS BEFORE WRITING TESTS AGAINST THIS FILE.
+
+  1. BOLD TAG: the live post uses <b><span data-contrast="auto">...</span></b>, wrapped
+     in Microsoft Word web-clipboard cruft (data-contrast, data-ccp-props attributes).
+     This confirms §1 of the master plan: citations were copy-pasted out of Word/Outlook
+     into WordPress, not hand-authored HTML. It is NOT a convention to reproduce.
+
+     Our generator emits clean semantic HTML: <strong> for chps_faculty, plain text
+     (no wrapper) for external/unknown, and a literal trailing `**` or `*` character for
+     grad_student / undergrad_student — never a styled span.
+
+     USE THIS FILE TO DETERMINE: which author, in which position, got which treatment.
+     DO NOT try to byte-match the <b>/<span data-contrast=...> soup in test assertions.
+     Your expected output in tests/citation.test.ts should be OUR clean format, e.g.:
+       <strong>Brazendale, K.</strong>, <strong>Jeune, S.</strong>, Garcia, J., ...
+     not the Word-pasted original tags.
+
+  2. GRAD/UNDERGRAD MARKERS ARE BARE TEXT. Confirmed directly in snippet 4 below:
+     "Martinez, S.*" and "Sukhu, B.**" are literal asterisk characters sitting inside
+     the same plain <span> as everyone else — no special wrapper, no styling. Render
+     these as plain-name + literal suffix characters. Nothing about position or
+     wrapping distinguishes a grad/undergrad marker from a bold marker except the
+     characters themselves: <b> = chps_faculty, bare "**" suffix = grad_student, bare
+     "*" suffix = undergrad_student.
+
+  3. SNIPPET 1 vs SNIPPET 2 IS THE §6a BUG, CAUGHT IN THE WILD. Same paper
+     ("Initial Evidence Comparing Beverage and Snack Dietary Patterns..."), same DOI,
+     appearing in two different unit sections of the live post:
+       - Snippet 1 (Social Work section):    Lawrence, S. and Gurnukar, S.  → BOLD
+       - Snippet 2 (Health Sciences section): Lawrence, S. and Gurnu[r]kar, S. → PLAIN
+     Note also the surname is spelled two different ways across the two copies
+     ("Gurnurkar" in Health Sciences, "Gurnukar" in Social Work) — a real-world name
+     variant, not a typo you introduce. That's a matching-engine (§7) concern for a
+     later session, not something the citation formatter needs to resolve. It also
+     confirms "Hunt, E.T." (Health Sciences copy) vs "Hunt, E." (Social Work copy) —
+     same person, different initials rendering.
+
+     DO NOT write a test that asserts "reproduce this inconsistency." Our system stores
+     ONE author-role record per publication (§6a) and derives units from it — so it is
+     structurally incapable of rendering the same paper two different ways. Write the
+     test the other direction: pick ONE authoritative author-role list for this paper
+     (either bolding is a legitimate ground truth to seed with — it doesn't matter
+     which, since the point is consistency, not correctness of the historical post),
+     derive that its unitsForPublication() includes both
+     "Department of Health Sciences" and "School of Social Work", and assert
+     formatCitation() produces the IDENTICAL string when rendering it under each unit.
+     That identical-output assertion IS the regression test for the bug this snippet
+     documents.
+
+  4. Ampersand: "& Dervisevic" / "& Lee, E." confirms the joiner convention — comma-
+     separated, "&" before the last author, escaped as &amp; in the source HTML (we
+     render "&" and HTML-escape it ourselves; don't double-escape).
+-->
+
+<!-- ============================================================ -->
+<!-- SNIPPET 1 — Social Work section copy of the Brazendale paper -->
+<!-- Bold: Brazendale, K. / Jeune, S. / Lawrence, S. / Gurnukar, S -->
+<!-- Multi-faculty-bold example. Also: one half of the §6a pair.  -->
+<!-- ============================================================ -->
+<p><b><span data-contrast="auto">Brazendale, K., Jeune, S.,</span></b><span data-contrast="auto"> Garcia, J., Quelly, S., </span><b><span data-contrast="auto">Lawrence, S., Gurnukar, S</span></b><span data-contrast="auto">., Hunt, E., Mehta, J., &amp; Dervisevic, A. (2025). </span><a href="https://www.tandfonline.com/doi/full/10.1080/20473869.2025.2512909" data-wpel-link="external" target="_blank" rel="nofollow external noopener noreferrer"><span data-contrast="none">Initial Evidence Comparing Beverage and Snack Dietary Patterns of Children with Autism Spectrum Disorders During School Versus Summer Months</span></a><span data-contrast="auto">. </span><i><span data-contrast="auto">International Journal of Developmental Disabilities</span></i><span data-contrast="auto">, 1-10.</span><span data-ccp-props="{&quot;134245417&quot;:false,&quot;201341983&quot;:0,&quot;335559739&quot;:120,&quot;335559740&quot;:273}"> </span></p>
+
+<!-- ============================================================ -->
+<!-- SNIPPET 2 — Health Sciences section copy of the SAME paper   -->
+<!-- Bold: Brazendale, K / Jeune, S. only. Lawrence/Gurnurkar      -->
+<!-- are PLAIN here — the other half of the §6a bug pair.         -->
+<!-- Note spelling: "Gurnurkar" here vs "Gurnukar" in snippet 1.   -->
+<!-- Note initials: "Hunt, E.T." here vs "Hunt, E." in snippet 1.  -->
+<!-- ============================================================ -->
+<p><b><span data-contrast="auto">Brazendale, K</span></b><span data-contrast="auto">., </span><b><span data-contrast="auto">Jeune, S.</span></b><span data-contrast="auto">, Garcia, J., Quelly, S., Lawrence, S., Gurnurkar, S., Hunt, E.T., Mehta, J., &amp; Dervisevic, A. (2025). </span><a href="https://www.tandfonline.com/doi/full/10.1080/20473869.2025.2512909" data-wpel-link="external" target="_blank" rel="nofollow external noopener noreferrer"><span data-contrast="none">Initial Evidence Comparing Beverage and Snack Dietary Patterns of Children with Autism Spectrum Disorders During School Versus Summer Months</span></a><span data-contrast="auto">. </span><i><span data-contrast="auto">International Journal of Developmental Disabilities, </span></i><span data-contrast="auto">1-10.</span><span data-ccp-props="{&quot;134245417&quot;:false,&quot;201341983&quot;:0,&quot;335559739&quot;:120,&quot;335559740&quot;:273}"> </span></p>
+
+<!-- ============================================================ -->
+<!-- SNIPPET 3 — undergrad asterisk, bare text, no wrapper         -->
+<!-- "Martinez, S.*" — single faculty bold (Rovito, M.J.,          -->
+<!-- Brazendale, K.), volume-only citation (no issue/pages), one   -->
+<!-- author list, "&" not needed (Leslie, M.K. is last, no & shown  -->
+<!-- in source — note this ends the list WITHOUT an ampersand,     -->
+<!-- confirm from source whether that's page truncation or real).  -->
+<!-- ============================================================ -->
+<p><b><span data-contrast="auto">Rovito, M.J., Brazendale, K.</span></b><span data-contrast="auto">, Gibson, S., Martinez, S.*, Fairman, C., Badolato, C., Lyon, T., Baird, B., Langan, J., Leslie, M.K. (2025). </span><a href="https://journals.sagepub.com/doi/10.1177/17562872251322658" data-wpel-link="external" target="_blank" rel="nofollow external noopener noreferrer"><span data-contrast="none">Physical Activity and Testicular Cancer Survivorship Health-Related Quality of Life: A Scoping Review</span></a><span data-contrast="auto">. </span><i><span data-contrast="auto">Therapeutic Advances in Urology, </span></i><span data-contrast="auto">17.</span><span data-ccp-props="{&quot;134245417&quot;:false,&quot;201341983&quot;:0,&quot;335559739&quot;:120,&quot;335559740&quot;:273}"> </span></p>
+
+<!-- ============================================================ -->
+<!-- SNIPPET 4 — grad (**) AND undergrad (*) markers in the SAME  -->
+<!-- author list, plus a single bolded faculty author LAST in the  -->
+<!-- list (after "&"). Proves position independence: bold isn't    -->
+<!-- always first, and markers/bold coexist without collision.     -->
+<!-- Sukhu, B.** = grad student. Lopez Torralba, L.* and            -->
+<!-- de Azevedo Daruge, M.E.* = undergrad students. Lee, E. = the  -->
+<!-- sole CHPS faculty author, bolded, last position, after "&".    -->
+<!-- ============================================================ -->
+<p><span data-contrast="auto">Lopez Torralba, L.*, Sukhu, B.**, de Azevedo Daruge, M. E.*, Chung, J., Loerzel, V., &amp; </span><b><span data-contrast="auto">Lee, E.</span></b><span data-contrast="auto"> (2025). </span><a href="https://www.mdpi.com/1718-7729/32/8/461" data-wpel-link="external" target="_blank" rel="nofollow external noopener noreferrer"><span data-contrast="none">Evaluating Fatalism Among Breast Cancer Survivors in a Heterogeneous Hispanic Population: A Cross-Sectional Study</span></a><span data-contrast="auto">. </span><i><span data-contrast="auto">Current Oncology</span></i><span data-contrast="auto">, 32(8), 461.</span><span data-ccp-props="{&quot;134245417&quot;:false,&quot;201341983&quot;:0,&quot;335559739&quot;:120,&quot;335559740&quot;:273}"> </span></p>
