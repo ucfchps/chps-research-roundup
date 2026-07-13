@@ -33,13 +33,15 @@ export type AuthorRole =
 export interface Faculty {
   id: number;
   wp_id: string | null;
+  slug: string | null;
   display_name: string;
   full_name: string | null;
-  unit: Unit;
-  scholar_url: string | null;
+  email: string | null;
+  unit: Unit | null;
+  research_profile_url: string | null;
   scholar_user_id: string | null;
-  researchgate_url: string | null;
   orcid: string | null;
+  classification: string | null;
   active: number;
   last_alert_seen_at: string | null;
   last_synced_at: string | null;

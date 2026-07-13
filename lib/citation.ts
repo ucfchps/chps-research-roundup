@@ -63,7 +63,7 @@ export function unitsForPublication(
   for (const author of authors) {
     if (author.role !== "chps_faculty" || author.faculty_id === null) continue;
     const faculty = facultyById[author.faculty_id];
-    if (faculty) present.add(faculty.unit);
+    if (faculty?.unit) present.add(faculty.unit);
   }
   return UNITS.filter((unit) => present.has(unit));
 }

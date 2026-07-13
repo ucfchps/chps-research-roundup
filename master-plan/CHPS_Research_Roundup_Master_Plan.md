@@ -2,7 +2,9 @@
 
 **Status:** Source of truth. Read this before writing any code.
 **Owner:** Web Developer, UCF College of Health Professions and Sciences (CHPS)
-**Last updated:** July 2026
+**Last updated:** July 2026 — amended post-WordPress-verification (ahead of Session 4). See
+§5a.3, §6, §6a, §9, §11 for what changed and why. Sessions 1–3 are unaffected; a corrective
+migration (Session 3.5) brings the already-applied schema in line with these amendments.
 
 ---
 
@@ -89,7 +91,7 @@ Four moving parts:
 | Hosting / portal / API | **Vercel** (Next.js App Router) | Already in use on other CHPS apps. |
 | Scheduling | **GitHub Actions** (cron) | Already used by the Faculty News Mentions app. **Do not use Vercel Cron** — the free Hobby plan caps cron at once per day with ±1hr imprecision. |
 | AI (parsing, fuzzy matching) | **Groq — `openai/gpt-oss-120b`** | Free tier, no card. OpenAI-compatible endpoint. |
-| Faculty roster source | **WordPress REST API** (CHPS directory) | Already available. **The Scholar URL field must have `show_in_rest` enabled** so it appears in the REST response — custom/ACF fields are not exposed by default. Confirm with a curl against the directory endpoint before building Phase 2. |
+| Faculty roster source | **WordPress REST API** (CHPS directory) | Already available. ACF fields (including the research-profile URL and, as of July 2026, a dedicated `orcid` field) are already exposed via `show_in_rest` — verified directly against the live endpoint. ★ **The field named `google_scholar` is not Scholar-specific** — it is a generic research-profile URL field. See amended §5a.3. |
 | Email source (read) | **Gmail API + stored OAuth refresh token** | Reads the Scholar alert emails. |
 | Email sending | **Gmail API (same credentials, send scope)** | ★ Required by the review-link emails (§8b). **Deliberately not a new platform** — the same Google Workspace account that receives Scholar alerts also sends the review invitations. Google Workspace allows ~2,000 sends/day, far above the ~100 faculty in a review cycle. Requires adding `gmail.send` to the OAuth scopes alongside `gmail.readonly`. If deliverability or reply-handling ever becomes an issue, a transactional provider (Resend, Postmark) is a drop-in replacement — but do not add one preemptively. |
 | Bibliographic APIs | Crossref, PubMed E-utilities, ORCID | All free, no key required. |
@@ -196,15 +198,27 @@ To:       contact+scholar@…
    written by <a href="https://scholar.google.com/citations?hl=en&user=hs_VC0kAAAAJ">Matt S. Stock</a>.
    ```
 
-   That `user` parameter — `hs_VC0kAAAAJ` — is a **unique, stable, machine-readable identifier** for the Scholar profile. The same ID appears in the `scholar_url` on the faculty member's WordPress directory profile. **This is the join key.** Match `alert.scholar_user_id` → `faculty.scholar_user_id`. Exact, unambiguous, no name matching anywhere.
+   That `user` parameter — `hs_VC0kAAAAJ` — is a **unique, stable, machine-readable identifier** for the Scholar profile. The same ID appears in the `research_profile_url` on the faculty member's WordPress directory profile — **when that profile happens to be a Google Scholar profile.** **This is the join key.** Match `alert.scholar_user_id` → `faculty.scholar_user_id`. Exact, unambiguous, no name matching anywhere.
 
-   **Normalization is required on both sides.** Do not compare full URL strings — directory-entered URLs vary (`hl=en` present or absent, `&view_op=list_works` appended, `http` vs `https`, trailing `&`, mobile `citations?user=` forms). Extract only the `user` query parameter:
-   ```ts
-   function scholarUserId(url: string): string | null {
-     try { return new URL(url).searchParams.get('user'); } catch { return null; }
-   }
-   ```
-   **Treat the ID as case-sensitive** — Scholar IDs mix case meaningfully (`hs_VC0kAAAAJ`).
+   > ### ⚠️ The directory field is NOT Scholar-specific — it is a generic research-profile field
+   > Verified against the live directory: the ACF field faculty populate (`google_scholar`) accepts **any** research-profile URL. Of the populated records, most are Google Scholar, but a real minority are ResearchGate profiles, an NCBI/MyNCBI public bibliography, and — in one case — a bare DOI entered by mistake. **A hostname guard is therefore required, not optional:**
+   > ```ts
+   > function scholarUserId(url: string | null): string | null {
+   >   if (!url) return null;
+   >   try {
+   >     const u = new URL(url.trim());
+   >     if (u.hostname !== 'scholar.google.com') return null;   // ★ the field is generic — see above
+   >     return u.searchParams.get('user');
+   >   } catch { return null; }
+   > }
+   > ```
+   > Without the hostname check, a ResearchGate or NCBI URL happens to return `null` anyway (no `user` param) — but that is accidental correctness, not a guarantee, and the `doi.org` entry could in principle collide. Check the host explicitly.
+   >
+   > **Consequence for the data model (§6):** the column is `research_profile_url`, not `scholar_url` — the old name implies a guarantee the field does not make. `scholar_user_id` is nullable and populated **only** when the profile is actually a Google Scholar URL. Faculty whose profile is ResearchGate/NCBI/other are **legitimately and permanently outside Layer 1** — see the amended §11 coverage table, which gives this its own bucket rather than treating it as an unfinished to-do.
+
+   **Normalization is required on both sides.** Do not compare full URL strings — directory-entered URLs vary (`hl=en` present or absent, `&view_op=list_works` appended, `http` vs `https`, trailing `&`, mobile `citations?user=` forms). Verified against the live directory: every real Scholar URL currently on file parses cleanly under the function above — no malformed entries were found in practice — but the parser must still fail closed (return `null`, never throw) since a bad entry could appear at any time.
+
+   **Treat the ID as case-sensitive** — Scholar IDs mix case meaningfully and use both `_` and `-` (`hs_VC0kAAAAJ`, `l_2K_NgAAAAJ`, `W-E8_LwAAAAJ`). Never lowercase, never strip to alphanumerics.
 
    **If the alert's Scholar ID matches no faculty row:** the alert belongs to someone outside the roster (a departed faculty member, or a non-CHPS collaborator someone followed). **Skip it and surface it for human review. Never ingest a publication for an unknown author.**
 
@@ -233,24 +247,50 @@ To:       contact+scholar@…
 ```sql
 -- Faculty roster. Synced from the WordPress directory.
 CREATE TABLE faculty (
-  id                INTEGER PRIMARY KEY,
-  wp_id             TEXT UNIQUE,          -- WordPress post ID for this profile
-  display_name      TEXT NOT NULL,        -- "Zraick, R.I."  (citation form)
-  full_name         TEXT,                 -- "Richard I. Zraick"
-  unit              TEXT NOT NULL,        -- see UNITS below
-  scholar_url       TEXT,                 -- raw URL as stored in the WP directory
-  scholar_user_id   TEXT UNIQUE,          -- ★ THE JOIN KEY. Parsed from scholar_url.
-                                          -- e.g. "hs_VC0kAAAAJ" from
+  id                   INTEGER PRIMARY KEY,
+  wp_id                TEXT UNIQUE,       -- WordPress post ID for this profile
+  slug                 TEXT,              -- WP slug ("matt-stock") — cosmetic part of
+                                          -- /review/{slug}/{token} (§8b). NOT a credential.
+  display_name         TEXT NOT NULL,     -- "Zraick, R.I."  (citation form)
+  full_name            TEXT,              -- "Richard I. Zraick"
+  email                TEXT,              -- ★ required by §8b review emails. (Omitted from
+                                          -- an earlier draft of this plan; §8b cannot function
+                                          -- without it.)
+  unit                 TEXT,              -- ★ NULLABLE. See UNITS below and §6a. A person may
+                                          -- map to zero canonical units (e.g. Dean's Office-only
+                                          -- staff) — that is a real state to report, not an
+                                          -- error to paper over with a guessed default (§15.11).
+  research_profile_url TEXT,              -- ★ RENAMED from scholar_url. The WordPress ACF field
+                                          -- (`google_scholar`) is GENERIC — verified against the
+                                          -- live directory to also hold ResearchGate profiles,
+                                          -- an NCBI bibliography, and (once) a bare DOI entered
+                                          -- in error. Do not assume this is a Scholar URL. See
+                                          -- §5a.3.
+  scholar_user_id      TEXT UNIQUE,       -- ★ THE JOIN KEY. Parsed from research_profile_url,
+                                          -- and NULL unless that URL's host is
+                                          -- scholar.google.com. e.g. "hs_VC0kAAAAJ" from
                                           -- scholar.google.com/citations?hl=en&user=hs_VC0kAAAAJ
-                                          -- Case-sensitive. See §5a.3 for normalization.
-  researchgate_url  TEXT,
-  orcid             TEXT,
-  active            INTEGER DEFAULT 1,    -- still employed / still in directory
-  last_alert_seen_at TEXT,                -- last time an alert arrived for this scholar_user_id.
+                                          -- Case-sensitive. See §5a.3 for normalization + the
+                                          -- required hostname guard.
+  orcid                TEXT,              -- bare ORCID iD (e.g. "0000-0002-1825-0097"), parsed
+                                          -- from the directory's `orcid` ACF field, which stores
+                                          -- a full https://orcid.org/{id} URL. Extract the path
+                                          -- segment; do not store the URL. The final character
+                                          -- of a real ORCID iD can be the checksum digit "X" —
+                                          -- a parser that assumes four trailing digits will
+                                          -- silently drop those people.
+  classification       TEXT,              -- e.g. "Faculty", "Faculty|Leadership", "Leadership",
+                                          -- "Leadership|Staff" — pipe-separated, multi-valued.
+                                          -- Metadata only. NEVER used alone to decide roster
+                                          -- membership — see the amended §9 roster-inclusion rule.
+  active                INTEGER DEFAULT 1, -- still employed / still in directory
+  last_alert_seen_at    TEXT,              -- last time an alert arrived for this scholar_user_id.
                                           -- NULL + scholar_user_id present ⇒ alert likely not
                                           -- created yet. Drives the to-do list in §11.
-  last_synced_at    TEXT
+  last_synced_at        TEXT
 );
+-- REMOVED: researchgate_url. It has no independent source — ResearchGate links live inside
+-- research_profile_url, the same generic field as Scholar links. See §5a.3.
 
 -- One row per unique publication.
 CREATE TABLE publications (
@@ -377,6 +417,44 @@ Department of Health Sciences
 School of Kinesiology and Rehabilitation Sciences
 School of Social Work
 ```
+
+### ★ Deriving `faculty.unit` from the WordPress directory
+
+The directory does **not** store a faculty member's unit as a clean string. It uses a
+`departments` taxonomy, and the taxonomy is **multi-valued per person** (e.g. a faculty member
+can carry both `Physical Therapy` and `Exercise Physiology & Rehabilitation Science`) and its
+term names do **not** match the five canonical strings above. `sync-roster` must map explicitly,
+**keyed on the taxonomy term ID** — term names carry HTML entities (`&amp;`) and inconsistent
+smart-quote encoding, so name-matching is not reliable:
+
+```
+DEPARTMENT TERM ID → CANONICAL UNIT
+
+  166  communication-sciences-and-disorders  → School of Communication Sciences and Disorders
+  232  health-sciences                       → Department of Health Sciences
+   83  social-work                           → School of Social Work
+  204  kinesiology                           → School of Kinesiology and Rehabilitation Sciences
+  239  physical-therapy                      → School of Kinesiology and Rehabilitation Sciences
+  253  athletic-training                     → School of Kinesiology and Rehabilitation Sciences
+  439  center-for-autism-and-related-...     → Center for Autism and Related Disabilities
+
+NOT roundup units — ignore, never guess a mapping for these:
+   71  deans-office
+  442  exercise-physiology-rehabilitation-science   (a research area, not a home department)
+  311  communication-disorders-clinic
+  446  center-for-behavioral-health-research-and-training
+  332  faast-assistive-technology-center
+ 1208  tats
+  519  ucf-it
+```
+
+**The resolution rule:**
+- **Exactly one** canonical unit matched → that is `faculty.unit`.
+- **Zero** matched (e.g. a Dean's-Office-only person) → `faculty.unit = NULL`. Import the
+  person; report them. Do not invent a default (§15.11).
+- **Two or more** matched → this should not happen under the current map, but if it does,
+  `faculty.unit = NULL` and report it. **Never take the first term** — taxonomy array order is
+  not meaningful and must never be treated as "primary."
 
 ### ROLES (drives the bold/asterisk formatting)
 | Role value | Renders as | Meaning |
@@ -701,13 +779,41 @@ All ingestion runs in GitHub Actions, not Vercel Cron.
 
 | Job | Cadence | What it does |
 |---|---|---|
-| `sync-roster` | Daily | Pulls faculty from the WordPress REST API → upserts `faculty`. **Parses `scholar_user_id` out of each profile's Scholar URL** (§5a.3). Derives the Scholar-alert coverage to-do list (§11). |
+| `sync-roster` | Daily | Pulls people from the WordPress REST API → upserts `faculty`. **Parses `scholar_user_id` out of each profile's research-profile URL, guarding on hostname** (§5a.3). Resolves `unit` from the `departments` taxonomy term IDs (§6a). Parses `orcid` from the ORCID URL field. Derives the Scholar-alert coverage picture (§11). |
 | `ingest-scholar` | Every 6h | Gmail API → fetch unprocessed Scholar alert emails → **reject citation alerts (§5a.2)** → extract faculty/title/year → **resolve full metadata via Crossref title search** → match/merge → insert with `status='pending_merge'`, or `status='needs_metadata'` if Crossref resolution failed. Mark emails processed. |
 | `ingest-crossref` | Daily | For each active faculty member, query Crossref by author name + UCF affiliation for recent works → match/merge. |
 | `ingest-pubmed-orcid` | Daily | ORCID works list (where `orcid` present) + PubMed author search → match/merge/enrich. |
 | `release-buffer` | Every 6h | Promotes `pending_merge` records older than `MERGE_BUFFER_HOURS` → `status='published'`, sets `released_at`. |
 
 **Idempotency is required.** Every job must be safe to re-run. A re-run must never create duplicate publications or duplicate author rows. Guard with the matching logic in §7 and `UNIQUE` constraints.
+
+### ★ `sync-roster`'s inclusion rule — a correctness issue, not a style choice
+
+`sync-roster` must not decide who is "faculty" using the directory's `class`/`classification`
+taxonomy alone. Verified against the live directory, two failures follow from doing so:
+
+1. At least one active, publishing faculty member is classified **`Leadership`** only —
+   not `Faculty`. A `classification = Faculty` filter silently drops her.
+2. **The entire Center for Autism and Related Disabilities roster is classified `Staff`**,
+   not `Faculty` — yet CARD is one of the five canonical roundup units and has publications in
+   the live reference post. A classification-based filter erases an entire unit from the system.
+
+**The rule:**
+
+```
+Include a person in the roster IF:
+      classification contains 'Faculty' OR 'Leadership'
+   OR research_profile_url is non-empty
+```
+
+This is self-healing: the moment anyone — regardless of classification — adds a research
+profile link to their directory entry, they enter the roster automatically. No hardcoded
+per-person exception list to maintain.
+
+> CARD may sync to zero roster members under this rule, until someone in that unit adds a
+> profile link or its classification changes. **That must be surfaced loudly** in the coverage
+> report (§11) as "canonical unit with zero roster members" — not discovered later as an empty
+> section in a published post (§15.11).
 
 ---
 
@@ -739,18 +845,32 @@ callAI({
 
 Creating a Google Scholar alert for an author is a **manual click** on a logged-in user's account. Scholar exposes no API for it. There is no supported way to auto-subscribe.
 
-**The good news: coverage detection is fully automatic.** Because `sync-roster` parses `scholar_user_id` out of each directory profile's Scholar URL, and because every incoming alert carries that same ID in its footer link, the system can derive alert coverage without a human maintaining a checklist:
+**The good news: coverage detection is fully automatic.** Because `sync-roster` parses `scholar_user_id` out of each directory profile's research-profile URL, and because every incoming alert carries that same ID in its footer link, the system can derive alert coverage without a human maintaining a checklist:
 
 | Condition | Meaning | Admin surfaces it as |
 |---|---|---|
 | `scholar_user_id` present, `last_alert_seen_at` NULL | Directory has a Scholar profile, but we've never received an alert from it | **"Alert likely not created yet"** — someone should create it |
 | `scholar_user_id` present, `last_alert_seen_at` recent | Working as intended | — |
-| `scholar_url` present but `scholar_user_id` NULL | The URL in the directory isn't a parseable Scholar profile link (typo, wrong link type, shortened URL) | **"Fix this directory link"** |
-| No `scholar_url` at all | Faculty member has no Scholar profile linked in the directory | **"No Scholar coverage"** — this person's work will only be found via Crossref/PubMed/ORCID |
+| ★ `research_profile_url` present, but its host is **not** `scholar.google.com` | Faculty uses ResearchGate, an NCBI bibliography, or similar — verified to be real and non-trivial in the current directory | **"No Scholar coverage — profile is not Google Scholar."** ★ **Not actionable. This is a permanent fact, not a to-do.** There is no Google Scholar alert to create for someone who has no Google Scholar profile. This person is Crossref/PubMed/ORCID-only, and that is fine — do not prompt anyone to "fix" it. |
+| `research_profile_url` present but unparseable as any known profile type | The URL in the directory is broken (typo, wrong link type, shortened URL, or — an actual case found in the live directory — a bare journal-article DOI pasted into the profile field by mistake) | **"Fix this directory link"** |
+| No `research_profile_url` at all | Nobody has a profile linked in the directory | **"No Scholar coverage"** — this person's work will only be found via Crossref/PubMed/ORCID |
 
-The COMMS admin renders this as a coverage to-do list. A human clicks Follow on Scholar for anyone in the first bucket; nothing else needs recording, because the next alert that arrives will self-identify by ID and set `last_alert_seen_at` automatically.
+The COMMS admin renders this as a coverage picture. A human clicks Follow on Scholar for anyone in the first bucket; nothing else needs recording, because the next alert that arrives will self-identify by ID and set `last_alert_seen_at` automatically.
+
+> ### ⚠️ Do not collapse the middle bucket into "alert not created"
+> The single most important change to this table: a faculty member whose research profile is
+> ResearchGate or an NCBI bibliography is **not** in the same state as someone who simply
+> forgot to create a Scholar alert. Presenting both as the same to-do item sends a human on a
+> pointless errand — you cannot create a Google Scholar alert for a Google Scholar profile that
+> does not exist. Keep these as five distinct buckets, and word the non-Scholar-profile bucket
+> as a fact the admin should know, not a task it should chase (§15.11).
 
 > **Caveat on the NULL-alert signal:** a faculty member with a valid Scholar profile and an active alert who simply hasn't published recently will *also* show `last_alert_seen_at = NULL`. Absence of an alert is weak evidence, not proof, that the alert doesn't exist. Present this bucket as "likely not created — please verify," not as a definitive error. It's a prompt for a human to check, not an assertion.
+
+> **Also surface, prominently: any canonical unit (§6 UNITS) with zero roster members.** This
+> is a distinct, more serious signal than an individual coverage gap — it means an entire
+> section of the roundup has no faculty linked to populate it. See the amended §9 roster rule;
+> Center for Autism and Related Disabilities is a real, currently-standing example of this.
 
 **Do not build browser automation to click Scholar's Follow button.** It is fragile, breaks when Scholar's UI changes, risks bot-detection on an account used daily, and is against ToS. The derived to-do list is the correct, honest solution. It's a handful of clicks per new hire.
 
@@ -805,8 +925,9 @@ Build in this order. Each phase should be independently verifiable before moving
 3. Citation formatter (author roles → bold/asterisks; record → citation HTML) + unit tests. **This is the highest-value pure function in the system.** Test it against real citations from the live roundup post.
 
 **Phase 2 — Roster**
-4. `sync-roster` job: WordPress REST API → `faculty` table, including **`scholar_user_id` parsing + normalization** (§5a.3). Test against the real variety of Scholar URLs actually present in the directory — expect `hl=en` variants, `view_op` params, and at least a few malformed entries.
-5. Scholar-alert coverage detection (§11)
+4. `sync-roster` job: WordPress REST API → `faculty` table, including **`scholar_user_id` parsing + normalization with a hostname guard** (§5a.3), **unit derivation from department taxonomy term IDs** (§6a), and **ORCID iD extraction from the profile URL field**. Test against the real variety of research-profile URLs actually present in the directory — Scholar URLs verified to parse cleanly (no malformed entries found in practice, but fail closed regardless); non-Scholar hosts (ResearchGate, NCBI, and one bare DOI entered in error) must all resolve `scholar_user_id` to `null`.
+   - ★ **Given-name normalization is a separate, tested pure function**, built before the citation-name builder that depends on it. The directory's first-name field is not a clean given name — it contains middle initials, parenthetical/quoted nicknames, middle names, and non-ASCII apostrophes (verified: roughly 1 in 10 records). An exact-match lookup against an external API (ORCID, Crossref) using the raw field will silently fail for those people. Where a citation name can't be built with confidence (compound or hyphenated surnames, particles, suffixes), flag it for human review rather than guessing — a wrong name is a visible public error; a flagged one is a five-second fix.
+5. Scholar-alert coverage detection (§11), including the roster-inclusion rule in §9 — verify it against a person classified `Leadership`-only and against the Center for Autism unit, which is expected to have zero roster members under a naive classification filter.
 
 **Phase 3 — Ingestion**
 6. Matching + merge engine (§7) — pure, testable, no I/O
@@ -863,3 +984,4 @@ Build in this order. Each phase should be independently verifiable before moving
 12. **Ask the only person who knows.** Student status lives in exactly one place: the memory of the faculty member who supervised them. Design the ask to be narrow, plain-language, and pointed at that person — not at COMMS, who would only be guessing.
 13. **Never ask someone for nothing.** Only email a faculty member when they actually have something to review. A "you have 0 items" email teaches people to ignore the next one, and the next one is the one that matters.
 14. **Give every wrong answer an exit.** Name matching produces false positives; if the review page can only *confirm* and *add*, a wrongly-attributed paper is permanent. "This isn't my paper" is as important as "yes, that's my student."
+15. **Don't present a permanent fact as an open task.** Some gaps are closeable (create a Scholar alert; fix a broken directory link). Others are not (a faculty member's chosen research profile is ResearchGate, not Google Scholar; a unit's roster is genuinely empty in the directory). Collapsing the two into one to-do list sends a human chasing something that cannot be fixed. Say plainly which is which — see the amended §11.
