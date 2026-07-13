@@ -232,20 +232,53 @@ entry, they enter the roster automatically. No hardcoded allowlist to maintain.
 
 ---
 
-## 8. Counts (July 2026 export, faculty-classified only)
+## 8. Counts
+
+**Superseded by a live `sync-roster` run, July 2026.** The table below is what the CSV exports
+predicted; the one after it is what the actual WordPress→Turso sync produced. Trust the second
+one — it is the system, not a sample.
+
+### 8a. Live sync-roster result (authoritative)
+
+| | Count |
+|---|---|
+| Faculty+Leadership synced into `faculty` | **129** |
+| with `scholar_user_id` populated | **50** |
+| with `orcid` populated | **47** |
+| second run (idempotency check) | 0 inserted, 0 deactivated ✅ |
+
+Matches the export-based prediction closely enough to confirm the hostname guard is working
+(50, not ~55 — i.e. not over-matching ResearchGate/NCBI/DOI links as Scholar profiles) and the
+roster filter is working (129, not 124 — i.e. Ann Eddins and Leadership-classified people are
+correctly included).
+
+> **These numbers will keep drifting** — every time a faculty member adds or changes a profile
+> link, they move. Don't treat 50 or 47 as a fixed target for future runs; treat "close to the
+> last known-good figure, and moving in a sane direction" as the real signal. A big jump toward
+> 55+ on Scholar specifically would still indicate a regressed hostname guard.
+
+> **Still outstanding — do this once, by hand, before treating the join key as fully proven:**
+> open one real synced faculty member's actual Google Scholar profile in a browser and confirm
+> the `user=` parameter matches `faculty.scholar_user_id` character-for-character, including
+> capitalization. Querying the database back against itself (which the acceptance check does)
+> proves internal consistency, not correctness against the live outside world — only a human
+> eyeballing the real page closes that gap.
+
+### 8b. Original CSV-export estimate (historical — kept for context only)
 
 | | Count | of 124 |
 |---|---|---|
-| Faculty+Leadership in the export | 129 | |
+| Faculty+Leadership in the export | 124 (later 129 once Leadership was included) | |
 | with a research-profile URL | 55 | 44% |
-| …of which are **Google Scholar** (→ `scholar_user_id`) | **49** | 40% |
+| …of which are **Google Scholar** | 49 | 40% |
 | …of which are another host (ResearchGate / NCBI / bad link) | 6 | 5% |
-| with an **ORCID iD** | **47** | 38% |
-| ★ **with NEITHER Scholar nor ORCID** | **59** | **48%** |
+| with an **ORCID iD** | 47 | 38% |
+| ★ **with NEITHER Scholar nor ORCID** | 59 | 48% |
 
-No duplicate `scholar_user_id` values — the `UNIQUE` constraint will not trip on current data.
+No duplicate `scholar_user_id` values were found in the export, and the live sync confirms the
+`UNIQUE` constraint did not trip.
 
-**By unit:**
+**By unit (export-based estimate — not yet re-derived from the live sync):**
 
 | Unit | Faculty | Scholar | ORCID |
 |---|---|---|---|
@@ -255,23 +288,21 @@ No duplicate `scholar_user_id` values — the `UNIQUE` constraint will not trip 
 | Department of Health Sciences | 20 | 11 | 4 |
 | **Center for Autism and Related Disabilities** | **0** | 0 | 0 |
 
-> ⚠️ **Confirmed across three separate exports (May 27 → two July pulls).** CARD is not an
-> export artifact — it is a standing, real gap. Escalate to CARD directly; do not wait on
-> another directory export to reveal it.
+> ⚠️ **Confirmed across three separate exports (May 27 → two July pulls) AND the live
+> `sync-roster` coverage report.** CARD is not an export artifact — it is a standing, real gap.
+> Escalate to CARD directly; do not wait on another directory export or sync run to reveal it.
 
-> **Read these numbers before trusting the pipeline.** Nearly half the faculty have no
+> **Read these numbers before trusting the pipeline.** Roughly half the faculty have no
 > machine-readable identifier at all. Those people are discoverable only by Crossref *name
 > search* — the weakest and most false-positive-prone path in the system (§7 of the master
 > plan). The roundup will under-report them, and the review page (§8b) is where that gets
 > caught. Do not mistake "the job ran clean" for "we found everyone."
 
-**Acceptance-check tripwires for Session 4:**
-- `scholar_user_id` should be populated for **~49** faculty. If it comes back **~55**, the
-  hostname guard in `scholarUserId()` is missing and ResearchGate/NCBI/DOI URLs are being
-  treated as Scholar profiles.
-- Total roster should be **~126**, not 124 — the filter in §7 must pick up Ann Eddins
-  (`Leadership`-only) and any CARD staff who have since added a profile link. If you get
-  exactly 124, the filter is class-based and wrong.
+**Acceptance-check tripwires — RESOLVED as of the live Session 4 run (kept for reference):**
+- `scholar_user_id` came back at 50 — within a few of the ~49 estimate, not near 55+. Hostname
+  guard confirmed working.
+- Total roster came back at 129 — matches the Faculty+Leadership export, not the
+  Faculty-classification-only figure of 124. Roster filter confirmed working.
 
 ---
 
@@ -502,11 +533,13 @@ Classification    : Leadership|Staff
 → Same `unit = NULL` path. Also exercises multi-valued classification with `Staff` present —
   confirms `classification` must never be parsed as a single enum value.
 
-> **Still not present in ANY export pulled so far: any Center for Autism and Related
-> Disabilities person.** All 23 CARD directory entries remain classed `Staff` with no research
-> profile URL. This is not a script or filter problem — it is a real, standing gap in CHPS's
-> data. **Escalate directly to CARD** rather than expecting the next people-export to surface
-> it; three consecutive exports have not.
+> **Never present in a CSV export, but confirmed live via direct REST query:** Fabiola Gomez,
+> `departments: [439]` (Center for Autism and Related Disabilities), classed `Staff`, with an
+> empty `orcid` field and no `research_profile_url`. Pulled directly from the live
+> `/wp/v2/person` endpoint during Session 4 verification — not from a people-export, which is
+> notable in itself: CARD staff don't surface in the exports COMMS normally pulls, only in a
+> raw API query. This is not a script or filter problem — it is a real, standing gap in CHPS's
+> data, now confirmed by a named, live example. **Escalate directly to CARD.**
 
 ---
 

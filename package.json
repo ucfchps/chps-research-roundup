@@ -8,6 +8,8 @@
     "start": "next start",
     "migrate": "tsx db/migrate.ts",
     "check:ai": "tsx scripts/check-ai.ts",
+    "sync:roster": "tsx scripts/sync-roster.ts",
+    "report:coverage": "tsx scripts/coverage-report.ts",
     "test": "vitest run"
   },
   "dependencies": {
