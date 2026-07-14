@@ -777,7 +777,7 @@ Track `opened_at` and `completed_at` so COMMS can see who has and hasn't respond
   > ⚠️ *14 publications have unreviewed co-authors (`unknown`). They will publish with no student asterisks.*
   > ⚠️ *3 publications have no linked CHPS faculty author and will not appear in any unit section.*
   > ⚠️ *6 faculty were sent review links and haven't responded.*
-  > ⚠️ *2 publications have pagination that no longer matches Crossref's current record for that DOI (`refresh-metadata` found a mismatch on an already-populated field and did not overwrite it — confirmed real case: a citation stored with pages "1–9" whose DOI now resolves to "82-90" in Crossref, i.e. provisional early-view pagination superseded by the final print version). Review and update manually if the citation should reflect final pagination.*
+  > ⚠️ *2 publications have a volume, issue, or pages value that no longer matches Crossref's current record for that DOI (`refresh-metadata` found a mismatch on an already-populated field and did not overwrite it — confirmed real cases: a citation stored with pages "1–9" whose DOI now resolves to "82-90" in Crossref (provisional early-view pagination superseded by the final print version), and a citation stored with issue "8" whose DOI now resolves to issue "4"). Review and update manually if the citation should reflect Crossref's current value.*
 
   Each links to the affected records so COMMS can chase them or knowingly accept.
 - **On finalize:** insert a `roundups` row (label, timestamp, count, exact HTML) and stamp `roundup_id` on every included publication. They become permanently ineligible for future editions (§6b). Expire any outstanding review tokens for this cycle.

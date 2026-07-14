@@ -13,7 +13,12 @@ describe("runMigrations", () => {
 
     try {
       const firstRun = await runMigrations(client, migrationsDir);
-      expect(firstRun).toEqual(["001_initial.sql", "002_faculty_corrections.sql"]);
+      expect(firstRun).toEqual([
+        "001_initial.sql",
+        "002_faculty_corrections.sql",
+        "003_metadata_mismatches.sql",
+        "004_metadata_mismatches_issue.sql",
+      ]);
 
       const tables = await client.execute(
         "SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'publications'"
