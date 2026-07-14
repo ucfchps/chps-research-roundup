@@ -2,9 +2,18 @@
 
 **Status:** Source of truth. Read this before writing any code.
 **Owner:** Web Developer, UCF College of Health Professions and Sciences (CHPS)
-**Last updated:** July 2026 — amended post-WordPress-verification (ahead of Session 4). See
-§5a.3, §6, §6a, §9, §11 for what changed and why. Sessions 1–3 are unaffected; a corrective
-migration (Session 3.5) brings the already-applied schema in line with these amendments.
+**Last updated:** July 2026 — amended post-WordPress-verification (ahead of Session 4),
+again post-Crossref-recon (ahead of Session 6), again after confirming two live Crossref
+fixture pulls, and a final time after confirming all ten fixture cases against the live
+reference post. See §5a.3, §6, §6a, §9, §11 for the WordPress-verification changes; §5
+(Layer 2), §8c Tab 4, §9, §12 for the first round of Crossref additions (`CROSSREF_MAILTO`,
+affiliation-as-tiebreaker, the `refresh-metadata` job); §5 (Layer 2) again for the
+preprint-supersession finding; and §9, §8c Tab 4, §15.8 for the final round — widening
+`refresh-metadata`'s detection to catch non-null pagination mismatches (flag only, never
+overwrite) and clarifying that a title-drifted query correctly landing in `needs_metadata`
+is accepted behavior, not a bug to engineer around. Sessions 1–3 are unaffected; a
+corrective migration (Session 3.5) brings the already-applied schema in line with the
+WordPress-verification amendments.
 
 ---
 
@@ -128,6 +137,12 @@ Therefore:
 - This covers the large "publisher sites" bucket (SAGE, T&F, MDPI, Springer, IEEE, physiology journals, etc.) without needing biomedical subject indexing.
 - Query by author name + affiliation, and/or resolve DOIs discovered by other layers into clean, complete citation metadata.
 - **Crossref is the preferred source of truth for citation metadata** (journal, volume, issue, pages, year) whenever a DOI is available, because it is structured and reliable. Prefer Crossref metadata over Scholar-parsed metadata when both exist for the same paper.
+
+> **★ Affiliation is a tiebreaker, never a requirement.** Crossref records frequently carry an `affiliation` on each author (e.g. `"University of Central Florida, Orlando, FL, USA"`). Where present, a UCF affiliation is useful corroboration when two title-search candidates otherwise clear the resolver's acceptance gate (§5a rule 7) — it is the cheapest available defense against a common-surname false positive (§8b). **But it is inconsistently populated: many legitimate Crossref records carry an empty `affiliation` array.** Use it to break ties between candidates that both already pass the title/year/surname gate. **Never require it, and never reject a candidate for lacking it** — doing so would silently drop real papers whose publisher didn't submit affiliation data.
+
+> **★ A preprint must never shadow its own published version.** Crossref indexes preprints (`type: posted-content` — SSRN, arXiv, etc.) as fully separate records from the eventual peer-reviewed publication. A preprint's title is normally the exact wording originally submitted, while the published version's title is often edited by the journal during peer review — so the preprint frequently scores **higher** in a Crossref title search than the actual journal article, and can clear the resolver's exact-normalized-title gate when the edited, published title cannot. Left unhandled, the resolver silently accepts a preprint DOI (no journal name, no volume/issue/pages, `type: posted-content`) while the real, fully-populated journal-article record sits one slot lower in the exact same API response.
+> Verified against a live case: a Slavych et al. paper on the reference roundup post is cited as appearing in *Health Education Journal*. Crossref's top-ranked hit for that title is the SSRN preprint (`10.2139/ssrn.4930891`, exact title match, no journal). The second-ranked hit is the actual *Health Education Journal* article (`10.1177/00178969251328913`, full volume/issue/pages) — but its Crossref title was edited during review, so it fails the exact-match gate that the preprint passes.
+> **The fix:** before finalizing on any `posted-content` candidate, scan the *full* candidate list returned by the search — not just the ones that already cleared the exact-title gate — for a candidate whose author surnames match, in the same order, regardless of whether its title clears the exact-match threshold. If one exists, prefer that non-preprint candidate's metadata over the preprint. Only accept the preprint if no such candidate appears among the returned results.
 
 ### Layer 3 — PubMed / ORCID — ENRICHMENT
 - **PubMed (NCBI E-utilities):** free, no key. Strong for the clinical/health-sciences half of the college. Use for enrichment (abstracts, MeSH terms) and as a coverage cross-check — **not** as the primary gate.
@@ -732,6 +747,7 @@ Track `opened_at` and `completed_at` so COMMS can see who has and hasn't respond
 - Revoke a link if needed.
 
 **Tab 4 — Roundup generator**
+- **★ Refresh before you generate.** Before computing eligibility, run `refresh-metadata` (§9) over the eligible set. Ahead-of-print articles resolve from Crossref with a DOI, a full author list, and a full journal name — but with **no volume, issue, or pages**, because the publisher hasn't assigned them yet. Such a record passes the resolver's acceptance gate, reaches `status = 'published'`, and is roundup-eligible while still structurally incomplete. Because this tab's finalize step stamps `roundup_id` **permanently** (§6b), publishing one in that state freezes the incomplete citation forever — the paper can never appear in a later edition, even after the publisher assigns full pagination a month later. This is not a hypothetical: the first title resolved during the Crossref-resolver build (Stock et al., *Exercise and Sport Sciences Reviews*, 2026) was exactly this shape. The refresh is a handful of Crossref calls per edition, it's idempotent, and it should report what it changed alongside the other pre-flight warnings below.
 - Inputs: post title, intro paragraph, legend line, **end date (cutoff)**, and an edition label (e.g. "Spring and Summer 2025").
 - **Eligibility (§6b):** `status = 'published'` AND `roundup_id IS NULL` AND `date_added <= end_date`. **There is no start date** — "not yet posted" is the start boundary.
 - Shows the eligible count and the implicit start boundary before generating: *"142 publications collected since the last roundup (Oct 17, 2025)."*
@@ -761,6 +777,7 @@ Track `opened_at` and `completed_at` so COMMS can see who has and hasn't respond
   > ⚠️ *14 publications have unreviewed co-authors (`unknown`). They will publish with no student asterisks.*
   > ⚠️ *3 publications have no linked CHPS faculty author and will not appear in any unit section.*
   > ⚠️ *6 faculty were sent review links and haven't responded.*
+  > ⚠️ *2 publications have pagination that no longer matches Crossref's current record for that DOI (`refresh-metadata` found a mismatch on an already-populated field and did not overwrite it — confirmed real case: a citation stored with pages "1–9" whose DOI now resolves to "82-90" in Crossref, i.e. provisional early-view pagination superseded by the final print version). Review and update manually if the citation should reflect final pagination.*
 
   Each links to the affected records so COMMS can chase them or knowingly accept.
 - **On finalize:** insert a `roundups` row (label, timestamp, count, exact HTML) and stamp `roundup_id` on every included publication. They become permanently ineligible for future editions (§6b). Expire any outstanding review tokens for this cycle.
@@ -784,6 +801,7 @@ All ingestion runs in GitHub Actions, not Vercel Cron.
 | `ingest-crossref` | Daily | For each active faculty member, query Crossref by author name + UCF affiliation for recent works → match/merge. |
 | `ingest-pubmed-orcid` | Daily | ORCID works list (where `orcid` present) + PubMed author search → match/merge/enrich. |
 | `release-buffer` | Every 6h | Promotes `pending_merge` records older than `MERGE_BUFFER_HOURS` → `status='published'`, sets `released_at`. |
+| `refresh-metadata` | Daily | ★ For every publication with a DOI, `roundup_id IS NULL`, and a null `volume` or `pages`, re-resolve via `resolveByDoi` and fill the gaps. Catches ahead-of-print records ingested before the publisher assigned volume/issue/pages (see the amended §8c Tab 4). Never overwrites a non-null field, and never overwrites a field a human set via the review page (§8b) — same provenance check as `mergeMetadata` (§7). Never touches a publication with `roundup_id` already set — that edition is archived and settled (§6b). **★ Detection is wider than the fix:** the job also re-resolves publications whose `volume`/`pages` are already non-null, to check whether Crossref's current record disagrees with what's stored (confirmed real case: a live-post citation showed pages "1–9" while Crossref's authoritative record showed "82-90" — provisional early-view pagination that was later superseded). When a mismatch is found on an already-populated field, the job does **not** overwrite it — that would risk clobbering a value a human corrected — it only logs the discrepancy for the §8c Tab 4 pre-flight warnings, so a person decides whether to update it. |
 
 **Idempotency is required.** Every job must be safe to re-run. A re-run must never create duplicate publications or duplicate author rows. Guard with the matching logic in §7 and `UNIQUE` constraints.
 
@@ -901,6 +919,9 @@ REVIEW_EMAIL_REPLY_TO=        # a real person in COMMS who can field "this isn't
 # WordPress directory
 WP_DIRECTORY_API_URL=
 
+# Crossref (§5 Layer 2) — polite pool. No key required.
+CROSSREF_MAILTO=
+
 # Admin auth
 ADMIN_PASSWORD=               # or hash
 SESSION_SECRET=
@@ -931,7 +952,7 @@ Build in this order. Each phase should be independently verifiable before moving
 
 **Phase 3 — Ingestion**
 6. Matching + merge engine (§7) — pure, testable, no I/O
-7. **Crossref resolver** — `resolveByTitle(title, year, surnameHint) → full citation metadata | null`. Build and test this **before** the Scholar ingester, which depends on it (§5a rule 7). Test against real titles from the live roundup post, including at least one that should *fail* to resolve (gray literature) so the `needs_metadata` path is proven.
+7. **Crossref resolver** — `resolveByTitle(title, year, surnameHint) → full citation metadata | null`, plus `resolveByDoi` and the `refresh-metadata` job (§9). Build and test the resolver **before** the Scholar ingester, which depends on it (§5a rule 7). Test against real titles from the live roundup post, including at least one that should *fail* to resolve (gray literature) so the `needs_metadata` path is proven. *(Split across two Claude Code sessions: Session 6 builds the resolver itself; Session 7 builds `refresh-metadata`, which depends on Session 6's `resolveByDoi` — same reasoning as splitting `ingest-crossref` from `ingest-scholar` below, one deliverable per session.)*
 8. `ingest-crossref` (roster-driven author search — proves the merge engine end to end)
 9. `ingest-scholar` (Gmail API → citation-alert rejection → title/year/faculty extraction → Crossref resolution → `pending_merge` or `needs_metadata`)
 10. `ingest-pubmed-orcid`
@@ -977,7 +998,7 @@ Build in this order. Each phase should be independently verifiable before moving
 5. **Provider-agnostic.** Assume every free tier will change. Abstract the AI layer; log the usage.
 6. **The citation formatter is the product.** Everything else is plumbing that feeds it.
 7. **Separate discovery from resolution.** Scholar tells us *a paper exists*. Crossref tells us *what the paper is*. Never let a discovery source masquerade as a metadata source — a truncated author list silently drops co-authors, and dropped co-authors are exactly the failure this system exists to prevent.
-8. **Fail closed on ambiguity.** A citation alert misread as an authorship alert publishes someone else's paper under a CHPS faculty member's name. When the parser isn't sure, it skips and flags rather than guessing.
+8. **Fail closed on ambiguity.** A citation alert misread as an authorship alert publishes someone else's paper under a CHPS faculty member's name. When the parser isn't sure, it skips and flags rather than guessing. **This includes title matching:** if a query title has drifted enough from Crossref's registered title that the resolver's exact-match gate can't confirm it (confirmed real case: a live-post citation phrased "acute compared to chronic," Crossref's registered title said "acute and chronic" — the same paper, confirmed by DOI and author list, but a genuine wording difference), the correct behavior is to return `null` and route to `needs_metadata`, not to loosen the gate so more titles squeeze through. A human completing one flagged record is a far smaller cost than the gate someday accepting a wrong paper.
 9. **Derive, don't store, what can be computed.** Units come from authors. Don't let a stored `unit` field drift out of sync with the author list — that's how the same paper ends up bolded differently in two sections of the same post.
 10. **Make double-posting impossible, not merely unlikely.** `roundup_id` is a permanent stamp. A human should not have to remember what went out last time.
 11. **Surface invisible failures.** A missing publication complains loudly (the faculty member notices). A missing student asterisk complains not at all — it just quietly under-credits someone in a public post. Anywhere the system can fail *silently*, it must instead produce a count a human can see: `unknown` roles, unlinked authors, `needs_metadata` stubs, faculty with no Scholar coverage. **Never default a gap to something that looks like a decision.**
