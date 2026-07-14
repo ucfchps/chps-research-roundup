@@ -8,6 +8,7 @@
     "start": "next start",
     "migrate": "tsx db/migrate.ts",
     "check:ai": "tsx scripts/check-ai.ts",
+    "check:crossref": "tsx scripts/check-crossref.ts",
     "sync:roster": "tsx scripts/sync-roster.ts",
     "report:coverage": "tsx scripts/coverage-report.ts",
     "test": "vitest run"

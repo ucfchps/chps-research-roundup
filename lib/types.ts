@@ -116,6 +116,28 @@ export interface Roundup {
   html: string;
 }
 
+// Result of the Crossref resolver (lib/crossref.ts, §5a rule 7). Author
+// names and order only — role/faculty_id are roster-matching concerns that
+// belong to the merge engine (§7), never to resolution.
+export interface CrossrefResolutionAuthor {
+  name: string;
+  position: number;
+  affiliation?: string;
+}
+
+export interface CrossrefResolution {
+  doi: string;
+  title: string;
+  url: string;
+  journal: string | null;
+  year: number | null;
+  volume: string | null;
+  issue: string | null;
+  pages: string | null;
+  type: string;
+  authors: CrossrefResolutionAuthor[];
+}
+
 export interface UsageLog {
   id: number;
   app_name: string;

@@ -1,0 +1,265 @@
+[
+  {
+    "id": 1,
+    "label": "★ CONFIRMED — full journal name in post, real issue-number discrepancy found",
+    "unit": "School of Communication Sciences and Disorders",
+    "fixture": "crossref/01-weerathunge-vocal-motor-control.json",
+    "input": {
+      "title": "Characterization of Vocal Motor Control Using Laryngeal Kinematics in Individuals with Hyperfunctional Voice Disorders",
+      "year": 2025,
+      "surnameHint": "Weerathunge"
+    },
+    "expect": "resolve",
+    "confirmed": true,
+    "published_citation": "Weerathunge, H.R., Vojtech, J.M., Dunsmuir, C.J., Cocroft, S.J., Diaz-Cadiz, M.E., McKenna, V.S., and Stepp, C.E. (2025). Characterization of Vocal Motor Control Using Laryngeal Kinematics in Individuals with Hyperfunctional Voice Disorders. Journal of Speech, Language, and Hearing Research, 8(68), 1743-1757.",
+    "expected_doi": "10.1044/2025_jslhr-24-00598",
+    "notes": [
+      "★ CONFIRMED via real curl (2026-07-14). Top hit, exact title match (case aside), type journal-article. Author list matches exactly and in order: Weerathunge (first, ORCID), Vojtech, Dunsmuir, Cocroft, Díaz-Cádiz, McKenna (co-affiliated with UCF CSD — confirming this paper's CHPS link), Stepp.",
+      "Crossref's real volume/issue are 68/4, and pages are 1743-1757 (pages match the post exactly). The post's '8(68)' is simply wrong on the issue number — not a volume/issue transposition (that would give issue 68, not 4), just an incorrect issue figure. Worth flagging to COMMS as a live-post data-quality item, not something to silently correct in the fixture.",
+      "short-container-title is confirmed as 'J Speech Lang Hear Res'. The response's container-title field for this specific item fell inside a very long truncated reference list in the captured JSON — likely 'Journal of Speech, Language, and Hearing Research' given standard ASHA naming, but not independently re-verified byte-for-byte in this pass. Worth a quick manual double-check if 100% certainty matters before locking in the short-vs-full-title assertion for this case."
+    ]
+  },
+  {
+    "id": 2,
+    "label": "★ CONFIRMED — gray literature, professional-society position-statement PDF (required case)",
+    "unit": "Department of Health Sciences",
+    "fixture": "crossref/02-caldwell-sbm-position-statement.json",
+    "input": {
+      "title": "The Society of Behavioral Medicine Supports Efforts to Decrease Health Disparities Experienced by Persons with Intellectual and Developmental Disabilities",
+      "year": 2025,
+      "surnameHint": "Brazendale"
+    },
+    "expect": "null",
+    "confirmed": true,
+    "published_citation": "Caldwell, A., Brazendale, K., Richard, E., Vellody, K., & Bowling, A. (2025). The Society of Behavioral Medicine Supports Efforts to Decrease Health Disparities Experienced by Persons with Intellectual and Developmental Disabilities. Society of Behavioral Medicine Position Statement.",
+    "expected_doi": null,
+    "notes": [
+      "★ CONFIRMED via real curl (2026-07-14). All 5 returned candidates are unrelated works — a 2022 nursing senior thesis on a similar topic (different single author, Tulsi Patel), an unrelated 2017 book chapter on rural youth behavioral health, and two Elsevier book/chapter records literally titled 'Health Disparities and Intellectual Disabilities' from 2015 with no listed authors at all. None mention Caldwell or Brazendale in any author field. This is the cleanest possible confirmation of the gray-lit / needs_metadata path — the position statement genuinely has no Crossref DOI."
+    ]
+  },
+  {
+    "id": 3,
+    "label": "★ CONFIRMED — preprint outranks its own published version (was: gray-lit, ambiguous)",
+    "unit": "School of Communication Sciences and Disorders",
+    "fixture": "crossref/03-slavych-online-resources-asd.json",
+    "input": {
+      "title": "Assessment of Online Resources and Education Materials Relating to Autism Spectrum Disorder",
+      "year": 2025,
+      "surnameHint": "Zraick"
+    },
+    "expect": "resolve",
+    "verify_by_hand": false,
+    "confirmed": true,
+    "published_citation": "Slavych, B.K., **Oliver, C., McIntyre, N. & Zraick, R.I. (2025). Assessment of Online Resources and Education Materials Relating to Autism Spectrum Disorder. Health Education Journal.",
+    "expected_doi": "10.1177/00178969251328913",
+    "reject_doi": "10.2139/ssrn.4930891",
+    "notes": [
+      "★ CONFIRMED via real curl (2026-07-14) — this was originally logged as a candidate gray-lit case ('verify by hand'). It is not gray literature at all: it's genuinely published, in exactly the journal the live post names.",
+      "Crossref's #1-ranked hit (score 59.1) for this exact query title is the SSRN preprint: DOI 10.2139/ssrn.4930891, type 'posted-content', title an EXACT match to the query, posted 2024, no journal/volume/pages. The #2-ranked hit (score 45.6) is the actual peer-reviewed article: DOI 10.1177/00178969251328913, type 'journal-article', container-title 'Health Education Journal' (exact match to the post), volume 84, issue 5, pages 558-573, published-online 2025-03-29. Full author list with UCF CSD affiliations confirmed: Slavych, Oliver, McIntyre, Zraick — matching the post's byline exactly.",
+      "The published version's Crossref title reads 'Online resources and educational materials relating to autism spectrum disorder' — edited during peer review, dropping 'Assessment of' and changing capitalization. That's why it scores LOWER and fails a naive exact-normalized-title gate, while the untouched preprint title passes it outright.",
+      "This is now the required test case for the resolver's preprint-supersession check (Session 6 prompt, acceptance-gate step 2b): assert the resolver returns 10.1177/00178969251328913, never 10.2139/ssrn.4930891, even though only the preprint's title clears the exact-match gate on its own.",
+      "Also carries a `**` grad-student co-author (Oliver, C.) in the post's own byline — useful if this fixture is ever reused for a citation-formatter test alongside the Crossref one."
+    ]
+  },
+  {
+    "id": 4,
+    "label": "★ CONFIRMED — missing volume/issue/pages in the published citation (required case)",
+    "unit": "School of Social Work",
+    "fixture": "crossref/04-vothschrag-domestic-violence-housing.json",
+    "input": {
+      "title": "Family Health and Wellbeing in Domestic Violence Transitional Housing: Service Provider Perspectives",
+      "year": 2025,
+      "surnameHint": "Backes"
+    },
+    "expect": "resolve",
+    "confirmed": true,
+    "published_citation": "Voth Schrag, R., O'Connor, J., Leibovits, I., Wood, L., & Backes, B. (2025). Family Health and Wellbeing in Domestic Violence Transitional Housing: Service Provider Perspectives. Families in Society, 0(0).",
+    "expected_doi": "10.1177/10443894251339853",
+    "notes": [
+      "★ CONFIRMED via real curl (2026-07-14). Exact title match, type journal-article, full author list matches in order including both UCF authors: Leibovits (PhD, UCF, ORCID) and Backes (associate professor, UCF, ORCID).",
+      "Crossref itself has no volume, issue, or page for this DOI — genuinely ahead-of-print, matching the post's own '0(0)' SAGE placeholder. Good confirming case (distinct publisher, SAGE) alongside the Ovid/ESSR case already used to design refresh-metadata."
+    ]
+  },
+  {
+    "id": 5,
+    "label": "★ CONFIRMED — common surname false-positive case ('Lee'), plus a real wrong-page finding",
+    "unit": "Department of Health Sciences",
+    "fixture": "crossref/05-lee-covid-racial-differences.json",
+    "input": {
+      "title": "Racial and Ethnic Differences in How Mental Health, Alcohol and Drug Use, and Financial Condition Were Affected by COVID-19",
+      "year": 2025,
+      "surnameHint": "Lee"
+    },
+    "expect": "resolve",
+    "confirmed": true,
+    "published_citation": "Lee, Y.H., Tran, H.*, Lin, P.Y., Shelley, M., & Chang, Y.C. (2025). Racial and Ethnic Differences in How Mental Health, Alcohol and Drug Use, and Financial Condition Were Affected by COVID-19. Journal of Substance Use, 1–9.",
+    "expected_doi": "10.1080/14659891.2025.2460803",
+    "notes": [
+      "★ CONFIRMED via real curl (2026-07-14). Massive score lead (75.9 vs. next-best 42.3) — an unambiguous top hit. Exact title match, author list matches in order: Yen-Han Lee (first, UCF), Huyen Tran, Pei-Ying Lin, Mack Shelley, Yen-Chang Chang.",
+      "★ 'Lee' is the exact surname §8b calls out as the common-surname risk. This post has at least two distinct CHPS faculty publishing as 'Lee' in the same semester (Lee, Y.H., here, and Lee, E., in the breast-cancer survivorship line of papers elsewhere in the same unit) — a bare surnameHint of 'Lee' genuinely needs the title/year corroboration to disambiguate, not just as a hypothetical.",
+      "★ DECIDED (see master plan §9, as amended): Crossref has FULL metadata for this DOI — volume 31, issue 1, pages 82-90 — but the live post's own citation says only 'Journal of Substance Use, 1–9.' Those page numbers don't match at all (82-90 vs 1-9), meaning the live post is citing stale/provisional pagination, not simply omitting it. Resolution: refresh-metadata's selection now also re-checks publications with non-null volume/pages against Crossref, but its action stays conservative — a mismatch is logged and surfaced via the §8c Tab 4 pre-flight warnings, never silently overwritten. This is the required test fixture for that behavior in tests/refresh-metadata.test.ts."
+    ]
+  },
+  {
+    "id": 6,
+    "label": "★ CONFIRMED — Brazendale: the required multi-unit record, and the spelling dispute is now definitively resolved",
+    "unit": "Department of Health Sciences AND School of Social Work",
+    "fixture": "crossref/06-brazendale-beverage-snack-asd.json",
+    "input": {
+      "title": "Initial Evidence Comparing Beverage and Snack Dietary Patterns of Children with Autism Spectrum Disorders During School Versus Summer Months",
+      "year": 2025,
+      "surnameHint": "Brazendale"
+    },
+    "expect": "resolve",
+    "confirmed": true,
+    "published_citation_health_sciences": "Brazendale, K., Jeune, S., Garcia, J., Quelly, S., Lawrence, S., Gurnurkar, S., Hunt, E.T., Mehta, J., & Dervisevic, A. (2025). Initial Evidence Comparing Beverage and Snack Dietary Patterns of Children with Autism Spectrum Disorders During School Versus Summer Months. International Journal of Developmental Disabilities, 1-10.",
+    "published_citation_social_work": "Brazendale, K., Jeune, S., Garcia, J., Quelly, S., Lawrence, S., Gurnukar, S., Hunt, E., Mehta, J., & Dervisevic, A. (2025). Initial Evidence Comparing Beverage and Snack Dietary Patterns of Children with Autism Spectrum Disorders During School Versus Summer Months. International Journal of Developmental Disabilities, 1-10.",
+    "expected_doi": "10.1080/20473869.2025.2512909",
+    "confirmed_author_list": [
+      {
+        "name": "Brazendale, K.",
+        "affiliation": "Dept. of Health Sciences, CHPS, UCF",
+        "chps": true,
+        "unit": "Department of Health Sciences"
+      },
+      {
+        "name": "Jeune, S.",
+        "affiliation": "Dept. of Health Sciences, CHPS, UCF",
+        "chps": true,
+        "unit": "Department of Health Sciences"
+      },
+      {
+        "name": "Garcia, J.",
+        "affiliation": "School of Sports Sciences, West Virginia University",
+        "chps": false
+      },
+      {
+        "name": "Quelly, S.",
+        "affiliation": "College of Nursing, UCF (not CHPS)",
+        "chps": false
+      },
+      {
+        "name": "Lawrence, S.",
+        "affiliation": "School of Social Work, CHPS, UCF",
+        "chps": true,
+        "unit": "School of Social Work"
+      },
+      {
+        "name": "Gurnurkar, S.",
+        "affiliation": "Nemours Children's Hospital, Orlando",
+        "chps": false,
+        "correct_spelling": "Gurnurkar (Health Sciences copy is correct; Social Work's 'Gurnukar' is wrong)"
+      },
+      {
+        "name": "Hunt, E.",
+        "affiliation": "UT Health Science Center Houston, School of Public Health in Austin",
+        "chps": false,
+        "correct_form": "Hunt, E. — no middle initial (Social Work copy is correct; Health Sciences' 'Hunt, E.T.' invents a middle initial)"
+      },
+      {
+        "name": "Mehta, J.",
+        "affiliation": "Dept. of Health Sciences, CHPS, UCF",
+        "chps": true,
+        "unit": "Department of Health Sciences"
+      },
+      {
+        "name": "Dervisevic, A.",
+        "affiliation": "Dept. of Health Sciences, CHPS, UCF",
+        "chps": true,
+        "unit": "Department of Health Sciences"
+      }
+    ],
+    "notes": [
+      "★ CONFIRMED via real curl (2026-07-14) — this DEFINITIVELY resolves the Session-6-recon spelling question. Real, correct CHPS-linked author set is 5 people spanning 2 units: Brazendale, Jeune, Mehta, Dervisevic (Health Sciences) and Lawrence (Social Work) — confirming the paper genuinely belongs in both unit sections per §6a.",
+      "★ 'Gurnurkar' (as spelled in the Health Sciences copy) is the CORRECT spelling per Crossref. The Social Work copy's 'Gurnukar' is wrong. This person is NOT CHPS faculty (Nemours Children's Hospital) either way.",
+      "★ 'Hunt, E.' (as written in the Social Work copy) is CORRECT — Crossref's given name is simply 'Ethan', no middle initial. The Health Sciences copy's 'Hunt, E.T.' invents a middle initial that doesn't exist. This person is also NOT CHPS faculty (UT Health Science Center Houston).",
+      "★ Bolding is wrong in BOTH live-post copies, in different ways: neither copy bolds Mehta or Dervisevic, who ARE real CHPS Health Sciences co-authors. And the Social Work copy additionally WRONGLY bolds 'Gurnukar' as if they were CHPS faculty — they're an external collaborator at Nemours.",
+      "Net effect: this single paper has at least five distinct hand-transcription errors spread across its two live-post copies (2 spelling/naming errors, 1 wrong-inclusion bolding error, 2 wrong-omission bolding errors) — and NEITHER copy is fully correct on its own. This is about the strongest possible real-world confirmation of §6a and §15.11: deriving one author list from one source of truth (Crossref via this resolver) fixes all of these simultaneously, because it's the same underlying record rendered twice, not two independently-typed citations."
+    ]
+  },
+  {
+    "id": 7,
+    "label": "clean baseline resolve — unusual page format, PLUS an open question about title-wording drift",
+    "unit": "School of Kinesiology and Rehabilitation Sciences",
+    "fixture": "crossref/07-anderson-hanney-shoulder-pain.json",
+    "input": {
+      "title": "Comparing Quantitative Sensory Testing and Psychological Factors Between Individuals with Acute Compared to Chronic Shoulder Pain",
+      "year": 2025,
+      "surnameHint": "Anderson"
+    },
+    "expect": "resolve",
+    "confirmed": true,
+    "published_citation": "Anderson, A.W., Hanney, W.J. (2025). Comparing Quantitative Sensory Testing and Psychological Factors Between Individuals with Acute Compared to Chronic Shoulder Pain. Journal of Bodywork & Movement Therapies. 44:524-531.",
+    "expected_doi": "10.1016/j.jbmt.2025.06.018",
+    "notes": [
+      "★ CONFIRMED via real curl (2026-07-14) as the correct paper by DOI and author match (Anderson, Abigail W. — first, ORCID; Hanney, William J.).",
+      "★ DECIDED: Crossref's actual registered title is 'Comparing quantitative sensory testing and psychological factors between individuals with acute AND chronic shoulder pain.' The live post's own citation says 'Acute COMPARED TO Chronic' — a genuine wording difference, not casing, that would NOT survive normalizeTitle and would likely fail the resolver's strict exact-match gate if queried with the post's phrasing verbatim (as this fixture does).",
+      "Decision: leave the acceptance gate as specified. Per master plan §15.8 (as amended), a title-drifted query correctly landing in needs_metadata is accepted behavior, not a bug to engineer around — loosening the gate to tolerate paraphrased titles would reopen the door to accepting a wrong paper, which is a worse failure than one extra manual review. This is very likely a fixture-construction artifact rather than a production concern: resolveByTitle is fed Scholar's own scraped title in production (§5a), not a human's retyped paraphrase of an already-published post.",
+      "Marked test_status: informational — do NOT add a hard pass/fail assertion for this case's resolveByTitle outcome in tests/crossref.test.ts. Log whichever outcome actually occurs (resolve or null) in the Session 6 discrepancy report instead.",
+      "Page-format note stands regardless: post citation format here is 'volume:pages' with no issue number shown ('44:524-531') — different shape from 'volume(issue), pages' used elsewhere in the post. Real record: volume 44, page 524-531 (issue not present in Crossref either). Good citation-formatter degrade-gracefully test independent of the title question."
+    ],
+    "test_status": "informational"
+  },
+  {
+    "id": 8,
+    "label": "★ CONFIRMED — was ahead-of-print, now has full metadata (evidence refresh-metadata works over time)",
+    "unit": "School of Communication Sciences and Disorders",
+    "fixture": "crossref/08-mckenna-ecigarette-vocal-mechanism.json",
+    "input": {
+      "title": "Effects of Daily Electronic Cigarette Use on the Vocal Mechanism: A Multimodality Study",
+      "year": 2025,
+      "surnameHint": "McKenna"
+    },
+    "expect": "resolve",
+    "confirmed": true,
+    "published_citation": "McKenna, V.S., Ling, C., Llico, A.F., & Patel, R. (2025). Effects of Daily Electronic Cigarette Use on the Vocal Mechanism: A Multimodality Study. The Laryngoscope.",
+    "expected_doi": "10.1002/lary.32469",
+    "notes": [
+      "★ CONFIRMED via real curl (2026-07-14). Overwhelming top hit — no other candidate in the response is remotely close (nearest unrelated candidate scores 30.1 vs. this one's much higher, exact-match score). Author list matches exactly: McKenna (first, ORCID, UCF CSD affiliation confirmed), Ling, Llico, Patel.",
+      "Reclassifying this from the original 'still ahead-of-print' framing: Crossref NOW has full volume/issue/pages — 135(12), 4830-4839 — even though the live post's own citation (captured earlier) has none. This DOI's record has caught up since the paper was first indexed. Good, naturally-occurring evidence that refresh-metadata's job is real and time-sensitive: run it too early and you get nulls; run it later (as this capture effectively did) and the gaps are already filled. Keep this case as a positive 'resolves cleanly, full metadata now available' example rather than a permanent-gap one."
+    ]
+  },
+  {
+    "id": 9,
+    "label": "★ CONFIRMED — CARD unit's only paper; the manual process omitted metadata Crossref already had",
+    "unit": "Center for Autism and Related Disabilities",
+    "fixture": "crossref/09-williams-arts-in-medicine.json",
+    "input": {
+      "title": "Arts in Medicine: Nurturing Creativity Through Community Collaboration",
+      "year": 2025,
+      "surnameHint": "Williams"
+    },
+    "expect": "resolve",
+    "confirmed": true,
+    "published_citation": "Williams, N., Tayek, K. A., & Daly, K. (2025). Arts in Medicine: Nurturing Creativity Through Community Collaboration. Medical Education, 660-661.",
+    "expected_doi": "10.1111/medu.15640",
+    "notes": [
+      "★ CONFIRMED via real curl (2026-07-14). Massive score lead (47.1 vs. next-best 34.0). Author list matches exactly and in order: Williams (first, ORCID), Tayek, Daly. Page range matches the post exactly (660-661).",
+      "★ NEW finding, distinct from the 'ahead-of-print' pattern seen elsewhere: Crossref has had FULL volume/issue since this record was created (volume 59, issue 6) — this was never a Crossref gap. The live post itself simply dropped the volume/issue when it was hand-typed, even though the data was available at the time. This is evidence the current MANUAL process loses available data, not just that Crossref lags behind publishers — a slightly different (and arguably more damning) failure mode than the ahead-of-print cases, and one an automated Crossref-driven pipeline fixes for free.",
+      "CARD (Center for Autism and Related Disabilities) has exactly one publication in the entire live post — worth keeping this as the sole fixture exercising that unit so §6a unit-derivation tests aren't accidentally only run against the other four units.",
+      "The post's outbound link for this citation is a live nam02.safelinks.protection.outlook.com redirect — the exact Outlook-safelink artifact §1 names as evidence of the current copy-paste-from-email process. The real DOI (10.1111/medu.15640) was recoverable from the safelink's url= parameter."
+    ]
+  },
+  {
+    "id": 10,
+    "label": "★ CONFIRMED — real duplicate found in the wild, same paper posted twice with conflicting metadata",
+    "unit": "School of Communication Sciences and Disorders",
+    "fixture": "crossref/10-awan-strain-modulated-vocal-effort.json",
+    "input": {
+      "title": "Acoustic and Psychoacoustic Analyses of Predominant Strain Elicited via Modulated Vocal Effort",
+      "year": 2025,
+      "surnameHint": "Awan"
+    },
+    "expect": "resolve",
+    "confirmed": true,
+    "published_citation_first_instance": "Awan, S. N., Park, Y., Anand, S., Shrivastav, R., & Eddins, D. A. (2025). Acoustic and Psychoacoustic Analyses of Predominant Strain Elicited via Modulated Vocal Effort. Journal of Voice, 39(3), 573.",
+    "published_citation_second_instance": "Awan S.N., Park Y., Anand S., Shrivastav R., Eddins D.A. (2025). Acoustic and Psychoacoustic Analyses of Predominant Strain Elicited via Modulated Vocal Effort. Journal of Science, 40210528.",
+    "expected_doi": "10.1016/j.jvoice.2025.03.016",
+    "notes": [
+      "★ CONFIRMED via real curl (2026-07-14). Top hit, no ambiguity: DOI 10.1016/j.jvoice.2025.03.016, type journal-article, title an exact match, short-container-title 'Journal of Voice'. Author order matches the post exactly: Awan (first, ORCID present), Park, Anand, Shrivastav (ORCID), Eddins. No other candidate in the response is remotely close (an unrelated ventilation-acoustics conference paper, an unrelated proceedings piece, and a PeerJ supplement were the next-best matches).",
+      "Bonus finding: this DOI record currently has NO volume, issue, or page field in Crossref at all — even though the post's correct instance confidently cites '39(3), 573'. This is a second, independently-occurring ahead-of-print case (Elsevier this time, distinct from the Ovid/ESSR case already used for the refresh-metadata design) — good confirming evidence that ahead-of-print gaps aren't publisher-specific.",
+      "This is not primarily a resolver test — it's the best found evidence in the whole post for why §7 (merge engine) exists. The IDENTICAL title, by the IDENTICAL author list, appears TWICE within the same unit section: correctly as 'Journal of Voice, 39(3), 573' (ScienceDirect link) in one place, and with garbled metadata ('Journal of Science, 40210528' — 40210528 is actually the PubMed PMID from the pubmed.ncbi.nlm.nih.gov/40210528/ link, not a page number) in the other.",
+      "Required addition to `tests/matching.test.ts` (Session 5): two 'incoming' records with this same normalized title but conflicting journal metadata must merge into ONE publication record, with the correctly-named-journal metadata winning over the garbled one per §5's layer-priority / mergeMetadata rules — this is precisely the manual-process failure mode the whole system exists to prevent, caught in the actual reference post rather than invented for a test."
+    ]
+  }
+]

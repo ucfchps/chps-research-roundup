@@ -1,0 +1,319 @@
+{
+    "status": "ok",
+    "message-type": "work-list",
+    "message-version": "1.0.0",
+    "message": {
+        "facets": {},
+        "total-results": 10124786,
+        "items": [
+            {
+                "DOI": "10.1249/jes.0000000000000392",
+                "title": [
+                    "Limb Disuse Trials in Humans: Key Insights on Study Design, Ethics, and Project Execution"
+                ],
+                "container-title": [
+                    "Exercise and Sport Sciences Reviews"
+                ],
+                "issued": {
+                    "date-parts": [
+                        [
+                            2026,
+                            7,
+                            2
+                        ]
+                    ]
+                },
+                "type": "journal-article",
+                "author": [
+                    {
+                        "given": "Matt S.",
+                        "family": "Stock",
+                        "sequence": "first",
+                        "affiliation": [
+                            {
+                                "name": "University of Central Florida, Orlando, FL, USA"
+                            }
+                        ],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Kylie K.",
+                        "family": "Harmon",
+                        "sequence": "additional",
+                        "affiliation": [
+                            {
+                                "name": "Syracuse University, Syracuse, NY, USA"
+                            }
+                        ],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Justin W.",
+                        "family": "Andrushko",
+                        "sequence": "additional",
+                        "affiliation": [
+                            {
+                                "name": "Northumbria University, Newcastle upon Tyne, Tyne and Wear, UK"
+                            }
+                        ],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Jonathan P.",
+                        "family": "Farthing",
+                        "sequence": "additional",
+                        "affiliation": [
+                            {
+                                "name": "University of Saskatchewan, Saskatoon, Saskatchewan, Canada"
+                            }
+                        ],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Michael D.",
+                        "family": "Roberts",
+                        "sequence": "additional",
+                        "affiliation": [
+                            {
+                                "name": "Auburn University, Auburn, AL, USA"
+                            }
+                        ],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Brian C.",
+                        "family": "Clark",
+                        "sequence": "additional",
+                        "affiliation": [
+                            {
+                                "name": "Ohio University, Athens, OH, USA"
+                            }
+                        ],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Lori",
+                        "family": "Ploutz-Snyder",
+                        "sequence": "additional",
+                        "affiliation": [
+                            {
+                                "name": "University of Michigan, Ann Arbor, MI, USA"
+                            }
+                        ],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Charlotte",
+                        "family": "Suetta",
+                        "sequence": "additional",
+                        "affiliation": [
+                            {
+                                "name": "University of Copenhagen, Copenhagen, Denmark"
+                            }
+                        ],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Harry C.S.",
+                        "family": "Wingfield",
+                        "sequence": "additional",
+                        "affiliation": [
+                            {
+                                "name": "University of Central Florida, Orlando, FL, USA"
+                            }
+                        ],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Luc J.C.",
+                        "family": "van Loon",
+                        "sequence": "additional",
+                        "affiliation": [
+                            {
+                                "name": "Maastricht University Medical Centre, Maastricht, The Netherlands"
+                            }
+                        ],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Joshua C.",
+                        "family": "Carr",
+                        "sequence": "additional",
+                        "affiliation": [
+                            {
+                                "name": "Kansas State University, Manhattan, KS, USA"
+                            }
+                        ],
+                        "role": [
+                            {
+                                "vocabulary": "crossref",
+                                "role": "author"
+                            }
+                        ]
+                    }
+                ]
+            },
+            {
+                "DOI": "10.1002/9781118422878.ch159",
+                "title": [
+                    "Key Study Documents"
+                ],
+                "container-title": [
+                    "Clinical Trials Handbook"
+                ],
+                "page": "479-481",
+                "issued": {
+                    "date-parts": [
+                        [
+                            2012,
+                            10,
+                            16
+                        ]
+                    ]
+                },
+                "type": "other"
+            },
+            {
+                "issue": "12",
+                "short-container-title": [
+                    "Clinical Neurophysiology"
+                ],
+                "DOI": "10.1016/s1388-2457(03)00245-1",
+                "type": "journal-article",
+                "page": "2397-2403",
+                "title": [
+                    "Decreased cortical excitability during motor imagery after disuse of an upper limb in humans"
+                ],
+                "volume": "114",
+                "author": [
+                    {
+                        "given": "Fuminari",
+                        "family": "Kaneko",
+                        "sequence": "first",
+                        "affiliation": [],
+                        "role": [
+                            {
+                                "role": "author",
+                                "vocabulary": "crossref"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Tsuneji",
+                        "family": "Murakami",
+                        "sequence": "additional",
+                        "affiliation": [],
+                        "role": [
+                            {
+                                "role": "author",
+                                "vocabulary": "crossref"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Kiyoshi",
+                        "family": "Onari",
+                        "sequence": "additional",
+                        "affiliation": [],
+                        "role": [
+                            {
+                                "role": "author",
+                                "vocabulary": "crossref"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Hiroshi",
+                        "family": "Kurumadani",
+                        "sequence": "additional",
+                        "affiliation": [],
+                        "role": [
+                            {
+                                "role": "author",
+                                "vocabulary": "crossref"
+                            }
+                        ]
+                    },
+                    {
+                        "given": "Kotaro",
+                        "family": "Kawaguchi",
+                        "sequence": "additional",
+                        "affiliation": [],
+                        "role": [
+                            {
+                                "role": "author",
+                                "vocabulary": "crossref"
+                            }
+                        ]
+                    }
+                ],
+                "container-title": [
+                    "Clinical Neurophysiology"
+                ],
+                "issued": {
+                    "date-parts": [
+                        [
+                            2003,
+                            12
+                        ]
+                    ]
+                }
+            }
+        ],
+        "items-per-page": 3,
+        "query": {
+            "start-index": 0,
+            "search-terms": null
+        }
+    }
+}
