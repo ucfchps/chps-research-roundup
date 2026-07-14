@@ -422,6 +422,25 @@ CREATE TABLE usage_log (
   success        INTEGER NOT NULL,
   created_at     TEXT NOT NULL
 );
+
+-- Records where a stored, already-populated volume/issue/pages disagrees with
+-- Crossref's current record for that DOI. Written by the `refresh-metadata`
+-- job (§9) — flag-only: that job never overwrites the publications row
+-- itself, it only logs the disagreement here for a human to review via the
+-- §8c Tab 4 pre-flight warnings. One row per publication; a second run
+-- upserts on `publication_id` rather than duplicating.
+CREATE TABLE metadata_mismatches (
+  id              INTEGER PRIMARY KEY,
+  publication_id  INTEGER NOT NULL REFERENCES publications(id) ON DELETE CASCADE,
+  stored_volume   TEXT,       -- what's currently in publications.volume
+  crossref_volume TEXT,       -- what Crossref's current record says
+  stored_issue    TEXT,
+  crossref_issue  TEXT,
+  stored_pages    TEXT,
+  crossref_pages  TEXT,
+  detected_at     TEXT NOT NULL,
+  UNIQUE(publication_id) -- upsert target, so re-running refresh-metadata doesn't duplicate
+);
 ```
 
 ### UNITS (exact strings — these become the `<h2>` headings and anchor slugs)
@@ -801,7 +820,7 @@ All ingestion runs in GitHub Actions, not Vercel Cron.
 | `ingest-crossref` | Daily | For each active faculty member, query Crossref by author name + UCF affiliation for recent works → match/merge. |
 | `ingest-pubmed-orcid` | Daily | ORCID works list (where `orcid` present) + PubMed author search → match/merge/enrich. |
 | `release-buffer` | Every 6h | Promotes `pending_merge` records older than `MERGE_BUFFER_HOURS` → `status='published'`, sets `released_at`. |
-| `refresh-metadata` | Daily | ★ For every publication with a DOI, `roundup_id IS NULL`, and a null `volume` or `pages`, re-resolve via `resolveByDoi` and fill the gaps. Catches ahead-of-print records ingested before the publisher assigned volume/issue/pages (see the amended §8c Tab 4). Never overwrites a non-null field, and never overwrites a field a human set via the review page (§8b) — same provenance check as `mergeMetadata` (§7). Never touches a publication with `roundup_id` already set — that edition is archived and settled (§6b). **★ Detection is wider than the fix:** the job also re-resolves publications whose `volume`/`pages` are already non-null, to check whether Crossref's current record disagrees with what's stored (confirmed real case: a live-post citation showed pages "1–9" while Crossref's authoritative record showed "82-90" — provisional early-view pagination that was later superseded). When a mismatch is found on an already-populated field, the job does **not** overwrite it — that would risk clobbering a value a human corrected — it only logs the discrepancy for the §8c Tab 4 pre-flight warnings, so a person decides whether to update it. |
+| `refresh-metadata` | Daily | ★ For every publication with a DOI, `roundup_id IS NULL`, and a null `volume` or `pages`, re-resolve via `resolveByDoi` and fill the gaps. Catches ahead-of-print records ingested before the publisher assigned volume/issue/pages (see the amended §8c Tab 4). Never overwrites a non-null field, and never overwrites a field a human set via the review page (§8b) — same provenance check as `mergeMetadata` (§7). Never touches a publication with `roundup_id` already set — that edition is archived and settled (§6b). **★ Detection is wider than the fix:** the job also re-resolves publications whose `volume`/`pages` are already non-null, to check whether Crossref's current record disagrees with what's stored on **volume, issue, or pages** (confirmed real cases: a live-post citation showed pages "1–9" while Crossref's authoritative record showed "82-90" — provisional early-view pagination that was later superseded — and a live-post citation showed issue "8" while Crossref's authoritative record showed issue "4"). When a mismatch is found on an already-populated field, the job does **not** overwrite it — that would risk clobbering a value a human corrected — it only logs the discrepancy (in `metadata_mismatches`, §6) for the §8c Tab 4 pre-flight warnings, so a person decides whether to update it. |
 
 **Idempotency is required.** Every job must be safe to re-run. A re-run must never create duplicate publications or duplicate author rows. Guard with the matching logic in §7 and `UNIQUE` constraints.
 
