@@ -222,7 +222,37 @@ synthetic fixture:
 
 ---
 
-## 8. Verification commands
+## 8. ★ Gmail scope for marking messages processed (§5a rule 9) — confirmed working
+
+§5a rule 9 requires applying a Gmail label to mark an alert email processed, so re-runs
+don't reprocess it. This needs write access to labels, which the account's Gmail OAuth
+setup did **not** originally have:
+
+- **First attempt** (this session, against the refresh token on file at the time):
+  `POST .../labels` to create a `roundup/processed` label returned
+  `403 PERMISSION_DENIED` / `ACCESS_TOKEN_SCOPE_INSUFFICIENT` — the stored refresh token
+  only carried read-only Gmail scope (`gmail.readonly`, matching what master plan §12
+  originally documented).
+- **After the refresh token was re-authorized with a broader scope** (`gmail.modify` or
+  `gmail.labels` — not independently confirmed which exact scope string was granted,
+  only that label creation now succeeds), the identical request succeeded:
+  ```json
+  {"id": "Label_1", "name": "roundup/processed", "messageListVisibility": "show", "labelListVisibility": "labelShow"}
+  ```
+
+**Consequence for master plan §12:** the env var comment for `GMAIL_CLIENT_ID` /
+`GMAIL_REFRESH_TOKEN` says "Scopes required: gmail.readonly AND gmail.send" — that's
+now incomplete. A label-write scope (`gmail.modify` or `gmail.labels`) is **also**
+required before `ingest-scholar` can actually perform §5a rule 9's "mark processed"
+step, not just `gmail.readonly` for reading and `gmail.send` for §8b review emails.
+**This is now confirmed working against the live account** — the `roundup/processed`
+label (`id: Label_1`) already exists and is ready for the ingester to apply. Whoever
+builds `ingest-scholar` doesn't need to re-authorize anything; just use the existing
+label by name or ID.
+
+---
+
+## 9. Verification commands
 
 ```bash
 # Get an access token from the stored refresh token
@@ -241,6 +271,13 @@ curl -s -H "Authorization: Bearer $ACCESS" \
 curl -s -H "Authorization: Bearer $ACCESS" \
   "https://gmail.googleapis.com/gmail/v1/users/me/messages/<MSG_ID>?format=full" \
   | python3 -m json.tool
+
+# Create (or confirm) the "roundup/processed" label used by §5a rule 9.
+# Requires gmail.modify or gmail.labels scope — gmail.readonly alone 403s
+# with ACCESS_TOKEN_SCOPE_INSUFFICIENT. See §8.
+curl -s -X POST -H "Authorization: Bearer $ACCESS" -H "Content-Type: application/json" \
+  -d '{"name":"roundup/processed","labelListVisibility":"labelShow","messageListVisibility":"show"}' \
+  https://gmail.googleapis.com/gmail/v1/users/me/labels
 ```
 
 **Still open, for whenever the ingester session actually starts:**
