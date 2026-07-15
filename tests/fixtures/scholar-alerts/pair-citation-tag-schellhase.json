@@ -1,0 +1,112 @@
+{
+  "id": "19ee9a51105ea002",
+  "threadId": "19ee9a51105ea002",
+  "labelIds": [
+    "UNREAD",
+    "CATEGORY_UPDATES",
+    "INBOX"
+  ],
+  "snippet": "[CITATION] Exploring Job Satisfaction and Intention to Leave Among Athletic Trainers Working With Tactical Athletes in Military Clinical Practice Settings KC Schellhase, A Weston, A Layne, M Ulan… -",
+  "payload": {
+    "partId": "",
+    "mimeType": "text/html",
+    "filename": "",
+    "headers": [
+      {
+        "name": "Delivered-To",
+        "value": "contact+scholar@ucfchps.com"
+      },
+      {
+        "name": "Received",
+        "value": "by 2002:a05:6022:b1a6:b0:106:391e:d637 with SMTP id bb38csp1869099lab;        Sun, 21 Jun 2026 03:06:10 -0700 (PDT)"
+      },
+      {
+        "name": "X-Received",
+        "value": "by 2002:a05:620a:6492:b0:902:5778:d312 with SMTP id af79cd13be357-9208a9bdab1mr1685416285a.12.1782036369845;        Sun, 21 Jun 2026 03:06:09 -0700 (PDT)"
+      },
+      {
+        "name": "ARC-Seal",
+        "value": "i=1; a=rsa-sha256; t=1782036369; cv=none;        d=google.com; s=arc-20260327;        b=F2WwaoBDS0Az784MplJYUXU1pUVfFWUVtaf12QxUGcQ0Pb+VFkyGRPmbtzme1hYoWv         Aydd12ozECl14P3R/FyFnN0a5u2VMfjguDkdvtfGCSvpmg7A8yLyXzFmMyJAJdFl0jpx         jt6r+WDh/zRwLnzgJVuTWuFJED+e3VgS/RwAZ3l7oY/bzuFFCedAyhCGqjdSVGO1teaD         GhNFBVDI3s3D5gMPzZAsoc7TfHxKKElR7rVtucNcPKw3rSxTBcNmQHOB7jhppLzhPuRS         UsvIOwMzD9ReQD6InXjM4AHXIZhBPFLqGFZCoTfSa8i9OWcLUONGddPMIJV9IvoBmW4D         Lomg=="
+      },
+      {
+        "name": "ARC-Message-Signature",
+        "value": "i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;        h=content-transfer-encoding:to:from:subject:message-id:date         :mime-version:dkim-signature;        bh=Kav2pWDpCdlr6TGW41dPpgmwqtNeNtIa0c+n6oTqbeY=;        fh=hUm3+fMdhm7PjKnnXw78WV2gq7Tm4rcAXNn4TQx/lEs=;        b=olWgYC6bpHH0Fy/gCM9IJ8SaL4p8IqC0imuEaqn+PqyMJI18bfQLOr5jjum0N/c4od         YwB7smlOjpi0KsJNVdsyBi+R6hTKRLovG74qp62/K8kPFUAtpf0f50XiLxB6s7w5Dzax         9Eku63EMi3ljIdiXddwgPF+952vCVvJ2IcqDBc/o6UsiBWDbIRNrn/OFUoM9p0UIngDm         5NcZskAPQFiRucalIcM0jhBYEZWzRrQxmxbhZiG+FrhDZoJZFdUFAq2mDrbbsJtWCwBl         751CvPcP0svOKxe9UV6TMILu3QnyP2BUKWwHJ6hjD+6sUtvpwwk3uqMXomYA2qhxWYwy         lwPA==;        dara=google.com"
+      },
+      {
+        "name": "ARC-Authentication-Results",
+        "value": "i=1; mx.google.com;       dkim=pass header.i=@google.com header.s=20251104 header.b=wPHt3Jd0;       spf=pass (google.com: domain of 3kbc3ahukadgmwbifulufylnm-hilyjfsaiiafy.wig@scholar-alerts.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3kbc3ahUKADgmWbifUlUfYlnm-hilYjfsaiiafY.Wig@scholar-alerts.bounces.google.com;       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com;       dara=neutral header.i=@ucfchps.com"
+      },
+      {
+        "name": "Return-Path",
+        "value": "\u003c3kbc3ahUKADgmWbifUlUfYlnm-hilYjfsaiiafY.Wig@scholar-alerts.bounces.google.com\u003e"
+      },
+      {
+        "name": "Received",
+        "value": "from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])        by mx.google.com with SMTPS id af79cd13be357-921d8439d05sor563904585a.5.2026.06.21.03.06.09        for \u003ccontact+scholar@ucfchps.com\u003e        (Google Transport Security);        Sun, 21 Jun 2026 03:06:09 -0700 (PDT)"
+      },
+      {
+        "name": "Received-SPF",
+        "value": "pass (google.com: domain of 3kbc3ahukadgmwbifulufylnm-hilyjfsaiiafy.wig@scholar-alerts.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;"
+      },
+      {
+        "name": "Authentication-Results",
+        "value": "mx.google.com;       dkim=pass header.i=@google.com header.s=20251104 header.b=wPHt3Jd0;       spf=pass (google.com: domain of 3kbc3ahukadgmwbifulufylnm-hilyjfsaiiafy.wig@scholar-alerts.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=3kbc3ahUKADgmWbifUlUfYlnm-hilYjfsaiiafY.Wig@scholar-alerts.bounces.google.com;       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com;       dara=neutral header.i=@ucfchps.com"
+      },
+      {
+        "name": "DKIM-Signature",
+        "value": "v=1; a=rsa-sha256; c=relaxed/relaxed;        d=google.com; s=20251104; t=1782036369; x=1782641169; darn=ucfchps.com;        h=content-transfer-encoding:to:from:subject:message-id:date         :mime-version:from:to:cc:subject:date:message-id:reply-to;        bh=Kav2pWDpCdlr6TGW41dPpgmwqtNeNtIa0c+n6oTqbeY=;        b=wPHt3Jd0m3DieUwhSgEKvDOjB2WDhdtPXHDz7r4igqrCdwzg3RlDAmwgKhFClQPQA0         2YxrHeVmQznkZQxAJmNFhLs3+8nawVYxY+FJc5kWxOwXKSVgKj12OtKP+LrrTQz/F4vK         Hr7nNCv0QEgo5mt4sa/yRP6x9129yl3dPIcwOQhrk6K5HuFinaTFJ4j7NONK4yhJVi/T         /VDJ4KJz4AIxbi1BRF0xMxkVIfaHk4NXbtUM7PBiaauX4Fdvo996u9ollrt2uNokQxGF         CHwMymxq50TwnPjgR+PIPP4PcLQZm4aasp17PbQu/s5/mZmYNByN+7gn9oQ2ycDJI18r         iJHA=="
+      },
+      {
+        "name": "X-Google-DKIM-Signature",
+        "value": "v=1; a=rsa-sha256; c=relaxed/relaxed;        d=1e100.net; s=20251104; t=1782036369; x=1782641169;        h=content-transfer-encoding:to:from:subject:message-id:date         :mime-version:x-gm-message-state:from:to:cc:subject:date:message-id         :reply-to;        bh=Kav2pWDpCdlr6TGW41dPpgmwqtNeNtIa0c+n6oTqbeY=;        b=ktzVfbI59jEeNrFdu4iEeS8mxQPmnTG32kl6V7Qixr7bXQAaaYf7V2KJ8aUSD8roxR         fyNskKW9enmfDGYTSAxiNYgvHwMx0DL/J20ofnbIDU3OAR0LZTF+apknFGx2x4qRrtQJ         52z8iGRtBJyW2bSbT7F7dQoNIxQ/+CU7j9brY0k8q9dp1+0ELFC8DE5Wcz3VQjd/Y1Um         TotN3nEmVbSvP4rI4AhjW++bekq+IaoNSZ0YxJkEtvDoNpITq2O/DXFPT1MzF2MKu9uA         LjsSWjRFCT+ukTyqqOUFRr4yO/S4X5fI6TiqHlnMvCb2YIKKnb3PlQ9g6waEstxuA6Pk         K/Dw=="
+      },
+      {
+        "name": "X-Gm-Message-State",
+        "value": "AOJu0YwuisRvwHQ5l9p88KnnKFvn8eDqoEJq9aDjSE4TqVirc+KcaCZT ITcTXaDQXOUpfMCTtAYypRur1nENASl96GhqfchexVIFqTwLvhNhWNDEEyqA0MGcUUWwKmQ="
+      },
+      {
+        "name": "MIME-Version",
+        "value": "1.0"
+      },
+      {
+        "name": "X-Received",
+        "value": "by 2002:a05:620a:278b:b0:914:c246:ac9d with SMTP id af79cd13be357-9209129ffeemr1382094685a.28.1782036369253; Sun, 21 Jun 2026 03:06:09 -0700 (PDT)"
+      },
+      {
+        "name": "Date",
+        "value": "Sun, 21 Jun 2026 03:06:09 -0700"
+      },
+      {
+        "name": "Message-ID",
+        "value": "\u003c6a37b791.050a0220.1e5288.29e8scholar@google.com\u003e"
+      },
+      {
+        "name": "Subject",
+        "value": "Kristen Couper Schellhase - new articles"
+      },
+      {
+        "name": "From",
+        "value": "Google Scholar Alerts \u003cscholaralerts-noreply@google.com\u003e"
+      },
+      {
+        "name": "To",
+        "value": "contact+scholar@ucfchps.com"
+      },
+      {
+        "name": "Content-Type",
+        "value": "text/html; charset=\"UTF-8\""
+      },
+      {
+        "name": "Content-Transfer-Encoding",
+        "value": "quoted-printable"
+      }
+    ],
+    "body": {
+      "size": 3101,
+      "data": "PCFkb2N0eXBlIGh0bWw-PGh0bWwgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGh0bWwiIHhtbG5zOm89InVybjpzY2hlbWFzLW1pY3Jvc29mdC1jb206b2ZmaWNlOm9mZmljZSI-PGhlYWQ-PCEtLVtpZiBndGUgbXNvIDldPjx4bWw-PG86T2ZmaWNlRG9jdW1lbnRTZXR0aW5ncz48bzpBbGxvd1BORy8-PG86UGl4ZWxzUGVySW5jaD45NjwvbzpQaXhlbHNQZXJJbmNoPjwvbzpPZmZpY2VEb2N1bWVudFNldHRpbmdzPjwveG1sPjwhW2VuZGlmXS0tPjxzdHlsZT5ib2R5e2JhY2tncm91bmQtY29sb3I6I2ZmZn0uZ3NlX2FscnRfdGl0bGV7dGV4dC1kZWNvcmF0aW9uOm5vbmV9LmdzZV9hbHJ0X3RpdGxlOmhvdmVye3RleHQtZGVjb3JhdGlvbjp1bmRlcmxpbmV9IEBtZWRpYSBzY3JlZW4gYW5kIChtYXgtd2lkdGg6IDU5OXB4KSB7LmdzZV9hbHJ0X3NuaSBicntkaXNwbGF5Om5vbmU7fX08L3N0eWxlPjwvaGVhZD48Ym9keT48IS0tW2lmIGd0ZSBtc28gOV0-PHRhYmxlIGNlbGxwYWRkaW5nPSIwIiBjZWxsc3BhY2luZz0iMCIgYm9yZGVyPSIwIj48dHI-PHRkIHN0eWxlPSJ3aWR0aDo2MDBweCI-PCFbZW5kaWZdLS0-PGRpdiBzdHlsZT0iZm9udC1mYW1pbHk6YXJpYWwsc2Fucy1zZXJpZjtmb250LXNpemU6MTNweDtsaW5lLWhlaWdodDoxNnB4O2NvbG9yOiMyMjI7d2lkdGg6MTAwJTttYXgtd2lkdGg6NjAwcHgiPjxoMyBzdHlsZT0iZm9udC13ZWlnaHQ6bGlnaHRlcjtmb250LXNpemU6MThweDtsaW5lLWhlaWdodDoyMHB4OyI-PC9oMz48aDMgc3R5bGU9ImZvbnQtd2VpZ2h0Om5vcm1hbDtmb250LXNpemU6MThweDtsaW5lLWhlaWdodDoyMHB4OyI-PC9oMz48aDMgc3R5bGU9ImZvbnQtd2VpZ2h0Om5vcm1hbDttYXJnaW46MDtmb250LXNpemU6MTdweDtsaW5lLWhlaWdodDoyMHB4OyI-PHNwYW4gc3R5bGU9ImZvbnQtc2l6ZToxMXB4O2ZvbnQtd2VpZ2h0OmJvbGQ7Y29sb3I6IzFhMGRhYjt2ZXJ0aWNhbC1hbGlnbjoycHgiPltDSVRBVElPTl08L3NwYW4-IDxhIGhyZWY9Imh0dHBzOi8vc2Nob2xhci5nb29nbGUuY29tL2NpdGF0aW9ucz9obD1lbiZhbXA7dmlld19vcD12aWV3X2NpdGF0aW9uJmFtcDtjaXRhdGlvbl9mb3Jfdmlldz1lejFpbE1JQUFBQUo6OGs4MWtsLU1iSGdDJmFtcDtvaT1zY2hvbGFyYWxydCIgY2xhc3M9ImdzZV9hbHJ0X3RpdGxlIiBzdHlsZT0iZm9udC1zaXplOjE3cHg7Y29sb3I6IzFhMGRhYjtsaW5lLWhlaWdodDoyMnB4Ij5FeHBsb3JpbmcgSm9iIFNhdGlzZmFjdGlvbiBhbmQgSW50ZW50aW9uIHRvIExlYXZlIEFtb25nIEF0aGxldGljIFRyYWluZXJzIFdvcmtpbmcgV2l0aCBUYWN0aWNhbCBBdGhsZXRlcyBpbiBNaWxpdGFyeSBDbGluaWNhbCBQcmFjdGljZSBTZXR0aW5nczwvYT48L2gzPjxkaXYgc3R5bGU9ImNvbG9yOiMwMDY2MjE7bGluZS1oZWlnaHQ6MThweCI-S0MgU2NoZWxsaGFzZSwgQSBXZXN0b24sIEEgTGF5bmUsIE0gVWxhbuKApsKgLSBJbnRlcm5hdGlvbmFsIEpvdXJuYWwgb2bCoOKApiwgMjAyNjwvZGl2Pjxicj48ZGl2IHN0eWxlPSJsaW5lLWhlaWdodDoxNnB4O21zby1saW5lLWhlaWdodC1ydWxlOmV4YWN0bHk7Ym9yZGVyLXRvcDoxcHggc29saWQgI2JkYmRiZCI-Jm5ic3A7PC9kaXY-PHAgc3R5bGU9Im1hcmdpbjo4cHggMCAxNnB4IDA7Y29sb3I6IzY2NiI-VGhpcyBtZXNzYWdlIHdhcyBzZW50IGJ5IEdvb2dsZSBTY2hvbGFyIGJlY2F1c2UgeW91J3JlIGZvbGxvd2luZyBuZXcgYXJ0aWNsZXMgd3JpdHRlbiBieSA8YSBocmVmPSJodHRwczovL3NjaG9sYXIuZ29vZ2xlLmNvbS9jaXRhdGlvbnM_aGw9ZW4mYW1wO3VzZXI9ZXoxaWxNSUFBQUFKIiBzdHlsZT0iY29sb3I6IzFhMGRhYjsiPktyaXN0ZW4gQ291cGVyIFNjaGVsbGhhc2U8L2E-LjxpbWcgc3JjPSJodHRwczovL3NjaG9sYXIuZ29vZ2xlLmNvbS9zY2hvbGFyX3VybD91cmw9aHR0cHM6Ly9zY2hvbGFyLmdvb2dsZS5jb20vc2Nob2xhci9pbWFnZXMvY2xlYXJkb3QuZ2lmJmFtcDtobD1lbiZhbXA7c2E9WCZhbXA7ZWk9a0xjM2FxTGlOYTJCNnJRUHRMYWd5UWsmYW1wO3NjaXNpZz1BTkRtRVU0LWlPdkFoamt2TVdLb19fZUYteVV4JmFtcDtodG1sPSZhbXA7Zm9sdD1hcnQiIGhlaWdodD0xIHdpZHRoPTEgYWx0PSIiPjwvcD48ZGl2IHN0eWxlPSJtYXJnaW4tYm90dG9tOjhweDsiPjxkaXY-PCEtLVtpZiBndGUgbXNvIDldPjx0YWJsZSBib3JkZXI9IjAiIGNlbGxzcGFjaW5nPSIwIiBjZWxscGFkZGluZz0iMCI-PHRyPjx0ZCBzdHlsZT0ibXNvLWxpbmUtaGVpZ2h0LXJ1bGU6ZXhhY3RseTtsaW5lLWhlaWdodDoyN3B4O2JvcmRlci10b3A6MXB4IHNvbGlkICNmZmY7Ym9yZGVyLWJvdHRvbToxcHggc29saWQgI2ZmZjttc28tdGV4dC1yYWlzZTotMXB4OyI-PCFbZW5kaWZdLS0-PGEgaHJlZj0iaHR0cHM6Ly9zY2hvbGFyLmdvb2dsZS5jb20vc2Nob2xhcl9hbGVydHM_dmlld19vcD1jYW5jZWxfYWxlcnRfb3B0aW9ucyZhbXA7ZW1haWxfZm9yX29wPWNvbnRhY3QlMkJzY2hvbGFyJTQwdWNmY2hwcy5jb20mYW1wO2FsZXJ0X2lkPUdDWXlWZVVGNVNRSiZhbXA7aGw9ZW4mYW1wO2NpdHNpZz1BSXNMOFhvQUFBQUFha29za0lxdjNEYWxXMG9JY2NYZGo4aVY3d3ciIHN0eWxlPSJkaXNwbGF5OmlubGluZS1ibG9jazt0ZXh0LWRlY29yYXRpb246bm9uZTtmb250LWZhbWlseTphcmlhbCxzYW5zLXNlcmlmO2ZvbnQtc2l6ZToxM3B4O2ZvbnQtc2l6ZToxMXB4O3RleHQtdHJhbnNmb3JtOnVwcGVyY2FzZTtmb250LXNpemU6MTNweDtsaW5lLWhlaWdodDoyMXB4O3BhZGRpbmc6M3B4IDA7Y29sb3I6IzFhMGRhYjtib3JkZXItdG9wOjFweCBzb2xpZCB0cmFuc3BhcmVudDtib3JkZXItYm90dG9tOjFweCBzb2xpZCB0cmFuc3BhcmVudDtib3JkZXItcmFkaXVzOjNweDttc28tcGFkZGluZy1hbHQ6MDttc28tYm9yZGVyLWFsdDpub25lOyI-PHNwYW4gc3R5bGU9Im1zby10ZXh0LXJhaXNlOjVweCI-Q2FuY2VsIGFsZXJ0PC9zcGFuPjwvYT48IS0tW2lmIGd0ZSBtc28gOV0-PC90ZD48L3RyPjwvdGFibGU-PCFbZW5kaWZdLS0-PC9kaXY-PC9kaXY-PC9kaXY-PCEtLVtpZiBndGUgbXNvIDldPjwvdGQ-PC90cj48L3RhYmxlPjwhW2VuZGlmXS0tPjwvYm9keT48L2h0bWw-DQo="
+    }
+  },
+  "sizeEstimate": 8709,
+  "historyId": "330274",
+  "internalDate": "1782036369000"
+}

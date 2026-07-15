@@ -1,0 +1,114 @@
+{
+  "id": "SYNTHETIC-multi-article-fixture",
+  "threadId": "SYNTHETIC-multi-article-fixture",
+  "labelIds": [
+    "UNREAD",
+    "CATEGORY_UPDATES",
+    "INBOX"
+  ],
+  "snippet": "Olecranon fracture malunion treated surgically... [SYNTHETIC FIXTURE] A Second Fictional Paper for Multi-Article Parser Testing...",
+  "payload": {
+    "partId": "",
+    "mimeType": "text/html",
+    "filename": "",
+    "headers": [
+      {
+        "name": "Delivered-To",
+        "value": "contact+scholar@ucfchps.com"
+      },
+      {
+        "name": "Received",
+        "value": "by 2002:a05:6022:1108:b0:108:b3cd:760a with SMTP id bd8csp1321237lab;        Mon, 13 Jul 2026 06:53:46 -0700 (PDT)"
+      },
+      {
+        "name": "X-Received",
+        "value": "by 2002:a05:690c:6a8a:b0:81d:af23:964 with SMTP id 00721157ae682-81e901080famr65793377b3.40.1783950826679;        Mon, 13 Jul 2026 06:53:46 -0700 (PDT)"
+      },
+      {
+        "name": "ARC-Seal",
+        "value": "i=1; a=rsa-sha256; t=1783950826; cv=none;        d=google.com; s=arc-20260327;        b=i4EmMnI0s2xJQvl+5RFPz4Wh7ngg//NVvd359aD03mTufiQd2iNUOFLFnSjqLkJ9aN         xnuPqbLHaK6N0IqVOn6XUiwqjQYANB/2/V+j1iuQXgJZTeuD4hY5//Ja4QMsfoQ7HvZl         3985h/0W3pkKB8+AuEKrbeayESOLk2WG5YgpGPqQ5MqjTuBwWPADr7KhAWwxYWMMS84H         KuhO7SmOWrJjG+yMfZBWD4y+lGYjobo9PN9fZ+eF9xB0yavHcYrIkUtJ3Sc1PhIooAXn         urzt7t//a1YB67RDp0hZVchc2Tooz83CmP/YUGbyeg7HL4GqAlEkoA1j7Oz8V/O+U914         6xtw=="
+      },
+      {
+        "name": "ARC-Message-Signature",
+        "value": "i=1; a=rsa-sha256; c=relaxed/relaxed; d=google.com; s=arc-20260327;        h=content-transfer-encoding:to:from:subject:message-id:date         :mime-version:dkim-signature;        bh=QaDBgFxU8IyUzMl/SP2yV79ewedp+UC2mYDvt1T6SVg=;        fh=hUm3+fMdhm7PjKnnXw78WV2gq7Tm4rcAXNn4TQx/lEs=;        b=GLMWnt/y7eHcSY1agGPj/ty/Du/muuHfTQbgG5d5rVIR8GjtZYS12dzr8twlKagdp5         yliryrhtQgZljSnMI8cMusW/KXvRcUyY9oJAWHy4UBoasvpH/JAI82oY7VH0rNB6fXAS         8b48IBMAg7ZPDpgga13pRvQm9rZ40FDtGx+dHc7lrHyi2UlTZlbvM32krweYE53CRLyB         PA7LhQ4Jw03UQW3+kIu9612Ow1Rc1jEF5q3HLyMxDUmZ9Rv3KBR9TSy0sk28o+pzMjXx         ZJGsPaFJ/fEDc+LAka2mSKZuxvr/rUNlrC+2wyOJik+Efi+CJAt3OV4Smf3qTgHvakDs         hiEg==;        dara=google.com"
+      },
+      {
+        "name": "ARC-Authentication-Results",
+        "value": "i=1; mx.google.com;       dkim=pass header.i=@google.com header.s=20251104 header.b=ehBEdpCX;       spf=pass (google.com: domain of 36u1uahukahmjtyfcrircvikj-efivgcpxffxcv.tfd@scholar-alerts.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=36u1UahUKAHMjTYfcRiRcVikj-efiVgcpXffXcV.Tfd@scholar-alerts.bounces.google.com;       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com;       dara=neutral header.i=@ucfchps.com"
+      },
+      {
+        "name": "Return-Path",
+        "value": "<36u1UahUKAHMjTYfcRiRcVikj-efiVgcpXffXcV.Tfd@scholar-alerts.bounces.google.com>"
+      },
+      {
+        "name": "Received",
+        "value": "from mail-sor-f73.google.com (mail-sor-f73.google.com. [209.85.220.73])        by mx.google.com with SMTPS id 00721157ae682-81738510279sor399524077b3.2.2026.07.13.06.53.46        for <contact+scholar@ucfchps.com>        (Google Transport Security);        Mon, 13 Jul 2026 06:53:46 -0700 (PDT)"
+      },
+      {
+        "name": "Received-SPF",
+        "value": "pass (google.com: domain of 36u1uahukahmjtyfcrircvikj-efivgcpxffxcv.tfd@scholar-alerts.bounces.google.com designates 209.85.220.73 as permitted sender) client-ip=209.85.220.73;"
+      },
+      {
+        "name": "Authentication-Results",
+        "value": "mx.google.com;       dkim=pass header.i=@google.com header.s=20251104 header.b=ehBEdpCX;       spf=pass (google.com: domain of 36u1uahukahmjtyfcrircvikj-efivgcpxffxcv.tfd@scholar-alerts.bounces.google.com designates 209.85.220.73 as permitted sender) smtp.mailfrom=36u1UahUKAHMjTYfcRiRcVikj-efiVgcpXffXcV.Tfd@scholar-alerts.bounces.google.com;       dmarc=pass (p=REJECT sp=REJECT dis=NONE) header.from=google.com;       dara=neutral header.i=@ucfchps.com"
+      },
+      {
+        "name": "DKIM-Signature",
+        "value": "v=1; a=rsa-sha256; c=relaxed/relaxed;        d=google.com; s=20251104; t=1783950826; x=1784555626; darn=ucfchps.com;        h=content-transfer-encoding:content-type:to:from:subject:message-id         :date:mime-version:from:to:cc:subject:date:message-id:reply-to         :content-type;        bh=QaDBgFxU8IyUzMl/SP2yV79ewedp+UC2mYDvt1T6SVg=;        b=ehBEdpCXZgaVio2BiiHG0Ydhpv1/bJwVLrpwTWMQg5ZWvdI4gmvSQGcxJNBIE010qT         owaB+RI3oH3JR4LQA2ZxGAs1O0NLFYY5XmyhilInjuq6oYnwj1oNH1y9GB00cvI8Zxbf         zSAgihLgjTYb+K9uX3hzd2iM5XZdHRncmBGQWU9HduET9eo7Wu+TtJi/Nr5aEB9/q6qU         mhDvU0YzUND4DelFJSTzXI3kdVf/NOJJ9LhBUYMv414y0Bam4cvkxehE6fRh8crDu9uB         GMcrG04hqPZURRKtmCNTzeg4Q3VNBy5C7nwAqgyp4gC6V/SoXQ1xdTEGaBhqRaPOCu11         3M9g=="
+      },
+      {
+        "name": "X-Google-DKIM-Signature",
+        "value": "v=1; a=rsa-sha256; c=relaxed/relaxed;        d=1e100.net; s=20251104; t=1783950826; x=1784555626;        h=content-transfer-encoding:content-type:to:from:subject:message-id         :date:mime-version:x-gm-message-state:from:to:cc:subject:date         :message-id:reply-to:content-type;        bh=QaDBgFxU8IyUzMl/SP2yV79ewedp+UC2mYDvt1T6SVg=;        b=E3MDEc8z28qmUv2Ou6spKv/rZ+WBHS9c8wFU7SOvLhAf/EA70xWzBxu3BaCejxmuDU         ARyYcySzkIKFq8a9ikhw4Ibb6yk2FZmxlL6/dlj7W1j+YSYfHKvz5tNDvYcXJnR8CIbV         T7aFTqINcTzqyMS6dz0y4PCBalcqTk+EVkKU1ydJB3HxulcuwfldGL3RtWxZXsC6qb5Y         PJBAyTBsD+FfEyabUg2mAd0rx8pVr6NFKpYu1FkgFCHCs7hhj8bIuXJy7646QwrYz+0S         G0jvZu0h+OYXBUmxgv5h/voYbs62tYwOKCcWK8bJM0yHOXD/yk8jVEVXYhGprZmTu3qA         ubxw=="
+      },
+      {
+        "name": "X-Gm-Message-State",
+        "value": "AOJu0YzKk44c7bVyFIOdP69I5JrklO2si4OhiNJ3ZvLDK+WkqKLbFYzN iBIRrkBKVL1zHq8preFPhu3cGkr6It6E0nTATH7YUrtRZJxXFgvhhLui+5OGrv0HfLdJm9A="
+      },
+      {
+        "name": "MIME-Version",
+        "value": "1.0"
+      },
+      {
+        "name": "X-Received",
+        "value": "by 2002:a53:ac83:0:b0:667:db13:bdc1 with SMTP id 956f58d0204a3-667db13e8f2mr6029979d50.9.1783950826219; Mon, 13 Jul 2026 06:53:46 -0700 (PDT)"
+      },
+      {
+        "name": "Date",
+        "value": "Mon, 13 Jul 2026 06:53:46 -0700"
+      },
+      {
+        "name": "Message-ID",
+        "value": "<6a54edea.050a0220.233689.073escholar@google.com>"
+      },
+      {
+        "name": "Subject",
+        "value": "William J. Hanney - new articles"
+      },
+      {
+        "name": "From",
+        "value": "Google Scholar Alerts <scholaralerts-noreply@google.com>"
+      },
+      {
+        "name": "To",
+        "value": "contact+scholar@ucfchps.com"
+      },
+      {
+        "name": "Content-Type",
+        "value": "text/html; charset=\"UTF-8\""
+      },
+      {
+        "name": "Content-Transfer-Encoding",
+        "value": "quoted-printable"
+      }
+    ],
+    "body": {
+      "size": 8604,
+      "data": "PCFkb2N0eXBlIGh0bWw-PGh0bWwgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkveGh0bWwiIHhtbG5zOm89InVybjpzY2hlbWFzLW1pY3Jvc29mdC1jb206b2ZmaWNlOm9mZmljZSI-PGhlYWQ-PCEtLVtpZiBndGUgbXNvIDldPjx4bWw-PG86T2ZmaWNlRG9jdW1lbnRTZXR0aW5ncz48bzpBbGxvd1BORy8-PG86UGl4ZWxzUGVySW5jaD45NjwvbzpQaXhlbHNQZXJJbmNoPjwvbzpPZmZpY2VEb2N1bWVudFNldHRpbmdzPjwveG1sPjwhW2VuZGlmXS0tPjxzdHlsZT5ib2R5e2JhY2tncm91bmQtY29sb3I6I2ZmZn0uZ3NlX2FscnRfdGl0bGV7dGV4dC1kZWNvcmF0aW9uOm5vbmV9LmdzZV9hbHJ0X3RpdGxlOmhvdmVye3RleHQtZGVjb3JhdGlvbjp1bmRlcmxpbmV9IEBtZWRpYSBzY3JlZW4gYW5kIChtYXgtd2lkdGg6IDU5OXB4KSB7LmdzZV9hbHJ0X3NuaSBicntkaXNwbGF5Om5vbmU7fX08L3N0eWxlPjwvaGVhZD48Ym9keT48IS0tW2lmIGd0ZSBtc28gOV0-PHRhYmxlIGNlbGxwYWRkaW5nPSIwIiBjZWxsc3BhY2luZz0iMCIgYm9yZGVyPSIwIj48dHI-PHRkIHN0eWxlPSJ3aWR0aDo2MDBweCI-PCFbZW5kaWZdLS0-PGRpdiBzdHlsZT0iZm9udC1mYW1pbHk6YXJpYWwsc2Fucy1zZXJpZjtmb250LXNpemU6MTNweDtsaW5lLWhlaWdodDoxNnB4O2NvbG9yOiMyMjI7d2lkdGg6MTAwJTttYXgtd2lkdGg6NjAwcHgiPjxoMyBzdHlsZT0iZm9udC13ZWlnaHQ6bGlnaHRlcjtmb250LXNpemU6MThweDtsaW5lLWhlaWdodDoyMHB4OyI-PC9oMz48aDMgc3R5bGU9ImZvbnQtd2VpZ2h0Om5vcm1hbDtmb250LXNpemU6MThweDtsaW5lLWhlaWdodDoyMHB4OyI-PC9oMz48aDMgc3R5bGU9ImZvbnQtd2VpZ2h0Om5vcm1hbDttYXJnaW46MDtmb250LXNpemU6MTdweDtsaW5lLWhlaWdodDoyMHB4OyI-PGEgaHJlZj0iaHR0cHM6Ly9zY2hvbGFyLmdvb2dsZS5jb20vc2Nob2xhcl91cmw_dXJsPWh0dHBzOi8vd3d3LnRhbmRmb25saW5lLmNvbS9kb2kvYWJzLzEwLjEwODAvMDk1OTM5ODUuMjAyNi4yNjk5MzM4JmFtcDtobD1lbiZhbXA7c2E9WCZhbXA7ZD0zOTg1NjM5ODc0NjM0NDE0ODcmYW1wO2VpPTZlMVVhcEh6TTZldzZyUVAtUHJqc0FRJmFtcDtzY2lzaWc9QU0xdHVvT3dwSk83QXRPMGVES3RxZU56WUIxayZhbXA7b2k9c2Nob2xhcmFscnQmYW1wO2h0bWw9JmFtcDtwb3M9MCZhbXA7Zm9sdD1hcnQiIGNsYXNzPSJnc2VfYWxydF90aXRsZSIgc3R5bGU9ImZvbnQtc2l6ZToxN3B4O2NvbG9yOiMxYTBkYWI7bGluZS1oZWlnaHQ6MjJweCI-T2xlY3Jhbm9uIGZyYWN0dXJlIG1hbHVuaW9uIHRyZWF0ZWQgc3VyZ2ljYWxseTogQSBjYXNlIHJlcG9ydCBoaWdobGlnaHRpbmcgb25lIGVsYm93LCBmb3VyIG9ydGhvcGVkaWMgc3VyZ2VvbnMsIGFuZCB0d28gcGh5c2ljYWwgdGhlcmFwaXN0czwvYT48L2gzPjxkaXYgc3R5bGU9ImNvbG9yOiMwMDY2MjE7bGluZS1oZWlnaHQ6MThweCI-TUogS29sYmVyLCBXSiBIYW5uZXnCoC0gUGh5c2lvdGhlcmFweSBUaGVvcnkgYW5kIFByYWN0aWNlLCAyMDI2PC9kaXY-PGRpdiBjbGFzcz0iZ3NlX2FscnRfc25pIiBzdHlsZT0ibGluZS1oZWlnaHQ6MTdweCI-QmFja2dyb3VuZCBEaXNwbGFjZWQgb2xlY3Jhbm9uIGZyYWN0dXJlcyBvZnRlbiByZXF1aXJlIHN1cmdpY2FsIGZpeGF0aW9uLiBBIG1vYmlsaXR5IDxicj5sb3NzIGZvbGxvd2luZyBzdXJnZXJ5IG1heSBvY2N1ciBmcm9tIGZpYnJvc2lzIGR1ZSB0byBpbW1vYmlsaXphdGlvbiwgbWFsdW5pb24sIGFuZCA8YnI-YXNzb2NpYXRlZCBkaWFnbm9zZXMuIFRoaXMgY2FzZSBoaWdobGlnaHRzIHRoZSBkaWFnbm9zdGljIHVuY2VydGFpbnR5IHRoYXQgbWF5IGFyaXNlwqDigKY8L2Rpdj48ZGl2IHN0eWxlPSJ3aWR0aDphdXRvIj48dGFibGUgY2VsbHBhZGRpbmc9IjAiIGNlbGxzcGFjaW5nPSIwIiBib3JkZXI9IjAiPjx0Ym9keT48dHI-PHRkIHN0eWxlPSJwYWRkaW5nLXJpZ2h0OjRweDttc28tcGFkZGluZy1hbHQ6NHB4IDE2cHggMCAwOyI-PGEgaHJlZj0iaHR0cHM6Ly9zY2hvbGFyLmdvb2dsZS5jb20vY2l0YXRpb25zP2hsPWVuJmFtcDt1cGRhdGVfb3A9ZW1haWxfbGlicmFyeV9hZGQmYW1wO2luZm89VDR3RnZkWDdod1VKJmFtcDtjaXRzaWc9QUtMRUxXOEFBQUFBYkRZaGFwaE4zNUlMVEVIemwtcFFmUnFGRThFIiBzdHlsZT0idGV4dC1kZWNvcmF0aW9uOm5vbmU7ZGlzcGxheTppbmxpbmUtYmxvY2s7cGFkZGluZzo0cHggOHB4IDRweCAwO21zby1wYWRkaW5nLWFsdDowOyI-PGltZyBhbHQ9IlNhdmUiIHNyYz0iaHR0cHM6Ly9zY2hvbGFyLmdvb2dsZS5jb20vaW50bC9lbi9zY2hvbGFyL2ltYWdlcy8xeC9zYXZlLTMyLnBuZyIgYm9yZGVyPSIwIiBoZWlnaHQ9IjE2IiB3aWR0aD0iMTYiIHN0eWxlPSJ2ZXJ0aWNhbC1hbGlnbjp0b3AiPjwvYT48L3RkPjx0ZCBzdHlsZT0icGFkZGluZy1yaWdodDo0cHg7bXNvLXBhZGRpbmctYWx0OjRweCAxNnB4IDAgMDsiPjxhIGhyZWY9Imh0dHBzOi8vc2Nob2xhci5nb29nbGUuY29tL3NjaG9sYXJfc2hhcmU_aGw9ZW4mYW1wO29pPXNjaG9sYXJhbHJ0JmFtcDtzcz10dyZhbXA7dXJsPWh0dHBzOi8vd3d3LnRhbmRmb25saW5lLmNvbS9kb2kvYWJzLzEwLjEwODAvMDk1OTM5ODUuMjAyNi4yNjk5MzM4JmFtcDtydD1PbGVjcmFub24rZnJhY3R1cmUrbWFsdW5pb24rdHJlYXRlZCtzdXJnaWNhbGx5OitBK2Nhc2UrcmVwb3J0K2hpZ2hsaWdodGluZytvbmUrZWxib3csK2ZvdXIrb3J0aG9wZWRpYytzdXJnZW9ucywrYW5kK3R3bytwaHlzaWNhbCt0aGVyYXBpc3RzJmFtcDtzY2lzaWc9QU0xdHVvTm1TUlN0MHpvdzFYQmVlVGQ1UjNQMiIgc3R5bGU9InRleHQtZGVjb3JhdGlvbjpub25lO2Rpc3BsYXk6aW5saW5lLWJsb2NrO3BhZGRpbmc6NHB4IDhweDttc28tcGFkZGluZy1hbHQ6MDsiPjxpbWcgYWx0PSJUd2l0dGVyIiBzcmM9Imh0dHBzOi8vc2Nob2xhci5nb29nbGUuY29tL2ludGwvZW4vc2Nob2xhci9pbWFnZXMvMXgvdHctMzIucG5nIiBib3JkZXI9IjAiIGhlaWdodD0iMTYiIHdpZHRoPSIxNiIgc3R5bGU9InZlcnRpY2FsLWFsaWduOnRvcCI-PC9hPjwvdGQ-PHRkIHN0eWxlPSJwYWRkaW5nLXJpZ2h0OjRweDttc28tcGFkZGluZy1hbHQ6NHB4IDE2cHggMCAwOyI-PGEgaHJlZj0iaHR0cHM6Ly9zY2hvbGFyLmdvb2dsZS5jb20vc2Nob2xhcl9zaGFyZT9obD1lbiZhbXA7b2k9c2Nob2xhcmFscnQmYW1wO3NzPWluJmFtcDt1cmw9aHR0cHM6Ly93d3cudGFuZGZvbmxpbmUuY29tL2RvaS9hYnMvMTAuMTA4MC8wOTU5Mzk4NS4yMDI2LjI2OTkzMzgmYW1wO3J0PU9sZWNyYW5vbitmcmFjdHVyZSttYWx1bmlvbit0cmVhdGVkK3N1cmdpY2FsbHk6K0ErY2FzZStyZXBvcnQraGlnaGxpZ2h0aW5nK29uZStlbGJvdywrZm91citvcnRob3BlZGljK3N1cmdlb25zLCthbmQrdHdvK3BoeXNpY2FsK3RoZXJhcGlzdHMmYW1wO3NjaXNpZz1BTTF0dW9ObVNSU3Qwem93MVhCZWVUZDVSM1AyIiBzdHlsZT0idGV4dC1kZWNvcmF0aW9uOm5vbmU7ZGlzcGxheTppbmxpbmUtYmxvY2s7cGFkZGluZzo0cHggOHB4O21zby1wYWRkaW5nLWFsdDowOyI-PGltZyBhbHQ9IkxpbmtlZEluIiBzcmM9Imh0dHBzOi8vc2Nob2xhci5nb29nbGUuY29tL2ludGwvZW4vc2Nob2xhci9pbWFnZXMvMXgvaW4tMzIucG5nIiBib3JkZXI9IjAiIGhlaWdodD0iMTYiIHdpZHRoPSIxNiIgc3R5bGU9InZlcnRpY2FsLWFsaWduOnRvcCI-PC9hPjwvdGQ-PHRkIHN0eWxlPSJwYWRkaW5nLXJpZ2h0OjRweDttc28tcGFkZGluZy1hbHQ6NHB4IDE2cHggMCAwOyI-PGEgaHJlZj0iaHR0cHM6Ly9zY2hvbGFyLmdvb2dsZS5jb20vc2Nob2xhcl9zaGFyZT9obD1lbiZhbXA7b2k9c2Nob2xhcmFscnQmYW1wO3NzPWZiJmFtcDt1cmw9aHR0cHM6Ly93d3cudGFuZGZvbmxpbmUuY29tL2RvaS9hYnMvMTAuMTA4MC8wOTU5Mzk4NS4yMDI2LjI2OTkzMzgmYW1wO3J0PU9sZWNyYW5vbitmcmFjdHVyZSttYWx1bmlvbit0cmVhdGVkK3N1cmdpY2FsbHk6K0ErY2FzZStyZXBvcnQraGlnaGxpZ2h0aW5nK29uZStlbGJvdywrZm91citvcnRob3BlZGljK3N1cmdlb25zLCthbmQrdHdvK3BoeXNpY2FsK3RoZXJhcGlzdHMmYW1wO3NjaXNpZz1BTTF0dW9ObVNSU3Qwem93MVhCZWVUZDVSM1AyIiBzdHlsZT0idGV4dC1kZWNvcmF0aW9uOm5vbmU7ZGlzcGxheTppbmxpbmUtYmxvY2s7cGFkZGluZzo0cHggOHB4O21zby1wYWRkaW5nLWFsdDowOyI-PGltZyBhbHQ9IkZhY2Vib29rIiBzcmM9Imh0dHBzOi8vc2Nob2xhci5nb29nbGUuY29tL2ludGwvZW4vc2Nob2xhci9pbWFnZXMvMXgvZmItMzIucG5nIiBib3JkZXI9IjAiIGhlaWdodD0iMTYiIHdpZHRoPSIxNiIgc3R5bGU9InZlcnRpY2FsLWFsaWduOnRvcCI-PC9hPjwvdGQ-PC90cj48L3Rib2R5PjwvdGFibGU-PC9kaXY-PGgzIHN0eWxlPSJmb250LXdlaWdodDpub3JtYWw7bWFyZ2luOjA7Zm9udC1zaXplOjE3cHg7bGluZS1oZWlnaHQ6MjBweDsiPjxhIGhyZWY9Imh0dHBzOi8vc2Nob2xhci5nb29nbGUuY29tL3NjaG9sYXJfdXJsP3VybD1odHRwczovL2V4YW1wbGUub3JnL3N5bnRoZXRpYy1maXh0dXJlLWFydGljbGUmYW1wO2hsPWVuJmFtcDtvaT1zY2hvbGFyYWxydCIgY2xhc3M9ImdzZV9hbHJ0X3RpdGxlIiBzdHlsZT0iZm9udC1zaXplOjE3cHg7Y29sb3I6IzFhMGRhYjtsaW5lLWhlaWdodDoyMnB4Ij5bU1lOVEhFVElDIEZJWFRVUkVdIEEgU2Vjb25kIEZpY3Rpb25hbCBQYXBlciBmb3IgTXVsdGktQXJ0aWNsZSBQYXJzZXIgVGVzdGluZzwvYT48L2gzPjxkaXYgc3R5bGU9ImNvbG9yOiMwMDY2MjE7bGluZS1oZWlnaHQ6MThweCI-V0ogSGFubmV5LCBBQiBGYWtlYXV0aG9yIC0gSm91cm5hbCBvZiBTeW50aGV0aWMgRml4dHVyZXMsIDIwMjY8L2Rpdj48YnI-PGRpdiBzdHlsZT0ibGluZS1oZWlnaHQ6MTZweDttc28tbGluZS1oZWlnaHQtcnVsZTpleGFjdGx5O2JvcmRlci10b3A6MXB4IHNvbGlkICNiZGJkYmQiPiZuYnNwOzwvZGl2PjxwIHN0eWxlPSJtYXJnaW46OHB4IDAgMTZweCAwO2NvbG9yOiM2NjYiPlRoaXMgbWVzc2FnZSB3YXMgc2VudCBieSBHb29nbGUgU2Nob2xhciBiZWNhdXNlIHlvdSdyZSBmb2xsb3dpbmcgbmV3IGFydGljbGVzIHdyaXR0ZW4gYnkgPGEgaHJlZj0iaHR0cHM6Ly9zY2hvbGFyLmdvb2dsZS5jb20vY2l0YXRpb25zP2hsPWVuJmFtcDt1c2VyPVdmZFYzN0lBQUFBSiIgc3R5bGU9ImNvbG9yOiMxYTBkYWI7Ij5XaWxsaWFtIEouIEhhbm5leTwvYT4uPGltZyBzcmM9Imh0dHBzOi8vc2Nob2xhci5nb29nbGUuY29tL3NjaG9sYXJfdXJsP3VybD1odHRwczovL3NjaG9sYXIuZ29vZ2xlLmNvbS9zY2hvbGFyL2ltYWdlcy9jbGVhcmRvdC5naWYmYW1wO2hsPWVuJmFtcDtzYT1YJmFtcDtlaT02ZTFVYXBIek02ZXc2clFQLVByanNBUSZhbXA7c2Npc2lnPUFNMXR1b1BrVlNhdDVmeGtORkJiUlJUWHRoVGQmYW1wO2h0bWw9JmFtcDtmb2x0PWFydCZhbXA7bHJycz0wIiBoZWlnaHQ9MSB3aWR0aD0xIGFsdD0iIj48L3A-PGRpdiBzdHlsZT0ibWFyZ2luLWJvdHRvbTo4cHg7Ij48ZGl2PjwhLS1baWYgZ3RlIG1zbyA5XT48dGFibGUgYm9yZGVyPSIwIiBjZWxsc3BhY2luZz0iMCIgY2VsbHBhZGRpbmc9IjAiPjx0cj48dGQgc3R5bGU9Im1zby1saW5lLWhlaWdodC1ydWxlOmV4YWN0bHk7bGluZS1oZWlnaHQ6MjdweDtib3JkZXItdG9wOjFweCBzb2xpZCAjZmZmO2JvcmRlci1ib3R0b206MXB4IHNvbGlkICNmZmY7bXNvLXRleHQtcmFpc2U6LTFweDsiPjwhW2VuZGlmXS0tPjxhIGhyZWY9Imh0dHBzOi8vc2Nob2xhci5nb29nbGUuY29tL3NjaG9sYXJfYWxlcnRzP3ZpZXdfb3A9Y2FuY2VsX2FsZXJ0X29wdGlvbnMmYW1wO2VtYWlsX2Zvcl9vcD1jb250YWN0JTJCc2Nob2xhciU0MHVjZmNocHMuY29tJmFtcDthbGVydF9pZD1vQ2FSc0xPbEwzUUomYW1wO2hsPWVuJmFtcDtjaXRzaWc9QUtMRUxXOEFBQUFBYW1kaTZ2cmN6c09NQXVWRzlSM3hTMFlNZ0JJIiBzdHlsZT0iZGlzcGxheTppbmxpbmUtYmxvY2s7dGV4dC1kZWNvcmF0aW9uOm5vbmU7Zm9udC1mYW1pbHk6YXJpYWwsc2Fucy1zZXJpZjtmb250LXNpemU6MTNweDtmb250LXNpemU6MTFweDt0ZXh0LXRyYW5zZm9ybTp1cHBlcmNhc2U7Zm9udC1zaXplOjEzcHg7bGluZS1oZWlnaHQ6MjFweDtwYWRkaW5nOjNweCAwO2NvbG9yOiMxYTBkYWI7Ym9yZGVyLXRvcDoxcHggc29saWQgdHJhbnNwYXJlbnQ7Ym9yZGVyLWJvdHRvbToxcHggc29saWQgdHJhbnNwYXJlbnQ7Ym9yZGVyLXJhZGl1czozcHg7bXNvLXBhZGRpbmctYWx0OjA7bXNvLWJvcmRlci1hbHQ6bm9uZTsiPjxzcGFuIHN0eWxlPSJtc28tdGV4dC1yYWlzZTo1cHgiPkNhbmNlbCBhbGVydDwvc3Bhbj48L2E-PCEtLVtpZiBndGUgbXNvIDldPjwvdGQ-PC90cj48L3RhYmxlPjwhW2VuZGlmXS0tPjwvZGl2PjwvZGl2PjwvZGl2PjwhLS1baWYgZ3RlIG1zbyA5XT48L3RkPjwvdHI-PC90YWJsZT48IVtlbmRpZl0tLT48L2JvZHk-PC9odG1sPg0K"
+    }
+  },
+  "sizeEstimate": 11890,
+  "historyId": "332662",
+  "internalDate": "1783950826000",
+  "_synthetic": true,
+  "_synthetic_note": "Hand-constructed, NOT a real Gmail message. Built by duplicating the single real article block from alert-single-hanney-olecranon.json and inserting a second, clearly fictional [SYNTHETIC FIXTURE]-tagged entry. See docs/scholar-alert-notes.md: a real 20+ sample of live alerts never produced a genuine multi-article email, so this shape is untested in the wild and exists only to exercise the parser defensive code path (master plan Sec5a rule 5)."
+}
