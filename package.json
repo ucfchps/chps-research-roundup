@@ -11,6 +11,7 @@
     "check:crossref": "tsx scripts/check-crossref.ts",
     "refresh:metadata": "tsx scripts/refresh-metadata.ts",
     "sync:roster": "tsx scripts/sync-roster.ts",
+    "ingest:scholar": "tsx scripts/ingest-scholar.ts",
     "report:coverage": "tsx scripts/coverage-report.ts",
     "test": "vitest run"
   },
