@@ -33,6 +33,17 @@ export type IngestOutcome =
       metadata: PublicationMetadata & { title_normalized: string };
       authors: MergedAuthor[];
       discoveringFacultyLinked: boolean;
+      // ★ Non-blocking data-quality flag (not a gate): Crossref's
+      // container-title (journal name) can legitimately be absent even when
+      // DOI/title/author-list resolution otherwise succeeds — extractJournal
+      // (lib/crossref.ts) returns null in that case. This never blocks the
+      // insert/promotion (doing so would make this path behave
+      // inconsistently with insert_resolved's own pre-existing tolerance for
+      // incomplete ahead-of-print metadata, e.g. null volume/issue/pages).
+      // It only surfaces in the run summary so a human notices before the
+      // roundup generator (§8c Tab 4, a later session) finalizes an edition
+      // with a citation that's missing its journal name.
+      missingJournal: boolean;
     }
   | {
       kind: "insert_resolved";
@@ -52,6 +63,17 @@ export type IngestOutcome =
       // earlier, still-open needs_metadata stub already represents. Same
       // deterministic check, same threshold, opposite direction.
       possibleDuplicateOf: number[];
+      // ★ Non-blocking data-quality flag (not a gate): Crossref's
+      // container-title (journal name) can legitimately be absent even when
+      // DOI/title/author-list resolution otherwise succeeds — extractJournal
+      // (lib/crossref.ts) returns null in that case. This never blocks the
+      // insert (doing so would make this path behave inconsistently with
+      // its own pre-existing tolerance for incomplete ahead-of-print
+      // metadata, e.g. null volume/issue/pages). It only surfaces in the run
+      // summary so a human notices before the roundup generator (§8c Tab 4,
+      // a later session) finalizes an edition with a citation that's
+      // missing its journal name.
+      missingJournal: boolean;
     }
   | {
       kind: "insert_needs_metadata";
@@ -195,13 +217,15 @@ export function decideArticleOutcome(
       // §9 idempotency: a second alert (or a re-run of the same email) for a
       // paper Crossref still can't resolve. Nothing new to contribute —
       // acknowledge the existing record, create nothing.
+      const passthroughMetadata = { ...toPlainMetadata(existingMatch.metadata), title_normalized: normalizeTitle(existingMatch.metadata.title) };
       return {
         kind: "merged",
         publicationId: existingMatch.id,
         status: existingMatch.status,
-        metadata: { ...toPlainMetadata(existingMatch.metadata), title_normalized: normalizeTitle(existingMatch.metadata.title) },
+        metadata: passthroughMetadata,
         authors: existingMatch.authors.map((a) => ({ ...a })),
         discoveringFacultyLinked: existingMatch.authors.some((a) => a.faculty_id === matchedFaculty.id),
+        missingJournal: passthroughMetadata.journal === null,
       };
     }
 
@@ -247,6 +271,7 @@ export function decideArticleOutcome(
       metadata: mergedMetadata,
       authors: mergedAuthors,
       discoveringFacultyLinked: mergedAuthors.some((a) => a.faculty_id === matchedFaculty.id),
+      missingJournal: mergedMetadata.journal === null,
     };
   }
 
@@ -265,6 +290,7 @@ export function decideArticleOutcome(
     authors: incomingAuthors,
     discoveringFacultyLinked: incomingAuthors.some((a) => a.faculty_id === matchedFaculty.id),
     possibleDuplicateOf: findPossibleDuplicates(incomingMetadata.title, existing),
+    missingJournal: incomingMetadata.journal === null,
   };
 }
 

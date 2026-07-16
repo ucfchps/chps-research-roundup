@@ -182,6 +182,27 @@ describe("decideArticleOutcome — a resolved Crossref hit with no existing matc
     ]);
     expect(outcome.discoveringFacultyLinked).toBe(true);
     expect(outcome.possibleDuplicateOf).toEqual([]); // nothing similar in `existing` ([])
+    expect(outcome.missingJournal).toBe(false); // journal: "J" is present
+  });
+
+  it("★ a Crossref resolution with no container-title flags missingJournal, but still inserts (non-blocking)", () => {
+    // extractJournal (lib/crossref.ts) returns null when Crossref has
+    // neither container-title nor short-container-title — a legitimate,
+    // non-error outcome (e.g. ahead-of-print records). This must never
+    // block the insert, only surface in the run summary.
+    const resolution = {
+      doi: "10.1/x", title: "A Test Paper", url: "https://doi.org/10.1/x", journal: null, year: 2026,
+      volume: null, issue: null, pages: null, type: "journal-article",
+      authors: [{ name: "Doe, J.", position: 0 }],
+    };
+    const roster = [faculty({ id: 7, display_name: "Doe, J." })];
+
+    const outcome = decideArticleOutcome(ARTICLE, roster[0], { kind: "resolved", resolution }, null, [], roster, NOW);
+
+    expect(outcome.kind).toBe("insert_resolved");
+    if (outcome.kind !== "insert_resolved") throw new Error("unreachable");
+    expect(outcome.missingJournal).toBe(true);
+    expect(outcome.publication.status).toBe("pending_merge"); // not blocked
   });
 
   it("★ the discovering faculty's own name failing to match the roster is counted, not papered over", () => {
@@ -264,6 +285,34 @@ describe("decideArticleOutcome — a resolved Crossref hit that matches an exist
     expect(outcome.publicationId).toBe(42);
     expect(outcome.authors.find((a) => a.name === "Smith, R.")).toMatchObject({ faculty_id: 8, role: "chps_faculty" });
     expect(outcome.discoveringFacultyLinked).toBe(true);
+    expect(outcome.missingJournal).toBe(false); // journal: "J" survives the merge
+  });
+
+  it("★ a merge that ends up with no journal name flags missingJournal, but the promotion still proceeds (non-blocking)", () => {
+    // Same class of gap as insert_resolved's own null-journal case, but on
+    // the merge path: neither the existing needs_metadata stub nor the
+    // incoming Crossref resolution has a journal name, so mergeMetadata
+    // produces a merged record with journal: null. Must not block the
+    // promotion to pending_merge.
+    const resolution = {
+      doi: "10.1/x", title: "A Test Paper", url: "https://doi.org/10.1/x", journal: null, year: 2026,
+      volume: null, issue: null, pages: null, type: "journal-article",
+      authors: [{ name: "Doe, J.", position: 0 }],
+    };
+    const roster = [faculty({ id: 7, display_name: "Doe, J." })];
+    const existingMatch: ExistingMatch = {
+      id: 42,
+      status: "needs_metadata",
+      metadata: { doi: null, title: "A Test Paper", url: "https://scholar.google.com/x", journal: null, year: 2026, volume: null, issue: null, pages: null, source: "scholar" },
+      authors: [{ id: 1, name: "Doe, J.", faculty_id: null, role: "unknown", role_set_by: null, role_set_at: null, position: 0 }],
+    };
+
+    const outcome = decideArticleOutcome(ARTICLE, roster[0], { kind: "resolved", resolution }, existingMatch, [], roster, NOW);
+
+    expect(outcome.kind).toBe("merged");
+    if (outcome.kind !== "merged") throw new Error("unreachable");
+    expect(outcome.missingJournal).toBe(true);
+    expect(outcome.status).toBe("pending_merge"); // still promoted, not blocked
   });
 
   it("a human-set role survives the merge (§15.4 — mergeAuthors' own guarantee, exercised here)", () => {

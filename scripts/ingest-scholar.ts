@@ -42,6 +42,7 @@ export interface RunSummary {
   retryLater: number;
   discoveringFacultyNotLinked: { publicationTitle: string; facultyName: string }[];
   possibleDuplicates: { newTitle: string; existingPublicationIds: number[] }[];
+  missingJournal: { publicationTitle: string }[];
   emailsLabeled: number;
   erroredEmails: { id: string; error: string }[];
 }
@@ -50,7 +51,7 @@ function emptySummary(): RunSummary {
   return {
     emailsScanned: 0, parsed: 0, rejected: {}, alertsMatchedToFaculty: 0, unknownScholarIds: [],
     articlesSeen: 0, resolved: 0, merged: 0, insertedNew: 0, needsMetadata: 0, retryLater: 0,
-    discoveringFacultyNotLinked: [], possibleDuplicates: [], emailsLabeled: 0, erroredEmails: [],
+    discoveringFacultyNotLinked: [], possibleDuplicates: [], missingJournal: [], emailsLabeled: 0, erroredEmails: [],
   };
 }
 
@@ -273,6 +274,10 @@ function tally(summary: RunSummary, outcome: IngestOutcome, matchedFaculty: Facu
   ) {
     summary.possibleDuplicates.push({ newTitle: candidateTitle, existingPublicationIds: outcome.possibleDuplicateOf });
   }
+
+  if ((outcome.kind === "merged" || outcome.kind === "insert_resolved") && outcome.missingJournal) {
+    summary.missingJournal.push({ publicationTitle: candidateTitle });
+  }
 }
 
 function printSummary(s: RunSummary): void {
@@ -299,6 +304,11 @@ function printSummary(s: RunSummary): void {
   if (s.possibleDuplicates.length > 0) {
     console.log(`\nPossible duplicates flagged on insert (${s.possibleDuplicates.length}) — similar title already in the database, not auto-merged, needs a human look:`);
     for (const d of s.possibleDuplicates) console.log(`  "${d.newTitle}" ~ existing publication id(s) ${d.existingPublicationIds.join(", ")}`);
+  }
+
+  if (s.missingJournal.length > 0) {
+    console.log(`\nResolved with no journal name (${s.missingJournal.length}) — Crossref had no container-title for these; not blocked, but the roundup generator (§8c Tab 4, a later session) should check for this before finalizing an edition:`);
+    for (const m of s.missingJournal) console.log(`  "${m.publicationTitle}"`);
   }
 }
 
