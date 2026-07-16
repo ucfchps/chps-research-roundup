@@ -155,7 +155,7 @@ function findPossibleDuplicates(candidateTitle: string, existing: MatchableExist
       if (existingTokens.size === 0) return false;
       let shared = 0;
       for (const t of candidateTokens) if (existingTokens.has(t)) shared++;
-      return shared / Math.min(candidateTokens.size, existingTokens.size) >= DUPLICATE_TOKEN_OVERLAP_THRESHOLD;
+      return shared / (candidateTokens.size + existingTokens.size - shared) >= DUPLICATE_TOKEN_OVERLAP_THRESHOLD;
     })
     .map((e) => e.id);
 }

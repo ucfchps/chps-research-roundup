@@ -118,6 +118,25 @@ describe("decideArticleOutcome — ★ possible-duplicate surfacing on insert_ne
     if (outcome.kind !== "insert_needs_metadata") throw new Error("unreachable");
     expect(outcome.possibleDuplicateOf).toEqual([]);
   });
+
+  it("a short/generic candidate title sharing its few tokens with an unrelated, much longer title is NOT flagged — true Jaccard, not the overlap coefficient", () => {
+    // Regression for the min()-based overlap coefficient bug: candidate has
+    // only 3 significant tokens (effects/resistance/training), all of which
+    // also appear in this unrelated, 14-significant-token title about a
+    // completely different population/outcome. shared=3, so shared/min(3,14)
+    // = 1.0 (would have falsely flagged), but shared/union(3+14-3=14) = 0.21,
+    // correctly below threshold — these are two different papers that just
+    // share generic exercise-science vocabulary.
+    const existing = [
+      { id: 5, doi: null, title_normalized: "long term resistance training effects on bone density cardiovascular health outcomes in postmenopausal women with diabetes" },
+    ];
+    const article = { title: "Effects of Resistance Training", year: 2026, scholarUrl: "https://scholar.google.com/x" };
+
+    const outcome = decideArticleOutcome(article, faculty({ id: 7 }), { kind: "not_found" }, null, existing, [], NOW);
+
+    if (outcome.kind !== "insert_needs_metadata") throw new Error("unreachable");
+    expect(outcome.possibleDuplicateOf).toEqual([]);
+  });
 });
 
 describe("decideArticleOutcome — an unmatched Scholar author never reaches this function; it's the caller's job to short-circuit via resolveDiscoveringFaculty", () => {
@@ -251,6 +270,34 @@ describe("decideArticleOutcome — a resolved Crossref hit that matches an exist
 
     if (outcome.kind !== "merged") throw new Error("unreachable");
     expect(outcome.authors.find((a) => a.name === "Grad, S.")).toMatchObject({ role: "grad_student", role_set_by: "faculty:7" });
+  });
+
+  it("★ the discovering faculty's own name failing to match the roster is counted on the merge path too, not just insert_resolved", () => {
+    // Mirrors the insert_resolved "Doerr, J." vs. roster "Doe, J." mismatch
+    // case above, but for the merged outcome: neither the existing record's
+    // author list nor the incoming Crossref author list link faculty_id 7
+    // anywhere, because Crossref's own spelling of the discovering faculty's
+    // name doesn't match the roster. discoveringFacultyLinked must reflect
+    // that miss, not silently report true just because a merge happened.
+    const resolution = {
+      doi: "10.1/x", title: "A Test Paper", url: "https://doi.org/10.1/x", journal: "J", year: 2026,
+      volume: "1", issue: "1", pages: "1-2", type: "journal-article",
+      authors: [{ name: "Doerr, J.", position: 0 }],
+    };
+    const roster = [faculty({ id: 7, display_name: "Doe, J." })];
+    const existingMatch: ExistingMatch = {
+      id: 42,
+      metadata: { doi: "10.1/x", title: "A Test Paper", url: "https://doi.org/10.1/x", journal: "J", year: 2026, volume: "1", issue: "1", pages: "1-2", source: "crossref" },
+      authors: [
+        { id: 1, name: "Doerr, J.", faculty_id: null, role: "unknown", role_set_by: null, role_set_at: null, position: 0 },
+      ],
+    };
+
+    const outcome = decideArticleOutcome(ARTICLE, roster[0], { kind: "resolved", resolution }, existingMatch, [], roster, NOW);
+
+    expect(outcome.kind).toBe("merged");
+    if (outcome.kind !== "merged") throw new Error("unreachable");
+    expect(outcome.discoveringFacultyLinked).toBe(false);
   });
 });
 
