@@ -1,7 +1,7 @@
 // Ground truth: docs/wp-directory-notes.md §4 (URL variant fixture set) and §10
 // (named sample records). Every URL below is transcribed verbatim from that file.
 import { describe, expect, it } from "vitest";
-import { scholarUserId } from "../lib/scholar";
+import { scholarUserId, unwrapGoogleRedirect } from "../lib/scholar";
 
 describe("scholarUserId — real variants from §4", () => {
   it.each([
@@ -65,5 +65,43 @@ describe("scholarUserId — never throws", () => {
   ])("%s -> null", (_label, input) => {
     expect(() => scholarUserId(input as string | null | undefined)).not.toThrow();
     expect(scholarUserId(input as string | null | undefined)).toBeNull();
+  });
+});
+
+describe("unwrapGoogleRedirect — real fixtures are already bare, never re-wrapped", () => {
+  it("a bare Scholar profile URL passes through unchanged", () => {
+    const url = "https://scholar.google.com/citations?hl=en&user=WfdV37IAAAAJ";
+    expect(unwrapGoogleRedirect(url)).toBe(url);
+  });
+});
+
+describe("unwrapGoogleRedirect — hand-constructed wrapper (no real fixture exercises this — docs/scholar-alert-notes.md §1)", () => {
+  it("unwraps a google.com/url?q=... wrapper around a real Scholar profile URL", () => {
+    const inner = "https://scholar.google.com/citations?hl=en&user=WfdV37IAAAAJ";
+    const wrapped = `https://www.google.com/url?q=${encodeURIComponent(inner)}&sa=D`;
+    expect(unwrapGoogleRedirect(wrapped)).toBe(inner);
+  });
+
+  it("unwraps a scholar_url?url=... wrapper", () => {
+    const inner = "https://scholar.google.com/citations?hl=en&user=WfdV37IAAAAJ";
+    const wrapped = `https://scholar.google.com/scholar_url?url=${encodeURIComponent(inner)}&hl=en`;
+    expect(unwrapGoogleRedirect(wrapped)).toBe(inner);
+  });
+
+  it("recurses through a double-wrapped URL", () => {
+    const inner = "https://scholar.google.com/citations?hl=en&user=WfdV37IAAAAJ";
+    const onceWrapped = `https://scholar.google.com/scholar_url?url=${encodeURIComponent(inner)}`;
+    const twiceWrapped = `https://www.google.com/url?q=${encodeURIComponent(onceWrapped)}`;
+    expect(unwrapGoogleRedirect(twiceWrapped)).toBe(inner);
+  });
+
+  it("a non-wrapper URL is returned unchanged", () => {
+    const url = "https://www.researchgate.net/profile/Kim_Gryglewicz";
+    expect(unwrapGoogleRedirect(url)).toBe(url);
+  });
+
+  it("never throws on garbage input", () => {
+    expect(() => unwrapGoogleRedirect("not a url")).not.toThrow();
+    expect(unwrapGoogleRedirect("not a url")).toBe("not a url");
   });
 });
