@@ -82,22 +82,26 @@ describe("ingest-scholar integration", () => {
   let client: Client;
   let gmailInbox: Record<string, ReturnType<typeof gmailMessageFor>>;
   let appliedLabels: string[];
+  let schellhaseFacultyId: number;
+  let mangumFacultyId: number;
 
   beforeEach(async () => {
     dbDir = mkdtempSync(path.join(tmpdir(), "ingest-scholar-test-"));
     client = createClient({ url: `file:${path.join(dbDir, "test.db")}` });
     await runMigrations(client, path.join(__dirname, "..", "db", "migrations"));
 
-    await client.execute({
+    const schellhaseInsert = await client.execute({
       sql: `INSERT INTO faculty (wp_id, slug, display_name, full_name, email, unit, scholar_user_id, active)
             VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
       args: ["1", "schellhase", "Schellhase, K.C.", "Kristen Couper Schellhase", "kcs@x.edu", "School of Kinesiology and Rehabilitation Sciences", "ez1ilMIAAAAJ"],
     });
-    await client.execute({
+    const mangumInsert = await client.execute({
       sql: `INSERT INTO faculty (wp_id, slug, display_name, full_name, email, unit, scholar_user_id, active)
             VALUES (?, ?, ?, ?, ?, ?, ?, 1)`,
       args: ["2", "mangum", "Mangum, L.C.", "L. Colby Mangum", "lcm@x.edu", "School of Kinesiology and Rehabilitation Sciences", "5yIzMuQAAAAJ"],
     });
+    schellhaseFacultyId = Number(schellhaseInsert.lastInsertRowid);
+    mangumFacultyId = Number(mangumInsert.lastInsertRowid);
 
     __resetTokenCacheForTests();
     gmailInbox = { "msg-schellhase": SCHELLHASE_MSG, "msg-mangum": MANGUM_MSG };
@@ -137,13 +141,12 @@ describe("ingest-scholar integration", () => {
     vi.unstubAllGlobals();
   });
 
-  it("two alerts, two faculty, same paper -> ONE publication row, both linked and chps_faculty", async () => {
-    const summary = await runIngestScholar(client, { dryRun: false, limit: null });
-
-    expect(summary.insertedNew).toBe(1);
-    expect(summary.merged).toBe(1);
-
-    const pubs = await client.execute("SELECT id, doi, status FROM publications");
+  // Shared by test 1 and the idempotency test: not just "some faculty_id got
+  // set" (toBeTruthy would pass even on a swapped-link bug — Schellhase's
+  // author row pointing at Mangum's faculty row and vice versa) but the exact
+  // faculty row each author name should resolve to.
+  async function expectBothFacultyCorrectlyLinked(): Promise<void> {
+    const pubs = await client.execute("SELECT id, doi FROM publications");
     expect(pubs.rows).toHaveLength(1);
     expect(pubs.rows[0].doi).toBe("10.1123/ijatt.2025-0110");
 
@@ -153,12 +156,22 @@ describe("ingest-scholar integration", () => {
     });
     const schellhase = authors.rows.find((a) => String(a.name).includes("Schellhase"));
     const mangum = authors.rows.find((a) => String(a.name).startsWith("Mangum"));
-    expect(schellhase?.faculty_id).toBeTruthy();
+    expect(schellhase?.faculty_id).toBe(schellhaseFacultyId);
     expect(schellhase?.role).toBe("chps_faculty");
-    // ★ The test this task is named for: BOTH faculty end up linked on the
-    // same record, not just the one who happened to insert it first.
-    expect(mangum?.faculty_id).toBeTruthy();
+    // ★ The test this task is named for: BOTH faculty end up linked to their
+    // OWN faculty record on the same publication, not just the one who
+    // happened to insert it first, and not swapped with each other.
+    expect(mangum?.faculty_id).toBe(mangumFacultyId);
     expect(mangum?.role).toBe("chps_faculty");
+  }
+
+  it("two alerts, two faculty, same paper -> ONE publication row, both linked and chps_faculty", async () => {
+    const summary = await runIngestScholar(client, { dryRun: false, limit: null });
+
+    expect(summary.insertedNew).toBe(1);
+    expect(summary.merged).toBe(1);
+
+    await expectBothFacultyCorrectlyLinked();
 
     expect(appliedLabels.sort()).toEqual(["msg-mangum", "msg-schellhase"]);
   });
@@ -180,6 +193,12 @@ describe("ingest-scholar integration", () => {
     expect(secondPubs.rows[0].n).toBe(firstPubs.rows[0].n);
     expect(secondAuthors.rows[0].n).toBe(firstAuthors.rows[0].n);
     expect(second.insertedNew).toBe(0);
+
+    // Row counts alone don't catch a count-neutral mutation (e.g. a re-run
+    // that clobbers a role back to "unknown" or swaps a faculty_id) — the
+    // merge logic genuinely re-runs against an already-populated DB on this
+    // second pass, so re-verify its output, not just its row totals.
+    await expectBothFacultyCorrectlyLinked();
   });
 
   it("a human-set grad_student role on an existing record survives a re-ingest of the same paper (§15.4)", async () => {
