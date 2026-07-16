@@ -43,13 +43,14 @@ export interface RunSummary {
   discoveringFacultyNotLinked: { publicationTitle: string; facultyName: string }[];
   possibleDuplicates: { newTitle: string; existingPublicationIds: number[] }[];
   emailsLabeled: number;
+  erroredEmails: { id: string; error: string }[];
 }
 
 function emptySummary(): RunSummary {
   return {
     emailsScanned: 0, parsed: 0, rejected: {}, alertsMatchedToFaculty: 0, unknownScholarIds: [],
     articlesSeen: 0, resolved: 0, merged: 0, insertedNew: 0, needsMetadata: 0, retryLater: 0,
-    discoveringFacultyNotLinked: [], possibleDuplicates: [], emailsLabeled: 0,
+    discoveringFacultyNotLinked: [], possibleDuplicates: [], emailsLabeled: 0, erroredEmails: [],
   };
 }
 
@@ -116,9 +117,13 @@ export async function runIngestScholar(client: Client, opts: RunOptions): Promis
 
   const query = process.env.GMAIL_ALERT_QUERY;
   const labelName = process.env.GMAIL_PROCESSED_LABEL_NAME;
-  const labelId = process.env.GMAIL_PROCESSED_LABEL_ID;
+  const envLabelId = process.env.GMAIL_PROCESSED_LABEL_ID;
   if (!query) throw new Error("GMAIL_ALERT_QUERY must be set (see .env.example)");
-  if (!labelName || !labelId) throw new Error("GMAIL_PROCESSED_LABEL_NAME and GMAIL_PROCESSED_LABEL_ID must be set (see .env.example)");
+  if (!labelName || !envLabelId) throw new Error("GMAIL_PROCESSED_LABEL_NAME and GMAIL_PROCESSED_LABEL_ID must be set (see .env.example)");
+  // Re-bound to a definitely-string const: TS narrowing from the guard above
+  // doesn't carry into processEmail, a nested function closing over this
+  // scope (same reason lib/crossref.ts re-binds CROSSREF_MAILTO).
+  const labelId: string = envLabelId;
 
   const summary = emptySummary();
   const roster = (await client.execute("SELECT * FROM faculty WHERE active = 1")).rows as unknown as Faculty[];
@@ -126,15 +131,19 @@ export async function runIngestScholar(client: Client, opts: RunOptions): Promis
   let ids = await gmail.listMessages(`${query} -label:${labelName}`);
   if (opts.limit !== null) ids = ids.slice(0, opts.limit);
 
-  for (const id of ids) {
-    summary.emailsScanned++;
-
+  // Everything from fetch through the per-article loop for a single email,
+  // isolated in its own function so a bug on one email (parser edge case,
+  // constraint violation, anything not already handled as
+  // CrossrefUnavailableError/retry_later) can be caught per-email below
+  // without losing the rest of the batch — mirrors lib/refresh-metadata.ts's
+  // per-record isolation.
+  async function processEmail(id: string): Promise<void> {
     const message = await gmail.getMessage(id);
     const html = gmail.extractHtmlBody(message);
     if (!html) {
       summary.rejected.no_html_part = (summary.rejected.no_html_part ?? 0) + 1;
       console.log(`[skip] ${id}: no HTML part`);
-      continue;
+      return;
     }
 
     const subject = message.payload.headers?.find((h) => h.name === "Subject")?.value ?? "";
@@ -142,7 +151,7 @@ export async function runIngestScholar(client: Client, opts: RunOptions): Promis
     if (parsed.kind === "rejected") {
       summary.rejected[parsed.reason] = (summary.rejected[parsed.reason] ?? 0) + 1;
       console.log(`[rejected:${parsed.reason}] ${id}: ${parsed.detail}`);
-      continue;
+      return;
     }
     summary.parsed++;
 
@@ -155,7 +164,7 @@ export async function runIngestScholar(client: Client, opts: RunOptions): Promis
         await gmail.applyLabel(id, labelId);
         summary.emailsLabeled++;
       }
-      continue;
+      return;
     }
     summary.alertsMatchedToFaculty++;
 
@@ -219,6 +228,18 @@ export async function runIngestScholar(client: Client, opts: RunOptions): Promis
     }
   }
 
+  for (const id of ids) {
+    summary.emailsScanned++;
+    try {
+      await processEmail(id);
+    } catch (err) {
+      if (err instanceof gmail.GmailUnavailableError) throw err; // Gmail itself is down — abort the whole run, retrying other emails against a dead API wastes time
+      console.error(`[error] ${id}: unexpected failure while processing email`, err);
+      summary.erroredEmails.push({ id, error: err instanceof Error ? err.message : String(err) });
+      // Left unlabeled on purpose, same as retry_later — a future run retries it.
+    }
+  }
+
   return summary;
 }
 
@@ -268,6 +289,11 @@ function printSummary(s: RunSummary): void {
   if (s.discoveringFacultyNotLinked.length > 0) {
     console.log(`\nDiscovering faculty not linked to their own paper (${s.discoveringFacultyNotLinked.length}) — a roster/Crossref name mismatch (§15.11):`);
     for (const d of s.discoveringFacultyNotLinked) console.log(`  ${d.facultyName} — "${d.publicationTitle}"`);
+  }
+
+  if (s.erroredEmails.length > 0) {
+    console.log(`\nEmails that errored during processing (${s.erroredEmails.length}) — left unlabeled, will retry next run:`);
+    for (const e of s.erroredEmails) console.log(`  ${e.id}: ${e.error}`);
   }
 
   if (s.possibleDuplicates.length > 0) {
