@@ -85,6 +85,21 @@ describe("decideArticleOutcome — a clean Crossref null (not found) produces ne
     const outcome = decideArticleOutcome(ARTICLE, faculty({ id: 7 }), { kind: "not_found" }, existingMatch, [], [], NOW);
 
     expect(outcome).toMatchObject({ kind: "merged", publicationId: 42 });
+    if (outcome.kind !== "merged") throw new Error("unreachable");
+    expect(outcome.missingJournal).toBe(true); // existingMatch.metadata.journal is null
+  });
+
+  it("a null Crossref result that DOES match an existing record with a journal already on file is not flagged", () => {
+    const existingMatch: ExistingMatch = {
+      id: 42,
+      status: "needs_metadata",
+      metadata: { doi: null, title: "A Test Paper", url: "https://scholar.google.com/x", journal: "J", year: 2026, volume: null, issue: null, pages: null, source: "scholar" },
+      authors: [],
+    };
+    const outcome = decideArticleOutcome(ARTICLE, faculty({ id: 7 }), { kind: "not_found" }, existingMatch, [], [], NOW);
+
+    if (outcome.kind !== "merged") throw new Error("unreachable");
+    expect(outcome.missingJournal).toBe(false);
   });
 
   it("a not_found outcome never promotes a needs_metadata stub — Crossref found nothing new, so no promotion happens", () => {
