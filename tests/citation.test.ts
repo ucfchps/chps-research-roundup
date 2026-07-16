@@ -45,6 +45,8 @@ function makePublication(overrides: Partial<Publication> = {}): Publication {
     date_added: "2026-01-01",
     released_at: null,
     roundup_id: null,
+    discovered_by_faculty_id: null,
+    scholar_alert_url: null,
     created_at: "2026-01-01T00:00:00.000Z",
     ...overrides,
   };

@@ -46,6 +46,8 @@ async function main() {
     date_added: now,
     released_at: null,
     roundup_id: null,
+    discovered_by_faculty_id: null,
+    scholar_alert_url: null,
     created_at: now,
   };
   const authors = resolution.authors.map((a, i) => ({

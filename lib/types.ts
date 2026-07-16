@@ -64,6 +64,8 @@ export interface Publication {
   date_added: string;
   released_at: string | null;
   roundup_id: number | null;
+  discovered_by_faculty_id: number | null;
+  scholar_alert_url: string | null;
   created_at: string;
 }
 

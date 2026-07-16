@@ -211,6 +211,8 @@ describe("resolveByTitle — the acceptance gate", () => {
       date_added: "",
       released_at: null,
       roundup_id: null,
+      discovered_by_faculty_id: null,
+      scholar_alert_url: null,
       created_at: "",
     };
     const authors = result!.authors.map((a, i) => ({
