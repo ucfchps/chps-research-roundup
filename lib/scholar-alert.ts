@@ -5,7 +5,6 @@
 // way lib/matching.ts (pure) and lib/matching-ai.ts (I/O) are split.
 import * as cheerio from "cheerio";
 import { scholarUserId, unwrapGoogleRedirect } from "./scholar";
-import { AIUnavailableError, callAIJson } from "./ai";
 
 export interface ParsedArticle {
   title: string;
@@ -107,6 +106,11 @@ interface AiExtractedArticle {
 export async function parseAlertEmailWithAiFallback(html: string, subject: string): Promise<ParsedAlert> {
   const deterministic = parseAlertEmail(html, subject);
   if (deterministic.kind !== "rejected" || deterministic.reason !== "no_articles") return deterministic;
+
+  // Lazy-loaded: ./ai imports ./db, which throws at module load without real
+  // Turso credentials. Deferring the import here keeps parseAlertEmail (and
+  // this module generally) importable without paying that cost.
+  const { AIUnavailableError, callAIJson } = await import("./ai");
 
   const $ = cheerio.load(html);
   const $footer = findFooter($)!;

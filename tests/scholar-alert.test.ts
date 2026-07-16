@@ -3,17 +3,18 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
+import { parseAlertEmail } from "../lib/scholar-alert";
 
-// lib/scholar-alert.ts imports lib/ai.ts (for the AI fallback), which imports
-// lib/db.ts, which throws at module load without real Turso credentials.
-// Same pattern as tests/ai.test.ts — mock the db module so this file stays a
-// pure, no-network unit test regardless of environment.
+// lib/ai.ts imports lib/db.ts, which throws at module load without real Turso
+// credentials. lib/scholar-alert.ts lazy-imports ./ai only inside
+// parseAlertEmailWithAiFallback, so importing this module and calling
+// parseAlertEmail (every describe block except the last) never pays that
+// cost. This mock exists only for the final "AI fallback" describe block,
+// which actually calls into lib/ai at runtime. Same mock shape as tests/ai.test.ts.
 const executeMock = vi.fn();
 vi.mock("../lib/db", () => ({
   execute: (...args: unknown[]) => executeMock(...args),
 }));
-
-import { parseAlertEmail } from "../lib/scholar-alert";
 
 function fixtureHtml(name: string): string {
   return readFileSync(path.join(__dirname, "fixtures", "scholar-alerts", `${name}.decoded.html`), "utf-8");
