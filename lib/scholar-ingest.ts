@@ -4,7 +4,7 @@
 // a mailbox, or a network. Composes lib/matching.ts (Session 5, unmodified).
 import { findMatch, mergeAuthors, mergeMetadata, normalizeTitle } from "./matching";
 import type { AuthorInput, ExistingAuthor, MatchableExisting, MergeableExisting, MergedAuthor, PublicationMetadata } from "./matching";
-import type { CrossrefResolution, Faculty } from "./types";
+import type { CrossrefResolution, Faculty, PublicationStatus } from "./types";
 
 export type CrossrefOutcome =
   | { kind: "resolved"; resolution: CrossrefResolution }
@@ -19,13 +19,21 @@ export interface DiscoveredArticle {
 
 export interface ExistingMatch {
   id: number;
+  status: PublicationStatus;
   metadata: MergeableExisting;
   authors: ExistingAuthor[];
 }
 
 export type IngestOutcome =
   | { kind: "skip_unknown_author"; scholarUserId: string; displayName: string }
-  | { kind: "merged"; publicationId: number; metadata: PublicationMetadata & { title_normalized: string }; authors: MergedAuthor[]; discoveringFacultyLinked: boolean }
+  | {
+      kind: "merged";
+      publicationId: number;
+      status: PublicationStatus;
+      metadata: PublicationMetadata & { title_normalized: string };
+      authors: MergedAuthor[];
+      discoveringFacultyLinked: boolean;
+    }
   | {
       kind: "insert_resolved";
       publication: PublicationMetadata & {
@@ -190,6 +198,7 @@ export function decideArticleOutcome(
       return {
         kind: "merged",
         publicationId: existingMatch.id,
+        status: existingMatch.status,
         metadata: { ...toPlainMetadata(existingMatch.metadata), title_normalized: normalizeTitle(existingMatch.metadata.title) },
         authors: existingMatch.authors.map((a) => ({ ...a })),
         discoveringFacultyLinked: existingMatch.authors.some((a) => a.faculty_id === matchedFaculty.id),
@@ -222,9 +231,19 @@ export function decideArticleOutcome(
   if (existingMatch) {
     const mergedMetadata = mergeMetadata(existingMatch.metadata, incomingMetadata, "crossref");
     const mergedAuthors = mergeAuthors(existingMatch.authors, incomingAuthors, "crossref");
+    // ★ Fix (post-plan holistic review): a needs_metadata stub that later
+    // gets a real Crossref resolution must be promoted out of that status —
+    // otherwise a fully-resolved, fully-authored record stays permanently
+    // excluded from the merge-buffer -> roundup pipeline with nothing ever
+    // flagging it (§15.11). Only promotes FROM needs_metadata, and only when
+    // the merge actually produced a DOI. Never touches pending_merge or
+    // published — a published record is permanently settled (§6b).
+    const promotedStatus: PublicationStatus =
+      existingMatch.status === "needs_metadata" && mergedMetadata.doi !== null ? "pending_merge" : existingMatch.status;
     return {
       kind: "merged",
       publicationId: existingMatch.id,
+      status: promotedStatus,
       metadata: mergedMetadata,
       authors: mergedAuthors,
       discoveringFacultyLinked: mergedAuthors.some((a) => a.faculty_id === matchedFaculty.id),

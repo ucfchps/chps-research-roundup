@@ -45,6 +45,7 @@ describe("decideArticleOutcome — CrossrefUnavailableError produces retry_later
   it("even when an existing match would otherwise have been found — unavailable always wins, never persisted", () => {
     const existingMatch: ExistingMatch = {
       id: 42,
+      status: "pending_merge",
       metadata: { doi: "10.1/x", title: "A Test Paper", url: "https://doi.org/10.1/x", journal: "J", year: 2026, volume: "1", issue: "1", pages: "1-2", source: "crossref" },
       authors: [],
     };
@@ -77,12 +78,26 @@ describe("decideArticleOutcome — a clean Crossref null (not found) produces ne
   it("a null Crossref result that DOES match an existing record is idempotent — merged, no new row", () => {
     const existingMatch: ExistingMatch = {
       id: 42,
+      status: "needs_metadata",
       metadata: { doi: null, title: "A Test Paper", url: "https://scholar.google.com/x", journal: null, year: 2026, volume: null, issue: null, pages: null, source: "scholar" },
       authors: [],
     };
     const outcome = decideArticleOutcome(ARTICLE, faculty({ id: 7 }), { kind: "not_found" }, existingMatch, [], [], NOW);
 
     expect(outcome).toMatchObject({ kind: "merged", publicationId: 42 });
+  });
+
+  it("a not_found outcome never promotes a needs_metadata stub — Crossref found nothing new, so no promotion happens", () => {
+    const existingMatch: ExistingMatch = {
+      id: 42,
+      status: "needs_metadata",
+      metadata: { doi: null, title: "A Test Paper", url: "https://scholar.google.com/x", journal: null, year: 2026, volume: null, issue: null, pages: null, source: "scholar" },
+      authors: [],
+    };
+    const outcome = decideArticleOutcome(ARTICLE, faculty({ id: 7 }), { kind: "not_found" }, existingMatch, [], [], NOW);
+
+    if (outcome.kind !== "merged") throw new Error("unreachable");
+    expect(outcome.status).toBe("needs_metadata");
   });
 });
 
@@ -233,6 +248,7 @@ describe("decideArticleOutcome — a resolved Crossref hit that matches an exist
     const roster = [faculty({ id: 7, display_name: "Doe, J." }), faculty({ id: 8, display_name: "Smith, R.", scholar_user_id: "XYZ789AAAAJ" })];
     const existingMatch: ExistingMatch = {
       id: 42,
+      status: "pending_merge",
       metadata: { doi: "10.1/x", title: "A Test Paper", url: "https://doi.org/10.1/x", journal: "J", year: 2026, volume: "1", issue: "1", pages: "1-2", source: "crossref" },
       authors: [
         { id: 1, name: "Doe, J.", faculty_id: 7, role: "chps_faculty", role_set_by: "ingest", role_set_at: NOW, position: 0 },
@@ -259,6 +275,7 @@ describe("decideArticleOutcome — a resolved Crossref hit that matches an exist
     const roster = [faculty({ id: 7, display_name: "Doe, J." })];
     const existingMatch: ExistingMatch = {
       id: 42,
+      status: "pending_merge",
       metadata: { doi: "10.1/x", title: "A Test Paper", url: "https://doi.org/10.1/x", journal: "J", year: 2026, volume: "1", issue: "1", pages: "1-2", source: "crossref" },
       authors: [
         { id: 1, name: "Doe, J.", faculty_id: 7, role: "chps_faculty", role_set_by: "ingest", role_set_at: NOW, position: 0 },
@@ -287,6 +304,7 @@ describe("decideArticleOutcome — a resolved Crossref hit that matches an exist
     const roster = [faculty({ id: 7, display_name: "Doe, J." })];
     const existingMatch: ExistingMatch = {
       id: 42,
+      status: "pending_merge",
       metadata: { doi: "10.1/x", title: "A Test Paper", url: "https://doi.org/10.1/x", journal: "J", year: 2026, volume: "1", issue: "1", pages: "1-2", source: "crossref" },
       authors: [
         { id: 1, name: "Doerr, J.", faculty_id: null, role: "unknown", role_set_by: null, role_set_at: null, position: 0 },
@@ -298,6 +316,73 @@ describe("decideArticleOutcome — a resolved Crossref hit that matches an exist
     expect(outcome.kind).toBe("merged");
     if (outcome.kind !== "merged") throw new Error("unreachable");
     expect(outcome.discoveringFacultyLinked).toBe(false);
+  });
+
+  it("★ a resolved Crossref hit promotes a needs_metadata stub to pending_merge once it actually gets a DOI (post-plan holistic-review fix)", () => {
+    // The bug this fix addresses: a needs_metadata stub created because
+    // Crossref had nothing at the time later gets matched by a NEW alert
+    // that DOES resolve via Crossref. Without this promotion, the row gets
+    // a real DOI, full metadata, and linked authors but stays
+    // needs_metadata forever — silently excluded from the merge-buffer ->
+    // roundup pipeline (§15.11).
+    const resolution = {
+      doi: "10.1/x", title: "A Test Paper", url: "https://doi.org/10.1/x", journal: "J", year: 2026,
+      volume: "1", issue: "1", pages: "1-2", type: "journal-article",
+      authors: [{ name: "Doe, J.", position: 0 }],
+    };
+    const roster = [faculty({ id: 7, display_name: "Doe, J." })];
+    const existingMatch: ExistingMatch = {
+      id: 42,
+      status: "needs_metadata",
+      metadata: { doi: null, title: "A Test Paper", url: "https://scholar.google.com/x", journal: null, year: 2026, volume: null, issue: null, pages: null, source: "scholar" },
+      authors: [{ id: 1, name: "Doe, J.", faculty_id: null, role: "unknown", role_set_by: null, role_set_at: null, position: 0 }],
+    };
+
+    const outcome = decideArticleOutcome(ARTICLE, roster[0], { kind: "resolved", resolution }, existingMatch, [], roster, NOW);
+
+    expect(outcome.kind).toBe("merged");
+    if (outcome.kind !== "merged") throw new Error("unreachable");
+    expect(outcome.status).toBe("pending_merge");
+  });
+
+  it("a resolved Crossref hit merging into an already pending_merge record leaves status untouched (no double-promotion)", () => {
+    const resolution = {
+      doi: "10.1/x", title: "A Test Paper", url: "https://doi.org/10.1/x", journal: "J", year: 2026,
+      volume: "1", issue: "1", pages: "1-2", type: "journal-article",
+      authors: [{ name: "Doe, J.", position: 0 }],
+    };
+    const roster = [faculty({ id: 7, display_name: "Doe, J." })];
+    const existingMatch: ExistingMatch = {
+      id: 42,
+      status: "pending_merge",
+      metadata: { doi: "10.1/x", title: "A Test Paper", url: "https://doi.org/10.1/x", journal: "J", year: 2026, volume: "1", issue: "1", pages: "1-2", source: "crossref" },
+      authors: [{ id: 1, name: "Doe, J.", faculty_id: 7, role: "chps_faculty", role_set_by: "ingest", role_set_at: NOW, position: 0 }],
+    };
+
+    const outcome = decideArticleOutcome(ARTICLE, roster[0], { kind: "resolved", resolution }, existingMatch, [], roster, NOW);
+
+    if (outcome.kind !== "merged") throw new Error("unreachable");
+    expect(outcome.status).toBe("pending_merge");
+  });
+
+  it("a resolved Crossref hit merging into an already published record never touches its status — a published record is permanently settled (§6b)", () => {
+    const resolution = {
+      doi: "10.1/x", title: "A Test Paper", url: "https://doi.org/10.1/x", journal: "J", year: 2026,
+      volume: "1", issue: "1", pages: "1-2", type: "journal-article",
+      authors: [{ name: "Doe, J.", position: 0 }],
+    };
+    const roster = [faculty({ id: 7, display_name: "Doe, J." })];
+    const existingMatch: ExistingMatch = {
+      id: 42,
+      status: "published",
+      metadata: { doi: "10.1/x", title: "A Test Paper", url: "https://doi.org/10.1/x", journal: "J", year: 2026, volume: "1", issue: "1", pages: "1-2", source: "crossref" },
+      authors: [{ id: 1, name: "Doe, J.", faculty_id: 7, role: "chps_faculty", role_set_by: "ingest", role_set_at: NOW, position: 0 }],
+    };
+
+    const outcome = decideArticleOutcome(ARTICLE, roster[0], { kind: "resolved", resolution }, existingMatch, [], roster, NOW);
+
+    if (outcome.kind !== "merged") throw new Error("unreachable");
+    expect(outcome.status).toBe("published");
   });
 });
 

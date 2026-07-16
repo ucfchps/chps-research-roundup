@@ -7,7 +7,7 @@ import { config } from "dotenv";
 import path from "node:path";
 import { createClient, type Client } from "@libsql/client";
 import type { ExistingAuthor, MatchableExisting, MergeableExisting } from "../lib/matching";
-import type { Faculty } from "../lib/types";
+import type { Faculty, PublicationStatus } from "../lib/types";
 import type { CrossrefOutcome, DiscoveredArticle, ExistingMatch, IngestOutcome } from "../lib/scholar-ingest";
 
 config({ path: path.join(__dirname, "..", ".env.local") });
@@ -86,11 +86,11 @@ async function applyOutcome(client: Client, outcome: IngestOutcome): Promise<voi
 
   if (outcome.kind === "merged") {
     await client.execute({
-      sql: `UPDATE publications SET doi=?, title=?, title_normalized=?, url=?, journal=?, year=?, volume=?, issue=?, pages=? WHERE id=?`,
+      sql: `UPDATE publications SET doi=?, title=?, title_normalized=?, url=?, journal=?, year=?, volume=?, issue=?, pages=?, status=? WHERE id=?`,
       args: [
         outcome.metadata.doi, outcome.metadata.title, outcome.metadata.title_normalized, outcome.metadata.url,
         outcome.metadata.journal, outcome.metadata.year, outcome.metadata.volume, outcome.metadata.issue,
-        outcome.metadata.pages, outcome.publicationId,
+        outcome.metadata.pages, outcome.status, outcome.publicationId,
       ],
     });
     for (const a of outcome.authors) {
@@ -196,17 +196,17 @@ export async function runIngestScholar(client: Client, opts: RunOptions): Promis
       if (matchResult.type === "MATCH") {
         const pubRow = (
           await client.execute({
-            sql: "SELECT doi, title, url, journal, year, volume, issue, pages, source FROM publications WHERE id = ?",
+            sql: "SELECT doi, title, url, journal, year, volume, issue, pages, source, status FROM publications WHERE id = ?",
             args: [matchResult.publicationId],
           })
-        ).rows[0] as unknown as MergeableExisting;
+        ).rows[0] as unknown as MergeableExisting & { status: PublicationStatus };
         const authorRows = (
           await client.execute({
             sql: "SELECT id, faculty_id, name, role, role_set_by, role_set_at, position FROM publication_authors WHERE publication_id = ? ORDER BY position",
             args: [matchResult.publicationId],
           })
         ).rows as unknown as ExistingAuthor[];
-        existingMatch = { id: matchResult.publicationId, metadata: pubRow, authors: authorRows };
+        existingMatch = { id: matchResult.publicationId, status: pubRow.status, metadata: pubRow, authors: authorRows };
       }
 
       const outcome = ingest.decideArticleOutcome(discovered, matchedFaculty, crossrefOutcome, existingMatch, existingList, roster, nowIso);
