@@ -1,0 +1,52 @@
+name: ingest-scholar
+
+# Runs the Scholar-alert ingester every 6 hours, per master plan §9.
+# Manual trigger (workflow_dispatch) is included so you can kick off a run
+# on demand from the GitHub Actions UI without waiting for the schedule —
+# useful right after setup, or after fixing something like a roster gap.
+on:
+  schedule:
+    - cron: "0 */6 * * *"
+  workflow_dispatch: {}
+
+# Only one run at a time. If a run is still in flight when the next
+# scheduled trigger fires (shouldn't happen at this volume, but defensive),
+# queue rather than run two ingesters concurrently against the same inbox —
+# the merge engine is idempotent per §9, but there's no reason to invite a
+# race on the Gmail label-application step.
+concurrency:
+  group: ingest-scholar
+  cancel-in-progress: false
+
+jobs:
+  ingest-scholar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ingest-scholar
+        run: npm run ingest:scholar
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          GMAIL_CLIENT_ID: ${{ secrets.GMAIL_CLIENT_ID }}
+          GMAIL_CLIENT_SECRET: ${{ secrets.GMAIL_CLIENT_SECRET }}
+          GMAIL_REFRESH_TOKEN: ${{ secrets.GMAIL_REFRESH_TOKEN }}
+          GMAIL_ALERT_QUERY: ${{ vars.GMAIL_ALERT_QUERY }}
+          GMAIL_PROCESSED_LABEL_ID: ${{ vars.GMAIL_PROCESSED_LABEL_ID }}
+          GMAIL_PROCESSED_LABEL_NAME: ${{ vars.GMAIL_PROCESSED_LABEL_NAME }}
+          CROSSREF_MAILTO: ${{ vars.CROSSREF_MAILTO }}
+          AI_PROVIDER: ${{ vars.AI_PROVIDER }}
+          AI_MODEL: ${{ vars.AI_MODEL }}
+          GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}

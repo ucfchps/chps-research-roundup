@@ -6,6 +6,10 @@ Everything here was pulled by hand from the live directory and from full CSV exp
 **Verified:** July 2026.
 **Counts current as of the July 2026 export.**
 
+**Scope note:** this file covers the WordPress REST API only. CI/deployment concerns
+(GitHub Actions secrets and variables, cron workflow setup) live in `docs/ops-notes.md`,
+not here.
+
 ---
 
 ## 1. Endpoint
