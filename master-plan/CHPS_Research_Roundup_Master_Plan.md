@@ -441,6 +441,23 @@ CREATE TABLE metadata_mismatches (
   detected_at     TEXT NOT NULL,
   UNIQUE(publication_id) -- upsert target, so re-running refresh-metadata doesn't duplicate
 );
+
+-- Records a possible-duplicate judgment call made at ingest time (§7), so it survives
+-- past the run's console output. One row per (publication, candidate) pair. Written by
+-- ingest-scholar whenever an outcome's possibleDuplicateOf is non-empty, on either the
+-- insert_needs_metadata or insert_resolved path. Read by release-buffer (§9) to hold a
+-- record out of promotion until a human resolves it. No admin UI reads/writes
+-- resolved_at/resolution yet — until one exists, resolution is a manual UPDATE.
+CREATE TABLE possible_duplicates (
+  id                       INTEGER PRIMARY KEY,
+  publication_id           INTEGER NOT NULL REFERENCES publications(id) ON DELETE CASCADE,
+  candidate_publication_id INTEGER NOT NULL REFERENCES publications(id) ON DELETE CASCADE,
+  reason                   TEXT,       -- e.g. 'title_drift', 'near_duplicate_title'
+  detected_at              TEXT NOT NULL,
+  resolved_at              TEXT,       -- NULL = still open
+  resolution               TEXT,       -- 'merged' | 'not_duplicate' | NULL while open
+  UNIQUE(publication_id, candidate_publication_id)
+);
 ```
 
 ### UNITS (exact strings — these become the `<h2>` headings and anchor slugs)
@@ -625,6 +642,9 @@ Apply in order; stop at first confident answer:
 - Match authors by normalized name.
 - If a merge adds a `chps_faculty` author to a record whose author list came from a different source, **preserve original citation author order** (`position`) — do not append CHPS faculty to the end. Author order is meaningful in academic citations and getting it wrong is a visible error.
 - When author lists conflict between sources, prefer the more complete list from the higher-priority source (§5).
+
+### Possible-duplicate flags persist
+`findPossibleDuplicates`'s deterministic near-title check (lib/scholar-ingest.ts) is non-blocking — it never stops an insert. Every flagged pair is written to `possible_duplicates` (§6) so the judgment survives past the run's console output. Release-buffer (§9) reads it and holds a flagged publication out of promotion until a human resolves the pair (`lib/duplicates.ts::resolveDuplicate`).
 
 ---
 

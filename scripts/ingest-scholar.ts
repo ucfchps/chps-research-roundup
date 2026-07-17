@@ -9,6 +9,7 @@ import { createClient, type Client } from "@libsql/client";
 import type { ExistingAuthor, MatchableExisting, MergeableExisting } from "../lib/matching";
 import type { Faculty, PublicationStatus } from "../lib/types";
 import type { CrossrefOutcome, DiscoveredArticle, ExistingMatch, IngestOutcome } from "../lib/scholar-ingest";
+import { recordPossibleDuplicates } from "../lib/duplicates";
 
 config({ path: path.join(__dirname, "..", ".env.local") });
 
@@ -60,11 +61,17 @@ async function applyOutcome(client: Client, outcome: IngestOutcome): Promise<voi
 
   if (outcome.kind === "insert_needs_metadata") {
     const p = outcome.publication;
-    await client.execute({
+    const result = await client.execute({
       sql: `INSERT INTO publications (title, title_normalized, url, year, status, source, discovered_by_faculty_id, scholar_alert_url, first_seen_at, date_added, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       args: [p.title, p.title_normalized, p.url, p.year, p.status, p.source, p.discovered_by_faculty_id, p.scholar_alert_url, p.first_seen_at, p.date_added, nowIso],
     });
+    // Durable record of the possible-duplicate flag (§7) — the console
+    // summary (printSummary, below) still reports it too, but this survives
+    // past this run. See lib/duplicates.ts.
+    if (outcome.possibleDuplicateOf.length > 0) {
+      await recordPossibleDuplicates(client, Number(result.lastInsertRowid), outcome.possibleDuplicateOf, "near_duplicate_title");
+    }
     return;
   }
 
@@ -81,6 +88,11 @@ async function applyOutcome(client: Client, outcome: IngestOutcome): Promise<voi
         sql: `INSERT INTO publication_authors (publication_id, faculty_id, name, role, role_set_by, role_set_at, position) VALUES (?, ?, ?, ?, ?, ?, ?)`,
         args: [publicationId, a.faculty_id, a.name, a.role, a.role_set_by, a.role_set_at, a.position],
       });
+    }
+    // Durable record of the possible-duplicate flag (§7) — same as the
+    // insert_needs_metadata path above, kept symmetric. See lib/duplicates.ts.
+    if (outcome.possibleDuplicateOf.length > 0) {
+      await recordPossibleDuplicates(client, publicationId, outcome.possibleDuplicateOf, "near_duplicate_title");
     }
     return;
   }
