@@ -135,7 +135,13 @@ export function matchAuthorNameToFaculty(authorName: string, roster: Faculty[]):
   );
 }
 
-function buildAuthorInputs(authors: CrossrefResolution["authors"], roster: Faculty[], nowIso: string): AuthorInput[] {
+// Turnkey construction: raw Crossref-formatted author names (already "Family,
+// G.I." citation form, see formatCrossrefAuthorName in lib/crossref.ts) -> a
+// full AuthorInput per author, faculty_id/role/role_set_by decided via
+// matchAuthorNameToFaculty above. Exported so a second ingestion source
+// (e.g. ingest-crossref) can reuse this exact construction instead of
+// growing a second, driftable copy of it.
+export function buildAuthorInputs(authors: CrossrefResolution["authors"], roster: Faculty[], nowIso: string): AuthorInput[] {
   return authors.map((a) => {
     const match = matchAuthorNameToFaculty(a.name, roster);
     return match
