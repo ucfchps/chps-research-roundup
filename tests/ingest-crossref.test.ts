@@ -19,7 +19,7 @@ import { runMigrations } from "../db/migrate";
 process.env.CROSSREF_MAILTO ??= "test@example.com";
 
 const { searchByAuthor } = await import("../lib/crossref");
-const { runIngestCrossref } = await import("../scripts/ingest-crossref");
+const { runIngestCrossref, assertScopeIsSafe } = await import("../scripts/ingest-crossref");
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), { status, headers });
@@ -147,6 +147,24 @@ describe("searchByAuthor — surname gate (false-positive guard, real case: 'Ada
 
     expect(result.resolutions).toHaveLength(1);
     expect(result.rejectedBySurnameGate).toBe(0);
+  });
+});
+
+describe("assertScopeIsSafe — refuses an unscoped real run without an explicit override", () => {
+  it("throws when the run is real, unscoped, and no override is given", () => {
+    expect(() => assertScopeIsSafe({ dryRun: false, facultyWpId: null }, false)).toThrow(/unscoped/i);
+  });
+
+  it("does not throw for a dry-run, even unscoped", () => {
+    expect(() => assertScopeIsSafe({ dryRun: true, facultyWpId: null }, false)).not.toThrow();
+  });
+
+  it("does not throw for a real run scoped to a single faculty member", () => {
+    expect(() => assertScopeIsSafe({ dryRun: false, facultyWpId: "1069" }, false)).not.toThrow();
+  });
+
+  it("does not throw for a real, unscoped run when the override is explicitly passed", () => {
+    expect(() => assertScopeIsSafe({ dryRun: false, facultyWpId: null }, true)).not.toThrow();
   });
 });
 

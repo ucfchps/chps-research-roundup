@@ -7,8 +7,8 @@
 // here. Closes part of §11's "no Scholar coverage" gap: faculty with no
 // Google Scholar profile are otherwise only discoverable this way. Run with:
 //   npm run ingest:crossref -- --dry-run
-//   npm run ingest:crossref -- --faculty <wp_id>   (required before an unscoped run)
-//   npm run ingest:crossref
+//   npm run ingest:crossref -- --faculty <wp_id>
+//   npm run ingest:crossref -- --i-accept-unconfirmed-identity-risk   (required for an unscoped real run — see assertScopeIsSafe)
 import { config } from "dotenv";
 import path from "node:path";
 import { createClient, type Client } from "@libsql/client";
@@ -375,12 +375,32 @@ function printSummary(s: RunSummary): void {
   }
 }
 
+// A real (non-dry-run), unscoped (no --faculty) run has no hard identity
+// confirmation anywhere in this pipeline — matchAuthorNameToFaculty is
+// family+first-initial only, and a full-roster dry-run against production
+// showed a large false-positive rate (~814 of 890 candidates would have
+// inserted, many to the wrong same-surname person per the
+// affiliation-unconfirmed flag). Refuse outright rather than rely on a
+// human remembering to always pass --faculty; --i-accept-unconfirmed-identity-risk
+// is the explicit, deliberate override for once a stronger identity check
+// exists or the risk is otherwise accepted.
+export function assertScopeIsSafe(opts: RunOptions, acceptsUnconfirmedIdentityRisk: boolean): void {
+  if (!opts.dryRun && !opts.facultyWpId && !acceptsUnconfirmedIdentityRisk) {
+    throw new Error(
+      "Refusing an unscoped real run: ingest-crossref's author-name matching has no hard identity " +
+        "confirmation, and a full-roster dry-run showed a large false-positive rate. Scope to one " +
+        "faculty member with --faculty <wp_id>, or pass --i-accept-unconfirmed-identity-risk to override."
+    );
+  }
+}
+
 async function main() {
   const url = process.env.TURSO_DATABASE_URL;
   const authToken = process.env.TURSO_AUTH_TOKEN;
   if (!url || !authToken) throw new Error("TURSO_DATABASE_URL and TURSO_AUTH_TOKEN must be set (see .env.example)");
 
   const opts = parseArgs(process.argv.slice(2));
+  assertScopeIsSafe(opts, process.argv.includes("--i-accept-unconfirmed-identity-risk"));
   if (opts.dryRun) console.log("--dry-run: parsing, resolving, and deciding only. Nothing will be written.\n");
 
   const client = createClient({ url, authToken });
