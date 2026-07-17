@@ -9,6 +9,7 @@
 import { config } from "dotenv";
 import path from "node:path";
 import { createClient, type Client } from "@libsql/client";
+import { getUnresolvedDuplicatePublicationIds } from "../lib/duplicates";
 import { selectForRelease, type ReleasableRecord } from "../lib/release";
 
 config({ path: path.join(__dirname, "..", ".env.local") });
@@ -34,6 +35,8 @@ export interface RunSummary {
   released: { id: number; title: string }[];
   stillBufferingCount: number;
   soonest: { id: number; title: string; hoursRemaining: number; releaseAt: string } | null;
+  heldForDuplicateReviewCount: number;
+  heldForDuplicateReview: { id: number; title: string }[];
   needsMetadataCount: number;
   dryRun: boolean;
 }
@@ -49,18 +52,21 @@ export async function runReleaseBuffer(client: Client, opts: { dryRun: boolean }
 
   const { toRelease, stillBuffering } = selectForRelease(pending, now, bufferHours);
 
-  // TODO(session-9.5): once possible_duplicates + getUnresolvedDuplicatePublicationIds
-  // (lib/duplicates.ts) land, filter toRelease here — drop any id present in
-  // that unresolved set so a flagged possible duplicate is held out of
-  // release until a human resolves it. One-function edit: nothing to wire up
-  // yet, the table doesn't exist this session.
-  if (!opts.dryRun && toRelease.length > 0) {
-    const placeholders = toRelease.map(() => "?").join(", ");
+  // A record with an unresolved possible-duplicate flag (§7, lib/duplicates.ts)
+  // is held out of release until a human resolves the pair, even though it's
+  // otherwise past the buffer window — see the "Possible-duplicate flags
+  // persist" note in §7.
+  const unresolvedDuplicateIds = await getUnresolvedDuplicatePublicationIds(client);
+  const releasable = toRelease.filter((id) => !unresolvedDuplicateIds.has(id));
+  const heldForDuplicateReview = toRelease.filter((id) => unresolvedDuplicateIds.has(id));
+
+  if (!opts.dryRun && releasable.length > 0) {
+    const placeholders = releasable.map(() => "?").join(", ");
     // Re-assert status = 'pending_merge' even though we just selected on it —
     // defensive in case this run overlaps an ingestion run touching the same row.
     await client.execute({
       sql: `UPDATE publications SET status = 'published', released_at = ? WHERE id IN (${placeholders}) AND status = 'pending_merge'`,
-      args: [now.toISOString(), ...toRelease],
+      args: [now.toISOString(), ...releasable],
     });
   }
 
@@ -74,8 +80,8 @@ export async function runReleaseBuffer(client: Client, opts: { dryRun: boolean }
 
   return {
     bufferHours,
-    releasedCount: toRelease.length,
-    released: toRelease.map((id) => ({ id, title: byId.get(id)!.title })),
+    releasedCount: releasable.length,
+    released: releasable.map((id) => ({ id, title: byId.get(id)!.title })),
     stillBufferingCount: stillBuffering.length,
     soonest:
       soonestBuffering && soonestRecord
@@ -86,6 +92,8 @@ export async function runReleaseBuffer(client: Client, opts: { dryRun: boolean }
             releaseAt: new Date(Date.parse(soonestRecord.first_seen_at) + bufferHours * 3600000).toISOString(),
           }
         : null,
+    heldForDuplicateReviewCount: heldForDuplicateReview.length,
+    heldForDuplicateReview: heldForDuplicateReview.map((id) => ({ id, title: byId.get(id)!.title })),
     needsMetadataCount,
     dryRun: opts.dryRun,
   };
@@ -110,11 +118,12 @@ function printSummary(s: RunSummary): void {
       "."
   );
 
-  console.log(`\n${s.needsMetadataCount} sitting in needs_metadata right now — not touched by this job; awaiting the incomplete-records admin queue.`);
+  if (s.heldForDuplicateReviewCount > 0) {
+    console.log(`\n${s.heldForDuplicateReviewCount} held for duplicate review (unresolved possible_duplicates flag) — not released this run:`);
+    for (const r of s.heldForDuplicateReview) console.log(`  [${r.id}] ${r.title}`);
+  }
 
-  console.log(
-    `\nNote: duplicate-detection gate not yet wired (Session 9.5 pending) — records released this run were not checked against possible-duplicate signals.`
-  );
+  console.log(`\n${s.needsMetadataCount} sitting in needs_metadata right now — not touched by this job; awaiting the incomplete-records admin queue.`);
 }
 
 async function main() {

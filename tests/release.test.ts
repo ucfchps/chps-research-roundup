@@ -1,5 +1,12 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { createClient, type Client } from "@libsql/client";
+import { runMigrations } from "../db/migrate";
+import { recordPossibleDuplicates, resolveDuplicate } from "../lib/duplicates";
 import { selectForRelease, type ReleasableRecord } from "../lib/release";
+import { runReleaseBuffer } from "../scripts/release-buffer";
 
 const NOW = new Date("2026-07-17T12:00:00.000Z");
 const BUFFER_HOURS = 60;
@@ -82,5 +89,81 @@ describe("selectForRelease", () => {
     const result = selectForRelease(records, NOW, BUFFER_HOURS);
     expect(result.toRelease).toEqual([1]);
     expect(result.stillBuffering).toEqual([{ id: 2, hoursRemaining: 50.0 }]);
+  });
+});
+
+// The duplicate-hold filter lives in scripts/release-buffer.ts, not
+// lib/release.ts: selectForRelease stays pure (no DB access), and checking
+// possible_duplicates is inherently I/O. So this is an integration test
+// against a real temp SQLite db (via runMigrations), same pattern as
+// tests/duplicates.test.ts and tests/refresh-metadata.test.ts.
+describe("runReleaseBuffer — duplicate hold (§7 possible_duplicates gate)", () => {
+  let dbDir: string;
+  let client: Client;
+
+  beforeEach(async () => {
+    dbDir = mkdtempSync(path.join(tmpdir(), "release-buffer-test-"));
+    client = createClient({ url: `file:${path.join(dbDir, "test.db")}` });
+    await runMigrations(client, path.join(__dirname, "..", "db", "migrations"));
+  });
+
+  afterEach(() => {
+    client.close();
+    rmSync(dbDir, { recursive: true, force: true });
+  });
+
+  // Well past any reasonable MERGE_BUFFER_HOURS (default 60) so this is
+  // never accidentally still-buffering regardless of the configured value.
+  async function seedPendingMerge(title: string): Promise<number> {
+    const firstSeenAt = new Date(Date.now() - 1000 * 3600000).toISOString();
+    const result = await client.execute({
+      sql: `INSERT INTO publications (title, title_normalized, url, status, source, first_seen_at, date_added, created_at)
+            VALUES (?, ?, ?, 'pending_merge', 'scholar', ?, ?, ?)`,
+      args: [title, title.toLowerCase(), "https://example.com", firstSeenAt, firstSeenAt.slice(0, 10), firstSeenAt],
+    });
+    return Number(result.lastInsertRowid);
+  }
+
+  it("a pending_merge record past the buffer window with an unresolved possible_duplicates entry is held, not released", async () => {
+    const pubId = await seedPendingMerge("Paper A");
+    const candidateId = await seedPendingMerge("Paper A (candidate)");
+    await recordPossibleDuplicates(client, pubId, [candidateId], "near_duplicate_title");
+
+    const summary = await runReleaseBuffer(client, { dryRun: false });
+
+    expect(summary.releasedCount).toBe(0);
+    // Both sides of an open flag are held (getUnresolvedDuplicatePublicationIds
+    // unions publication_id and candidate_publication_id — see lib/duplicates.ts).
+    expect(summary.heldForDuplicateReviewCount).toBe(2);
+    expect(summary.heldForDuplicateReview.map((r) => r.id).sort()).toEqual([pubId, candidateId].sort());
+
+    const row = await client.execute("SELECT status, released_at FROM publications WHERE id = ?", [pubId]);
+    expect(row.rows[0].status).toBe("pending_merge");
+    expect(row.rows[0].released_at).toBeNull();
+
+    const candidateRow = await client.execute("SELECT status, released_at FROM publications WHERE id = ?", [candidateId]);
+    expect(candidateRow.rows[0].status).toBe("pending_merge");
+    expect(candidateRow.rows[0].released_at).toBeNull();
+  });
+
+  it("the same record releases normally once resolved_at is set", async () => {
+    const pubId = await seedPendingMerge("Paper B");
+    const candidateId = await seedPendingMerge("Paper B (candidate)");
+    await recordPossibleDuplicates(client, pubId, [candidateId], "near_duplicate_title");
+    await resolveDuplicate(client, pubId, candidateId, "not_duplicate");
+
+    const summary = await runReleaseBuffer(client, { dryRun: false });
+
+    expect(summary.heldForDuplicateReviewCount).toBe(0);
+    expect(summary.releasedCount).toBe(2);
+    expect(summary.released.map((r) => r.id).sort()).toEqual([pubId, candidateId].sort());
+
+    const row = await client.execute("SELECT status, released_at FROM publications WHERE id = ?", [pubId]);
+    expect(row.rows[0].status).toBe("published");
+    expect(row.rows[0].released_at).not.toBeNull();
+
+    const candidateRow = await client.execute("SELECT status, released_at FROM publications WHERE id = ?", [candidateId]);
+    expect(candidateRow.rows[0].status).toBe("published");
+    expect(candidateRow.rows[0].released_at).not.toBeNull();
   });
 });
