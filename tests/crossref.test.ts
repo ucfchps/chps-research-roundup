@@ -14,7 +14,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 // scripts/check-ai.ts imports lib/ai.ts dynamically after config().
 process.env.CROSSREF_MAILTO ??= "test@example.com";
 
-const { resolveByTitle, resolveByDoi, formatCrossrefAuthorName, CrossrefUnavailableError } =
+const { resolveByTitle, resolveByDoi, formatCrossrefAuthorName, isUcfAffiliation, CrossrefUnavailableError } =
   await import("../lib/crossref");
 const { formatCitation } = await import("../lib/citation");
 
@@ -439,5 +439,51 @@ describe("formatCrossrefAuthorName", () => {
 
   it("an entry with neither family, given, nor name is skipped, never stringified as 'undefined'", () => {
     expect(formatCrossrefAuthorName({})).toBeNull();
+  });
+});
+
+describe("isUcfAffiliation", () => {
+  it("matches the fully spelled-out form", () => {
+    expect(isUcfAffiliation("University of Central Florida, Orlando, FL, USA")).toBe(true);
+  });
+
+  // The exact string that slipped through on the real Zraick ingest-crossref
+  // run (§9) before this fix — a genuine UCF affiliation flagged as
+  // "unconfirmed" purely because the regex required "university" spelled out.
+  it("matches 'Univ. of Central Florida' (the real string that missed before this fix)", () => {
+    expect(isUcfAffiliation("Univ. of Central Florida")).toBe(true);
+  });
+
+  it("matches 'Univ of Central Florida' (no period)", () => {
+    expect(isUcfAffiliation("Univ of Central Florida")).toBe(true);
+  });
+
+  it("matches 'U. of Central Florida'", () => {
+    expect(isUcfAffiliation("U. of Central Florida")).toBe(true);
+  });
+
+  it("matches a bare 'UCF'", () => {
+    expect(isUcfAffiliation("UCF, Orlando, FL")).toBe(true);
+  });
+
+  // Real strings observed this session (full-roster dry-run) — embedded in a
+  // longer department/lab string, not at the start.
+  it("matches when embedded mid-string, e.g. 'Commun. Sci. and Disord., Univ. of Central Florida, Orlando, FL'", () => {
+    expect(isUcfAffiliation("Commun. Sci. and Disord., Univ. of Central Florida, Orlando, FL")).toBe(true);
+  });
+
+  it("does not match 'University of Florida' (a real, different institution seen this session — no 'Central')", () => {
+    expect(isUcfAffiliation("University of Florida")).toBe(false);
+  });
+
+  it("does not match 'University of North Florida' or 'University of South Florida'", () => {
+    expect(isUcfAffiliation("University of North Florida")).toBe(false);
+    expect(isUcfAffiliation("University of South Florida")).toBe(false);
+  });
+
+  it("does not match null, undefined, or an empty string", () => {
+    expect(isUcfAffiliation(null)).toBe(false);
+    expect(isUcfAffiliation(undefined)).toBe(false);
+    expect(isUcfAffiliation("")).toBe(false);
   });
 });

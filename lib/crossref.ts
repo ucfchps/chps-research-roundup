@@ -178,11 +178,20 @@ function passesAcceptanceGate(
   return true;
 }
 
+// "university"/"univ."/"univ"/"u." (period optional) + "of central florida",
+// or a bare "UCF" — real Crossref affiliation strings seen this session used
+// "Univ. of Central Florida" (missed by a spelled-out-only match — the exact
+// string that slipped through on the Zraick run) alongside the fully
+// spelled-out form. Requiring the literal "central florida" after the
+// prefix keeps this safe against "University of Florida"/"University of
+// South Florida"/etc — those never match, since there's no "central".
+const UCF_AFFILIATION_PATTERN = /\b(?:university|univ\.?|u\.)\s+of\s+central\s+florida\b|\bUCF\b/i;
+
 // Exported so ingest-crossref.ts can check one specific matched author's own
 // affiliation string (not "does anyone on this paper look UCF," which is
-// what hasUcfAffiliation below answers) — same regex, one source of truth.
+// what hasUcfAffiliation below answers) — same pattern, one source of truth.
 export function isUcfAffiliation(affiliation: string | null | undefined): boolean {
-  return affiliation ? /university of central florida/i.test(affiliation) : false;
+  return affiliation ? UCF_AFFILIATION_PATTERN.test(affiliation) : false;
 }
 
 function hasUcfAffiliation(item: CrossrefApiItem): boolean {
