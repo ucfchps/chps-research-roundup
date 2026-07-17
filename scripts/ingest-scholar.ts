@@ -98,12 +98,17 @@ async function applyOutcome(client: Client, outcome: IngestOutcome): Promise<voi
   }
 
   if (outcome.kind === "merged") {
+    // first_seen_at = COALESCE(?, first_seen_at): outcome.firstSeenAt is only
+    // non-null when this merge just promoted the record out of
+    // needs_metadata (§7/§15.11 — see promoteFromNeedsMetadata,
+    // lib/matching.ts) — a fresh buffer window for a record that's only now
+    // becoming mergeable. Null leaves the column untouched, the normal case.
     await client.execute({
-      sql: `UPDATE publications SET doi=?, title=?, title_normalized=?, url=?, journal=?, year=?, volume=?, issue=?, pages=?, status=? WHERE id=?`,
+      sql: `UPDATE publications SET doi=?, title=?, title_normalized=?, url=?, journal=?, year=?, volume=?, issue=?, pages=?, status=?, first_seen_at = COALESCE(?, first_seen_at) WHERE id=?`,
       args: [
         outcome.metadata.doi, outcome.metadata.title, outcome.metadata.title_normalized, outcome.metadata.url,
         outcome.metadata.journal, outcome.metadata.year, outcome.metadata.volume, outcome.metadata.issue,
-        outcome.metadata.pages, outcome.status, outcome.publicationId,
+        outcome.metadata.pages, outcome.status, outcome.firstSeenAt, outcome.publicationId,
       ],
     });
     for (const a of outcome.authors) {

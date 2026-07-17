@@ -113,6 +113,7 @@ describe("decideArticleOutcome — a clean Crossref null (not found) produces ne
 
     if (outcome.kind !== "merged") throw new Error("unreachable");
     expect(outcome.status).toBe("needs_metadata");
+    expect(outcome.firstSeenAt).toBeNull(); // no promotion -> first_seen_at must not be touched
   });
 });
 
@@ -407,6 +408,11 @@ describe("decideArticleOutcome — a resolved Crossref hit that matches an exist
     expect(outcome.kind).toBe("merged");
     if (outcome.kind !== "merged") throw new Error("unreachable");
     expect(outcome.status).toBe("pending_merge");
+    // §7: a stub can sit in needs_metadata for weeks before this promotion
+    // happens. Without a fresh first_seen_at, the promoted record would skip
+    // the merge buffer outright — release-buffer would see it as already far
+    // past MERGE_BUFFER_HOURS and release it on its very next run.
+    expect(outcome.firstSeenAt).toBe(NOW);
   });
 
   it("a resolved Crossref hit merging into an already pending_merge record leaves status untouched (no double-promotion)", () => {
@@ -427,6 +433,7 @@ describe("decideArticleOutcome — a resolved Crossref hit that matches an exist
 
     if (outcome.kind !== "merged") throw new Error("unreachable");
     expect(outcome.status).toBe("pending_merge");
+    expect(outcome.firstSeenAt).toBeNull(); // already pending_merge -> no promotion -> untouched
   });
 
   it("a resolved Crossref hit merging into an already published record never touches its status — a published record is permanently settled (§6b)", () => {
@@ -447,6 +454,7 @@ describe("decideArticleOutcome — a resolved Crossref hit that matches an exist
 
     if (outcome.kind !== "merged") throw new Error("unreachable");
     expect(outcome.status).toBe("published");
+    expect(outcome.firstSeenAt).toBeNull(); // already settled -> no promotion -> untouched
   });
 });
 

@@ -2,7 +2,7 @@
 // plan §5 (layer priority) and §7 (dedup & merge). The ingestion jobs that
 // call these, and the fuzzy-match AI escape hatch (lib/matching-ai.ts), are
 // out of scope here.
-import type { AuthorRole, PublicationSource } from "./types";
+import type { AuthorRole, PublicationSource, PublicationStatus } from "./types";
 
 // Deterministic, no AI. Populates publications.title_normalized. Lowercases,
 // strips punctuation and diacritics, collapses whitespace. "&" is expanded to
@@ -190,4 +190,32 @@ export function mergeMetadata(
 function toMetadata(m: PublicationMetadata): PublicationMetadata {
   const { doi, title, url, journal, year, volume, issue, pages } = m;
   return { doi, title, url, journal, year, volume, issue, pages };
+}
+
+export interface NeedsMetadataPromotion {
+  status: PublicationStatus;
+  // True only when this call actually promoted needs_metadata -> pending_merge
+  // just now. The caller must reset first_seen_at to "now" when this is true
+  // (§7): the original stub's first_seen_at can be arbitrarily stale (it was
+  // stamped when the Scholar alert first created the stub, possibly weeks
+  // before a resolution ever arrived), and leaving it untouched lets the
+  // promoted record skip the merge buffer outright — release-buffer sees it
+  // as already far past MERGE_BUFFER_HOURS and releases it on its very next
+  // run, right when a second source (another co-author's alert, another
+  // day's ingest-crossref sweep) is most likely to still be converging on
+  // it. A fresh first_seen_at gives it the same full buffer window a brand
+  // new insert gets.
+  promoted: boolean;
+}
+
+// §15.11: a needs_metadata stub that later gets a real, DOI-backed
+// resolution — from ANY source, not just the one that created the stub —
+// must not stay stuck outside the merge-buffer -> roundup pipeline with
+// nothing ever flagging it. Only promotes FROM needs_metadata, and only when
+// the merge actually produced a DOI. Never touches pending_merge or
+// published — a published record is permanently settled (§6b). One shared
+// rule for every caller of mergeMetadata, not a copy per ingestion source.
+export function promoteFromNeedsMetadata(existingStatus: PublicationStatus, mergedDoi: string | null): NeedsMetadataPromotion {
+  const promoted = existingStatus === "needs_metadata" && mergedDoi !== null;
+  return { status: promoted ? "pending_merge" : existingStatus, promoted };
 }

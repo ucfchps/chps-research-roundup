@@ -2,7 +2,7 @@
 // value (the already-caught Crossref outcome, the already-fetched roster and
 // existing-match row) is a parameter, so this is testable without a database,
 // a mailbox, or a network. Composes lib/matching.ts (Session 5, unmodified).
-import { findMatch, mergeAuthors, mergeMetadata, normalizeTitle } from "./matching";
+import { findMatch, mergeAuthors, mergeMetadata, normalizeTitle, promoteFromNeedsMetadata } from "./matching";
 import type { AuthorInput, ExistingAuthor, MatchableExisting, MergeableExisting, MergedAuthor, PublicationMetadata } from "./matching";
 import type { CrossrefResolution, Faculty, PublicationStatus } from "./types";
 
@@ -33,6 +33,12 @@ export type IngestOutcome =
       metadata: PublicationMetadata & { title_normalized: string };
       authors: MergedAuthor[];
       discoveringFacultyLinked: boolean;
+      // Non-null only when this merge just promoted the record out of
+      // needs_metadata (see promoteFromNeedsMetadata, lib/matching.ts) — the
+      // caller must write this over the record's stale original
+      // first_seen_at so it gets a fresh merge-buffer window (§7). Null
+      // means "leave first_seen_at untouched," the normal case.
+      firstSeenAt: string | null;
       // ★ Non-blocking data-quality flag (not a gate): Crossref's
       // container-title (journal name) can legitimately be absent even when
       // DOI/title/author-list resolution otherwise succeeds — extractJournal
@@ -231,6 +237,7 @@ export function decideArticleOutcome(
         metadata: passthroughMetadata,
         authors: existingMatch.authors.map((a) => ({ ...a })),
         discoveringFacultyLinked: existingMatch.authors.some((a) => a.faculty_id === matchedFaculty.id),
+        firstSeenAt: null, // not_found never carries a DOI — never promotes, nothing to reset
         missingJournal: passthroughMetadata.journal === null,
       };
     }
@@ -261,22 +268,16 @@ export function decideArticleOutcome(
   if (existingMatch) {
     const mergedMetadata = mergeMetadata(existingMatch.metadata, incomingMetadata, "crossref");
     const mergedAuthors = mergeAuthors(existingMatch.authors, incomingAuthors, "crossref");
-    // ★ Fix (post-plan holistic review): a needs_metadata stub that later
-    // gets a real Crossref resolution must be promoted out of that status —
-    // otherwise a fully-resolved, fully-authored record stays permanently
-    // excluded from the merge-buffer -> roundup pipeline with nothing ever
-    // flagging it (§15.11). Only promotes FROM needs_metadata, and only when
-    // the merge actually produced a DOI. Never touches pending_merge or
-    // published — a published record is permanently settled (§6b).
-    const promotedStatus: PublicationStatus =
-      existingMatch.status === "needs_metadata" && mergedMetadata.doi !== null ? "pending_merge" : existingMatch.status;
+    // §15.11 promotion rule — see promoteFromNeedsMetadata in lib/matching.ts.
+    const promotion = promoteFromNeedsMetadata(existingMatch.status, mergedMetadata.doi);
     return {
       kind: "merged",
       publicationId: existingMatch.id,
-      status: promotedStatus,
+      status: promotion.status,
       metadata: mergedMetadata,
       authors: mergedAuthors,
       discoveringFacultyLinked: mergedAuthors.some((a) => a.faculty_id === matchedFaculty.id),
+      firstSeenAt: promotion.promoted ? nowIso : null,
       missingJournal: mergedMetadata.journal === null,
     };
   }

@@ -19,6 +19,7 @@ const CROSSREF_MAILTO: string = envMailto;
 const USER_AGENT = `chps-research-roundup/1.0 (mailto:${CROSSREF_MAILTO})`;
 const CROSSREF_BASE = "https://api.crossref.org";
 const SEARCH_ROWS = 5;
+const AUTHOR_SEARCH_DEFAULT_ROWS = 20;
 const PREPRINT_TYPE = "posted-content";
 
 export class CrossrefUnavailableError extends Error {
@@ -177,8 +178,15 @@ function passesAcceptanceGate(
   return true;
 }
 
+// Exported so ingest-crossref.ts can check one specific matched author's own
+// affiliation string (not "does anyone on this paper look UCF," which is
+// what hasUcfAffiliation below answers) — same regex, one source of truth.
+export function isUcfAffiliation(affiliation: string | null | undefined): boolean {
+  return affiliation ? /university of central florida/i.test(affiliation) : false;
+}
+
 function hasUcfAffiliation(item: CrossrefApiItem): boolean {
-  return item.author?.some((a) => a.affiliation?.some((aff) => /university of central florida/i.test(aff.name))) ?? false;
+  return item.author?.some((a) => a.affiliation?.some((aff) => isUcfAffiliation(aff.name))) ?? false;
 }
 
 function authorSurnames(item: CrossrefApiItem): string[] {
@@ -239,6 +247,62 @@ export async function resolveByTitle(
   }
 
   return chosen.resolution;
+}
+
+export interface AuthorSearchResult {
+  resolutions: CrossrefResolution[];
+  // Verified real case (Adams, School of Social Work): query.author is
+  // relevance-ranked full-text matching, not an exact lookup — a common
+  // surname/name-fragment returns wholly unrelated authors from unrelated
+  // fields. Every one of those still went through author-linking downstream,
+  // risking a false credit to the wrong person. rejectedBySurnameGate counts
+  // candidates dropped by that check so it's a visible number, not a silent
+  // filter (§15.11).
+  rejectedBySurnameGate: number;
+}
+
+// Roster-driven author search (§5 Layer 2, §9 ingest-crossref, §13 item 8).
+// Unlike resolveByTitle, this is a harvest, not a single-answer resolution —
+// there's no title/year to gate on. But an unfiltered author-name search is
+// unsafe to hand to the merge engine as-is (see AuthorSearchResult above), so
+// this reuses the SAME authorListHasSurname check resolveByTitle's own
+// acceptance gate already uses — not a second, parallel implementation of
+// "does this candidate's author list contain the person we're looking for."
+// affiliationHint is passed straight through as query.affiliation, a
+// relevance-ranking signal only (§5's "Affiliation is a tiebreaker, never a
+// requirement") — it is never used to drop results, only to help Crossref
+// rank them; surnameHint is the only rejection reason.
+export async function searchByAuthor(opts: {
+  authorName: string;
+  affiliationHint?: string;
+  sincePubDate?: string;
+  rows?: number;
+  surnameHint?: string;
+}): Promise<AuthorSearchResult> {
+  const rows = opts.rows ?? AUTHOR_SEARCH_DEFAULT_ROWS;
+
+  let url = `${CROSSREF_BASE}/works?query.author=${encodeURIComponent(opts.authorName)}`;
+  if (opts.affiliationHint) url += `&query.affiliation=${encodeURIComponent(opts.affiliationHint)}`;
+  if (opts.sincePubDate) url += `&filter=${encodeURIComponent(`from-pub-date:${opts.sincePubDate}`)}`;
+  url += `&rows=${rows}&mailto=${encodeURIComponent(CROSSREF_MAILTO)}`;
+
+  const res = await crossrefFetch(url);
+  if (!res.ok) throw new CrossrefUnavailableError(`Crossref author search returned ${res.status}`);
+
+  const json = (await res.json()) as { message?: { items?: CrossrefApiItem[] } };
+  const items = json.message?.items ?? [];
+
+  const resolutions: CrossrefResolution[] = [];
+  let rejectedBySurnameGate = 0;
+  for (const item of items) {
+    if (opts.surnameHint && !authorListHasSurname(item, opts.surnameHint)) {
+      rejectedBySurnameGate++;
+      continue;
+    }
+    const resolution = mapItem(item);
+    if (resolution) resolutions.push(resolution);
+  }
+  return { resolutions, rejectedBySurnameGate };
 }
 
 // A DOI is an exact identifier, not a search — no acceptance gate needed.
