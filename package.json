@@ -13,6 +13,7 @@
     "sync:roster": "tsx scripts/sync-roster.ts",
     "ingest:scholar": "tsx scripts/ingest-scholar.ts",
     "report:coverage": "tsx scripts/coverage-report.ts",
+    "release:buffer": "tsx scripts/release-buffer.ts",
     "test": "vitest run"
   },
   "dependencies": {
