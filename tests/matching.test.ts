@@ -225,6 +225,30 @@ describe("mergeAuthors — §7 author merge rules", () => {
     expect(merged[1].id).toBeNull(); // not yet persisted — caller must insert
   });
 
+  // §13 item 10 regression: two different sources (e.g. ORCID's own author
+  // data vs. PubMed's) can format the same name slightly differently and
+  // fail the name-match check, so a genuinely-new incoming author's own
+  // position (copied verbatim from its source list, e.g. 0) can collide
+  // with a position ALREADY taken in the existing merged list — violating
+  // publication_authors' UNIQUE(publication_id, position) constraint on
+  // insert. Confirmed live: ORCID inserts a 1-author stub at position 0;
+  // PubMed's later merge for the same paper has its own author at its own
+  // list-index 0, which doesn't name-match the existing entry.
+  it("a genuinely new author is appended at a free position, never colliding with an existing author's position", () => {
+    const existing = [{ ...author({ name: "Stock, M.", role: "chps_faculty", faculty_id: 1, position: 0 }), id: 1 }];
+    // "Stock, M.S." deliberately does NOT name-match "Stock, M." above (a
+    // different source formatted the initials more fully) — so it's a
+    // genuinely new author from mergeAuthors' point of view, carrying its
+    // own source list's position: 0, same as the ALREADY-occupied slot.
+    const incoming: AuthorInput[] = [author({ name: "Stock, M.S.", role: "unknown", position: 0 })];
+
+    const merged = mergeAuthors(existing, incoming, "pubmed");
+
+    expect(merged).toHaveLength(2);
+    const positions = merged.map((a) => a.position);
+    expect(new Set(positions).size).toBe(positions.length); // no two authors share a position
+  });
+
   it("Scholar incoming data never adds or restructures authors (§15.7 applied to author lists too)", () => {
     const existing = [{ ...author({ name: "Zraick, R.I.", role: "chps_faculty", faculty_id: 1, position: 0 }), id: 1 }];
     const incoming: AuthorInput[] = [

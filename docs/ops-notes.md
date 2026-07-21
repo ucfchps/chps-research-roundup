@@ -81,9 +81,67 @@ wrong.
 
 ---
 
-## 2. Future cron jobs
+## 2. `ingest-pubmed-orcid` — GitHub Actions secrets & variables
 
-`ingest-crossref`, `ingest-pubmed-orcid`, and `release-buffer` (§9, §13) will each need their
-own workflow file and their own section here as they're built. Reuse the same
-secrets/variables above where applicable — don't re-request or re-derive credentials that
-already exist in this list.
+**Workflow file:** `.github/workflows/ingest-pubmed-orcid.yml`
+**Schedule:** daily (§9 of the master plan, §13 Phase 3 item 10), plus manual trigger via
+`workflow_dispatch`.
+
+Reuses `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN` and the `CROSSREF_MAILTO` variable already
+configured for `ingest-scholar` — see §1. Don't re-derive those.
+
+### New secrets
+
+| Name | Used for |
+|---|---|
+| `NCBI_API_KEY` | PubMed E-utilities. Optional but recommended — raises the rate limit from 3 req/sec to 10 req/sec (`lib/pubmed.ts`). |
+
+### New variables
+
+| Name | Value |
+|---|---|
+| `NCBI_TOOL_NAME` | Sent as the `tool` param per NCBI's usage policy — not a credential. |
+| `NCBI_EMAIL` | Sent as the `email` param per NCBI's usage policy — not a credential. |
+| `ORCID_LOOKBACK_YEARS` | Bounds `getOrcidWorks` to recent publication years (`lib/orcid.ts`). Default 3 if unset. |
+
+### ★ `ingest-crossref` has no workflow file yet
+
+Unlike `ingest-scholar` and now `ingest-pubmed-orcid`, `scripts/ingest-crossref.ts` (§13 Phase 3
+item 8) was built without a corresponding `.github/workflows/ingest-crossref.yml` — confirmed
+absent as of this session. It still needs one, reusing the same `TURSO_*`/`CROSSREF_MAILTO`
+values above, before it can run on a real schedule rather than by hand.
+
+### Verifying the workflow itself
+
+Same as §1: GitHub Actions tab → `ingest-pubmed-orcid` → "Run workflow" (manual trigger). A
+missing or misnamed secret surfaces as a failed run in that run's log.
+
+---
+
+## 3. ★ Data-hygiene bug found in `faculty.full_name` — flagged for `sync-roster`'s owner
+
+Confirmed live (§13 item 10 bug-fix session, `lib/names.ts::parseFullNameForPubmedQuery`): the
+`faculty` row for `display_name = "Lee, E.M."` has a corrupted `full_name` value —
+
+```
+Eunkyung &#8220;Muriel&#8221; Lee
+```
+
+Raw, undecoded HTML entities (curly-quote codes) sitting in the column, sourced from
+`title.rendered` per `docs/wp-directory-notes.md` §2. This is a `sync-roster`/WordPress-REST
+ingestion bug — the entity decoding that already happens for taxonomy names (§5 of that doc)
+evidently isn't applied to `title.rendered`. **Out of scope for this fix pack** —
+`parseFullNameForPubmedQuery` deliberately fails closed on it (returns `null`, no entity
+decoding attempted — that normalization belongs in `sync-roster`, not in a PubMed-query
+builder) and the caller falls back to `display_name`, which happens to already be complete for
+this person. Whoever owns `sync-roster` should decode HTML entities on `title.rendered` the
+same way taxonomy names already are.
+
+Also found while auditing the mismatch-guard path against every live roster row: `faculty` row
+`display_name = "Renziehausen, J."` has `full_name = "Justine Starling-Smith"` — a completely
+different surname from the same person's citation-form last name. Most likely a maiden/married
+name applied to one WordPress field and not the other. `parseFullNameForPubmedQuery` correctly
+fails closed (the known surname "Renziehausen" doesn't appear anywhere in "Justine
+Starling-Smith") and falls back to `display_name`, so this doesn't break PubMed queries — but
+it's a real inconsistency in the underlying directory data, worth a look by whoever can check
+which of the two names is current.

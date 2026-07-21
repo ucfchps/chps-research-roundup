@@ -119,7 +119,17 @@ export function mergeAuthors(
     // authors (§5, §15.7 applied to author lists, not just field metadata).
     if (incomingSource === "scholar") continue;
 
-    const newAuthor: MergedAuthor = { ...inAuthor, id: null };
+    // §13 item 10: `inAuthor.position` is only meaningful within its OWN
+    // source's author list — different sources format the same name
+    // differently often enough (fuller/sparser initials) that a real name
+    // can fail the match above and arrive here as "new" even though someone
+    // already occupies that same list-index in `merged`. Assign the next
+    // free slot instead of trusting the incoming index verbatim, or this
+    // collides with publication_authors' UNIQUE(publication_id, position)
+    // constraint on insert. Newly-appended authors still land in their
+    // relative incoming order, since incoming is iterated in order and each
+    // one lands at the current end of merged.
+    const newAuthor: MergedAuthor = { ...inAuthor, id: null, position: merged.length };
     merged.push(newAuthor);
     byName.set(key, newAuthor);
   }

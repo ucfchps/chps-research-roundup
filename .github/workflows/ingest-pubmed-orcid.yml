@@ -1,0 +1,43 @@
+name: ingest-pubmed-orcid
+
+# Runs the ORCID + PubMed enrichment sweep daily, per master plan §9.
+# Manual trigger (workflow_dispatch) is included so you can kick off a run
+# on demand from the GitHub Actions UI without waiting for the schedule.
+on:
+  schedule:
+    - cron: "0 9 * * *"
+  workflow_dispatch: {}
+
+# Only one run at a time — the merge engine is idempotent per §9, but no
+# reason to invite a race between two concurrent sweeps against the same DB.
+concurrency:
+  group: ingest-pubmed-orcid
+  cancel-in-progress: false
+
+jobs:
+  ingest-pubmed-orcid:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ingest-pubmed-orcid
+        run: npm run ingest:pubmed-orcid
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          CROSSREF_MAILTO: ${{ vars.CROSSREF_MAILTO }}
+          NCBI_API_KEY: ${{ secrets.NCBI_API_KEY }}
+          NCBI_TOOL_NAME: ${{ vars.NCBI_TOOL_NAME }}
+          NCBI_EMAIL: ${{ vars.NCBI_EMAIL }}
+          ORCID_LOOKBACK_YEARS: ${{ vars.ORCID_LOOKBACK_YEARS }}

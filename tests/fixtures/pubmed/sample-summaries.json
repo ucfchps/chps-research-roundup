@@ -1,0 +1,92 @@
+{
+  "_note": "Trimmed from a real https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi pull (db=pubmed) for three actual CHPS publications. Save as tests/fixtures/pubmed/sample-summaries.json.",
+
+  "header": { "type": "esummary", "version": "0.3" },
+
+  "result": {
+    "uids": ["42387281", "42200906", "41740644"],
+
+    "42387281": {
+      "_case": "ahead-of-print record — volume/issue/pages ALL empty strings, not null, even though this is a real fully-indexed PubMed article, not gray literature. Also has 11 authors, exercising full-author-list handling.",
+      "uid": "42387281",
+      "pubdate": "2026 Jul 2",
+      "source": "Exerc Sport Sci Rev",
+      "fulljournalname": "Exercise and sport sciences reviews",
+      "authors": [
+        { "name": "Stock MS", "authtype": "Author" },
+        { "name": "Harmon KK", "authtype": "Author" },
+        { "name": "Andrushko JW", "authtype": "Author" },
+        { "name": "Farthing JP", "authtype": "Author" },
+        { "name": "Roberts MD", "authtype": "Author" },
+        { "name": "Clark BC", "authtype": "Author" },
+        { "name": "Ploutz-Snyder L", "authtype": "Author" },
+        { "name": "Suetta C", "authtype": "Author" },
+        { "name": "Wingfield HCS", "authtype": "Author" },
+        { "name": "van Loon LJC", "authtype": "Author" },
+        { "name": "Carr JC", "authtype": "Author" }
+      ],
+      "lastauthor": "Carr JC",
+      "title": "Limb Disuse Trials in Humans: Key Insights on Study Design, Ethics, and Project Execution.",
+      "volume": "",
+      "issue": "",
+      "pages": "",
+      "pubtype": ["Journal Article"],
+      "articleids": [
+        { "idtype": "pubmed", "value": "42387281" },
+        { "idtype": "doi", "value": "10.1249/JES.0000000000000392" }
+      ]
+    },
+
+    "42200906": {
+      "_case": "SAME PAPER as one already in tests/fixtures/orcid/sample-works.json (DOI 10.3390/jfmk11020200) — real cross-source overlap. Use this DOI for the concrete merge test. volume/issue present but pages is an empty string (open-access journal uses article numbers via a companion field, not shown here as a traditional page range).",
+      "uid": "42200906",
+      "pubdate": "2026 May 17",
+      "source": "J Funct Morphol Kinesiol",
+      "fulljournalname": "Journal of functional morphology and kinesiology",
+      "authors": [
+        { "name": "Stock MS", "authtype": "Author" },
+        { "name": "Fowler HN", "authtype": "Author" },
+        { "name": "Ditmyer AL", "authtype": "Author" },
+        { "name": "Nyberg CE", "authtype": "Author" },
+        { "name": "Hahs-Vaughn DL", "authtype": "Author" },
+        { "name": "Richardson RM", "authtype": "Author" }
+      ],
+      "lastauthor": "Richardson RM",
+      "title": "A Comparison of Methods for Tracking Muscle Quality During Early-Phase Rehabilitation Following Anterior Cruciate Ligament Reconstruction.",
+      "volume": "11",
+      "issue": "2",
+      "pages": "",
+      "pubtype": ["Journal Article"],
+      "articleids": [
+        { "idtype": "pubmed", "value": "42200906" },
+        { "idtype": "pmc", "value": "PMC13214610" },
+        { "idtype": "doi", "value": "10.3390/jfmk11020200" }
+      ]
+    },
+
+    "41740644": {
+      "_case": "article-number-style pages ('150228', not a page range) on a real indexed-for-MEDLINE record. Also: Stock MS is NOT first author here (4th of 5) — exercises position-order preservation for a non-first-author case.",
+      "uid": "41740644",
+      "pubdate": "2026 May 15",
+      "source": "Brain Res",
+      "fulljournalname": "Brain research",
+      "authors": [
+        { "name": "Fraterrigo NJ", "authtype": "Author" },
+        { "name": "DiMaio RS", "authtype": "Author" },
+        { "name": "Girts RM", "authtype": "Author" },
+        { "name": "Stock MS", "authtype": "Author" },
+        { "name": "Harmon KK", "authtype": "Author" }
+      ],
+      "lastauthor": "Harmon KK",
+      "title": "Examination and quantification of motor evoked potentials in the non-target resting leg.",
+      "volume": "1879",
+      "issue": "",
+      "pages": "150228",
+      "pubtype": ["Journal Article"],
+      "articleids": [
+        { "idtype": "pubmed", "value": "41740644" },
+        { "idtype": "doi", "value": "10.1016/j.brainres.2026.150228" }
+      ]
+    }
+  }
+}

@@ -1,0 +1,136 @@
+{
+  "_note": "Trimmed from real https://pub.orcid.org/v3.0/{orcid-id}/works pulls for two CHPS faculty ORCID profiles. Save as tests/fixtures/orcid/sample-works.json. Each entry below is a `group` object (not a work-summary) — this is the level getOrcidWorks() should iterate and dedupe at.",
+
+  "group": [
+    {
+      "_case": "in-window, single work-summary, DOI present, type=journal-article — the common/expected case",
+      "last-modified-date": { "value": 1779408153479 },
+      "external-ids": {
+        "external-id": [
+          { "external-id-type": "doi", "external-id-value": "10.1123/jsr.2024-0440" }
+        ]
+      },
+      "work-summary": [
+        {
+          "put-code": 193089015,
+          "source": { "source-name": { "value": "Crossref" } },
+          "title": { "title": { "value": "Development and Reliability of 2 Visual-Cognitive Dual-Task Agility Assessments for Return to Sport" } },
+          "type": "journal-article",
+          "publication-date": { "year": { "value": "2026" }, "month": { "value": "05" }, "day": { "value": "01" } },
+          "journal-title": { "value": "Journal of Sport Rehabilitation" },
+          "url": { "value": "https://doi.org/10.1123/jsr.2024-0440" }
+        }
+      ]
+    },
+    {
+      "_case": "DUPLICATE WORK-SUMMARIES within one group, same DOI — must dedupe to ONE candidate, not two. One asserted by Crossref, one by the publisher (MDPI) directly.",
+      "last-modified-date": { "value": 1779408153479 },
+      "external-ids": {
+        "external-id": [
+          { "external-id-type": "doi", "external-id-value": "10.3390/jfmk11020200" }
+        ]
+      },
+      "work-summary": [
+        {
+          "put-code": 214995365,
+          "source": { "source-name": { "value": "Crossref" } },
+          "title": { "title": { "value": "A Comparison of Methods for Tracking Muscle Quality During Early-Phase Rehabilitation Following Anterior Cruciate Ligament Reconstruction" } },
+          "type": "journal-article",
+          "publication-date": { "year": { "value": "2026" }, "month": { "value": "05" }, "day": { "value": "17" } },
+          "journal-title": { "value": "Journal of Functional Morphology and Kinesiology" },
+          "url": { "value": "https://doi.org/10.3390/jfmk11020200" }
+        },
+        {
+          "put-code": 215403750,
+          "source": { "source-name": { "value": "Multidisciplinary Digital Publishing Institute" } },
+          "title": { "title": { "value": "A Comparison of Methods for Tracking Muscle Quality During Early-Phase Rehabilitation Following Anterior Cruciate Ligament Reconstruction" } },
+          "type": "journal-article",
+          "publication-date": { "year": { "value": "2026" }, "month": { "value": "05" }, "day": null },
+          "journal-title": { "value": "Journal of Functional Morphology and Kinesiology" },
+          "url": { "value": "https://www.mdpi.com/2411-5142/11/2/200" }
+        }
+      ]
+    },
+    {
+      "_case": "in-window, type=preprint, DOI present, journal-title is null — expect title/DOI to resolve via Crossref, no journal metadata from ORCID itself",
+      "last-modified-date": { "value": 1760616019056 },
+      "external-ids": {
+        "external-id": [
+          { "external-id-type": "doi", "external-id-value": "10.1101/2025.10.12.25337781" }
+        ]
+      },
+      "work-summary": [
+        {
+          "put-code": 194243370,
+          "source": { "source-name": { "value": "Crossref" } },
+          "title": { "title": { "value": "TEST-RETEST RELIABILITY OF MOTOR UNIT FIRING BEHAVIOR DURING MAXIMAL GRIP STRENGTH ASSESSMENTS AMONG OLDER ADULTS" } },
+          "type": "preprint",
+          "publication-date": { "year": { "value": "2025" }, "month": { "value": "10" }, "day": { "value": "14" } },
+          "journal-title": null,
+          "url": { "value": "https://doi.org/10.1101/2025.10.12.25337781" }
+        }
+      ]
+    },
+    {
+      "_case": "CONFIRMED REAL EDGE CASE: type=annotation on a genuine, DOI-bearing, published journal article. Must NOT be excluded by a type allowlist. Also out-of-window under a 3-year lookback (2024) if the cutoff year is 2026 — kept here to also exercise the year-boundary test.",
+      "last-modified-date": { "value": 1719588892980 },
+      "external-ids": {
+        "external-id": [
+          { "external-id-type": "doi", "external-id-value": "10.14434/josotl.v24i2.35196" }
+        ]
+      },
+      "work-summary": [
+        {
+          "put-code": 157842810,
+          "source": { "source-name": { "value": "IUScholarWorks Open Access Journals" } },
+          "title": { "title": { "value": "Changing Attitudes Towards Research Through a Course-based Undergraduate Research Experience" } },
+          "type": "annotation",
+          "publication-date": { "year": { "value": "2024" }, "month": { "value": "06" }, "day": { "value": "28" } },
+          "journal-title": { "value": "Journal of the Scholarship of Teaching and Learning" },
+          "url": { "value": "https://scholarworks.iu.edu/journals/index.php/josotl/article/view/35196" }
+        }
+      ]
+    },
+    {
+      "_case": "DOI-ABSENT, only a `wosuid` external-id, no journal DOI at all, AND well outside any reasonable lookback window (2017) — should be skipped by the year bound before Crossref is even attempted; title-fallback path is exercised separately by cases with a DOI removed",
+      "last-modified-date": { "value": 1653668526857 },
+      "external-ids": {
+        "external-id": [
+          { "external-id-type": "wosuid", "external-id-value": "WOS:000405986504376" }
+        ]
+      },
+      "work-summary": [
+        {
+          "put-code": 51543576,
+          "source": { "source-name": { "value": "ResearcherID" } },
+          "title": { "title": { "value": "Vastus Lateralis Motor Unit Firing Rate Statistics During Fatigue In Younger Versus Older Adults" } },
+          "type": "journal-article",
+          "publication-date": { "year": { "value": "2017" }, "month": null, "day": null },
+          "journal-title": { "value": "Faseb Journal" },
+          "url": { "value": "http://gateway.webofknowledge.com/gateway/Gateway.cgi?GWVersion=2&KeyUID=WOS:000405986504376" }
+        }
+      ]
+    },
+    {
+      "_case": "in-window, no DOI present at all (only pmid) — exercises the DOI-absent, title-fallback resolution path for a RECENT work, distinct from the old wosuid-only case above",
+      "last-modified-date": { "value": 1633205370330 },
+      "external-ids": {
+        "external-id": [
+          { "external-id-type": "pmid", "external-id-value": "34473297" }
+        ]
+      },
+      "work-summary": [
+        {
+          "put-code": 100889685,
+          "source": { "source-name": { "value": "Matt Stock" } },
+          "title": { "title": { "value": "We Don't Know our Own Strength: A Survey of Strength Training Attitudes, Behaviors and Knowledge in Physical Therapists and Physical Therapist Students." } },
+          "type": "journal-article",
+          "publication-date": { "year": { "value": "2026" }, "month": { "value": "08" }, "day": { "value": "27" } },
+          "journal-title": { "value": "Physical therapy" },
+          "url": { "value": "https://doi.org/10.1093/ptj/pzab204" },
+          "_note": "publication-date year artificially bumped to 2026 in this fixture (real record was 2021) purely so this case falls INSIDE a 3-year lookback window for testing purposes — see _case description"
+        }
+      ]
+    }
+  ]
+}
