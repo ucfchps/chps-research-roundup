@@ -7,8 +7,7 @@
 // here. Closes part of §11's "no Scholar coverage" gap: faculty with no
 // Google Scholar profile are otherwise only discoverable this way. Run with:
 //   npm run ingest:crossref -- --dry-run
-//   npm run ingest:crossref -- --faculty <wp_id>
-//   npm run ingest:crossref -- --i-accept-unconfirmed-identity-risk   (required for an unscoped real run — see assertScopeIsSafe)
+//   npm run ingest:crossref -- --faculty <wp_id>   (still useful to scope which people get SEARCHED — no longer required for safety, see assertConfirmationGateWired)
 import { config } from "dotenv";
 import path from "node:path";
 import { createClient, type Client } from "@libsql/client";
@@ -84,6 +83,15 @@ export interface RunSummary {
   rejectedBySurnameGateByFaculty: SurnameGateRejection[];
   skippedFaculty: SkippedFaculty[];
   facultySweepOutcomes: FacultySweepOutcome[];
+  // §13 item 8 follow-up (ops-notes.md §3): aggregate visibility into how
+  // many of this run's candidate author-links the confirmation gate
+  // (buildAuthorInputs, lib/scholar-ingest.ts) actually confirmed vs. left
+  // unconfirmed — the empirical check a full-roster dry-run needs to prove
+  // the gate is wired into this call path, without resurrecting the old
+  // flagNameOnlyMatches per-row console spam (durable detail lives in
+  // scripts/report-unconfirmed-matches.ts instead).
+  confirmedFacultyLinks: number;
+  unconfirmedFacultyLinks: number;
   dryRun: boolean;
 }
 
@@ -108,7 +116,7 @@ async function applyCandidate(
   nowIso: string,
   dryRun: boolean,
   sweptFacultyId: number
-): Promise<{ outcome: "merged" | "inserted"; linkedSweptFaculty: boolean }> {
+): Promise<{ outcome: "merged" | "inserted"; linkedSweptFaculty: boolean; confirmedFacultyLinks: number; unconfirmedFacultyLinks: number }> {
   const existingList = (await client.execute("SELECT id, doi, title_normalized FROM publications")).rows as unknown as MatchableExisting[];
   const matchResult = findCandidateMatch(resolution.title, resolution.doi, existingList);
   const incomingMetadata = {
@@ -117,6 +125,8 @@ async function applyCandidate(
   };
   const incomingAuthors = buildAuthorInputs(resolution.authors, roster, nowIso);
   const linkedSweptFaculty = incomingAuthors.some((a) => a.faculty_id === sweptFacultyId && a.role === "chps_faculty");
+  const confirmedFacultyLinks = incomingAuthors.filter((a) => a.role === "chps_faculty").length;
+  const unconfirmedFacultyLinks = incomingAuthors.filter((a) => a.role_set_by?.startsWith("ingest:unconfirmed")).length;
 
   if (matchResult.type === "MATCH") {
     const pubRow = (
@@ -164,7 +174,7 @@ async function applyCandidate(
         }
       }
     }
-    return { outcome: "merged", linkedSweptFaculty };
+    return { outcome: "merged", linkedSweptFaculty, confirmedFacultyLinks, unconfirmedFacultyLinks };
   }
 
   // NEEDS_FUZZY is treated as "no match" this session — findCandidateMatch's
@@ -187,7 +197,7 @@ async function applyCandidate(
       });
     }
   }
-  return { outcome: "inserted", linkedSweptFaculty };
+  return { outcome: "inserted", linkedSweptFaculty, confirmedFacultyLinks, unconfirmedFacultyLinks };
 }
 
 export async function runIngestCrossref(client: Client, opts: RunOptions): Promise<RunSummary> {
@@ -219,6 +229,8 @@ export async function runIngestCrossref(client: Client, opts: RunOptions): Promi
     rejectedBySurnameGateByFaculty: [],
     skippedFaculty: [],
     facultySweepOutcomes: [],
+    confirmedFacultyLinks: 0,
+    unconfirmedFacultyLinks: 0,
     dryRun: opts.dryRun,
   };
 
@@ -257,9 +269,11 @@ export async function runIngestCrossref(client: Client, opts: RunOptions): Promi
 
     let linkedThisFaculty = false;
     for (const resolution of resolutions) {
-      const { outcome, linkedSweptFaculty } = await applyCandidate(client, resolution, roster, nowIso, opts.dryRun, f.id);
+      const { outcome, linkedSweptFaculty, confirmedFacultyLinks, unconfirmedFacultyLinks } = await applyCandidate(client, resolution, roster, nowIso, opts.dryRun, f.id);
       if (outcome === "merged") summary.merged++;
       else summary.insertedNew++;
+      summary.confirmedFacultyLinks += confirmedFacultyLinks;
+      summary.unconfirmedFacultyLinks += unconfirmedFacultyLinks;
       if (linkedSweptFaculty) linkedThisFaculty = true;
       console.log(`[${outcome}] "${resolution.title}" (via ${f.display_name})`);
     }
@@ -283,6 +297,10 @@ function bucketOutcome(f: FacultySweepOutcome): "no_candidates" | "candidates_no
 function printSummary(s: RunSummary): void {
   if (s.dryRun) console.log("--dry-run: no writes will be issued.\n");
   console.log(`${s.facultySwept} faculty swept · ${s.candidatesSeen} Crossref candidate(s) seen · ${s.merged} merged · ${s.insertedNew} inserted new`);
+  console.log(
+    `${s.confirmedFacultyLinks} chps_faculty link(s) confirmed by affiliation · ${s.unconfirmedFacultyLinks} unconfirmed name-only match(es) ` +
+      `(see npm run report:unconfirmed-matches for detail)`
+  );
 
   const noCandidates = s.facultySweepOutcomes.filter((f) => bucketOutcome(f) === "no_candidates");
   const candidatesNoLink = s.facultySweepOutcomes.filter((f) => bucketOutcome(f) === "candidates_no_link");
@@ -323,22 +341,80 @@ function printSummary(s: RunSummary): void {
   }
 }
 
-// A real (non-dry-run), unscoped (no --faculty) run has no hard identity
-// confirmation anywhere in this pipeline — matchAuthorNameToFaculty is
-// family+first-initial only, and a full-roster dry-run against production
-// showed a large false-positive rate (~814 of 890 candidates would have
-// inserted, many to the wrong same-surname person per the
-// affiliation-unconfirmed flag). Refuse outright rather than rely on a
-// human remembering to always pass --faculty; --i-accept-unconfirmed-identity-risk
-// is the explicit, deliberate override for once a stronger identity check
-// exists or the risk is otherwise accepted.
-export function assertScopeIsSafe(opts: RunOptions, acceptsUnconfirmedIdentityRisk: boolean): void {
-  if (!opts.dryRun && !opts.facultyWpId && !acceptsUnconfirmedIdentityRisk) {
-    throw new Error(
-      "Refusing an unscoped real run: ingest-crossref's author-name matching has no hard identity " +
-        "confirmation, and a full-roster dry-run showed a large false-positive rate. Scope to one " +
-        "faculty member with --faculty <wp_id>, or pass --i-accept-unconfirmed-identity-risk to override."
+// ★ ops-notes.md §3 step 2 — retired assertScopeIsSafe's scope-based
+// blocking. The empirical investigation that produced §3 found scope never
+// protected against the actual harm: applyCandidate always matches every
+// co-author against the FULL active roster regardless of --faculty, so an
+// unscoped run and a --faculty-looped sweep produce identical risk. What
+// actually prevents an unconfirmed name match from writing chps_faculty is
+// the confirmation gate in buildAuthorInputs (lib/scholar-ingest.ts,
+// ops-notes.md §5/§6) — structural, and independent of scope. A fresh
+// full-129-faculty unscoped dry-run against this exact gate (ops-notes.md
+// §3, re-check) confirmed it clean: 544 chps_faculty links, all affiliation-
+// confirmed by construction; 66 name-only matches correctly routed to
+// role='unknown' instead of silently confirmed — matching the original
+// pre-gate investigation's 66 nameOnlyMatchUnconfirmed count exactly.
+//
+// What replaces the guard is a cheap runtime self-test, not a scope
+// restriction: prove buildAuthorInputs is still wired into this call path
+// and still correctly refuses BOTH unconfirmed shapes (no affiliation data
+// at all — the common case, 54 of the 60 unconfirmed rows in the ops-notes
+// §6 sweep; and affiliation present but conflicting — the rarer, higher-
+// severity case, 6 of 60) before every run. Defense-in-depth against a
+// future refactor silently bypassing the gate, not a barrier to running at all.
+
+// Injectable so tests can prove this self-test would actually CATCH a
+// broken/bypassed gate (not just that the real one currently passes) —
+// see tests/ingest-crossref.test.ts.
+export function runConfirmationGateSelfTest(buildAuthorInputsFn: typeof buildAuthorInputs = buildAuthorInputs): string[] {
+  // A synthetic candidate + synthetic roster row, fully disconnected from
+  // the real DB. If the probe name didn't genuinely MATCH its own roster
+  // row (faculty_id stayed null), the role/role_set_by checks below would
+  // pass vacuously without the affiliation check ever running at all — the
+  // "never matched" check catches exactly that.
+  const probeFaculty: Faculty = {
+    id: -1, wp_id: null, slug: null, display_name: "Gate Probe, T.", full_name: null, email: null,
+    unit: null, research_profile_url: null, scholar_user_id: null, orcid: null, classification: null,
+    active: 1, last_alert_seen_at: null, last_synced_at: null,
+  };
+  const nowIso = new Date().toISOString();
+
+  const noAffiliation = buildAuthorInputsFn([{ name: "Gate Probe, T.", position: 0 }], [probeFaculty], nowIso)[0];
+  const conflictingAffiliation = buildAuthorInputsFn(
+    // Deliberately NOT "...UCF..." anywhere in this string — isUcfAffiliation
+    // matches a bare "UCF" token regardless of surrounding words, so a probe
+    // string containing that substring would pass by accident, not by
+    // actually exercising a non-UCF affiliation. Confirmed the hard way: an
+    // earlier version of this probe used "Definitely Not UCF University" and
+    // its own \bUCF\b correctly matched, silently defeating the test.
+    [{ name: "Gate Probe, T.", position: 0, affiliation: "Unaffiliated Research Institute, Nowhere" }],
+    [probeFaculty],
+    nowIso
+  )[0];
+
+  const failures: string[] = [];
+
+  if (noAffiliation?.faculty_id !== -1 || conflictingAffiliation?.faculty_id !== -1) {
+    failures.push("probe name never matched its own synthetic roster entry (faculty_id) — this self-test is not exercising the confirmation gate at all");
+  }
+  if (noAffiliation?.role !== "unknown" || noAffiliation?.role_set_by !== "ingest:unconfirmed_name_match") {
+    failures.push(
+      `no-affiliation-data probe: expected role='unknown'/role_set_by='ingest:unconfirmed_name_match', got role='${noAffiliation?.role}'/role_set_by='${noAffiliation?.role_set_by}'`
     );
+  }
+  if (conflictingAffiliation?.role !== "unknown" || conflictingAffiliation?.role_set_by !== "ingest:unconfirmed_name_match_conflicting_affiliation") {
+    failures.push(
+      `conflicting-affiliation probe: expected role='unknown'/role_set_by='ingest:unconfirmed_name_match_conflicting_affiliation', got role='${conflictingAffiliation?.role}'/role_set_by='${conflictingAffiliation?.role_set_by}'`
+    );
+  }
+
+  return failures;
+}
+
+export function assertConfirmationGateWired(buildAuthorInputsFn: typeof buildAuthorInputs = buildAuthorInputs): void {
+  const failures = runConfirmationGateSelfTest(buildAuthorInputsFn);
+  if (failures.length > 0) {
+    throw new Error(`Confirmation gate self-test failed — buildAuthorInputs may have been bypassed or altered:\n  ${failures.join("\n  ")}\nRefusing to run.`);
   }
 }
 
@@ -348,7 +424,11 @@ async function main() {
   if (!url || !authToken) throw new Error("TURSO_DATABASE_URL and TURSO_AUTH_TOKEN must be set (see .env.example)");
 
   const opts = parseArgs(process.argv.slice(2));
-  assertScopeIsSafe(opts, process.argv.includes("--i-accept-unconfirmed-identity-risk"));
+  // Runs unconditionally (dry-run or real, scoped or not) — cheap, pure,
+  // in-memory, and it's the one thing standing between a silently-bypassed
+  // confirmation gate and a wrong chps_faculty link. See the comment above
+  // runConfirmationGateSelfTest.
+  assertConfirmationGateWired();
   if (opts.dryRun) console.log("--dry-run: parsing, resolving, and deciding only. Nothing will be written.\n");
 
   const client = createClient({ url, authToken });

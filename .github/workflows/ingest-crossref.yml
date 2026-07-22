@@ -1,0 +1,63 @@
+name: ingest-crossref
+
+# Runs the roster-driven Crossref author search daily, per master plan §9,
+# §13 Phase 3 item 8. Unscoped and for real — no --faculty, no --dry-run —
+# per ops-notes.md §3: scope was never what made this safe (co-authors are
+# always matched against the full roster regardless of --faculty), and the
+# confirmation gate in buildAuthorInputs (lib/scholar-ingest.ts, ops-notes.md
+# §5/§6) is what actually prevents an unconfirmed name match from writing
+# chps_faculty — structurally, independent of scope. assertConfirmationGateWired
+# runs before every invocation and refuses to proceed if that gate is ever
+# found broken.
+#
+# ★ workflow_dispatch takes an optional dry_run input — a deliberate, minor
+# deviation from ingest-scholar.yml / ingest-pubmed-orcid.yml's plain
+# `workflow_dispatch: {}`. This is the first ingester allowed to run
+# unscoped against the full roster for real, and a manual on-demand
+# dry-run check (without needing to run it locally) is worth the few extra
+# lines. Scheduled (cron) runs always run for real — github.event.inputs is
+# unset on schedule triggers, so the dry-run flag is never appended then.
+#
+# Cron staggered clear of the other two: ingest-scholar "0 */6 * * *",
+# ingest-pubmed-orcid "0 9 * * *", this one "0 3 * * *".
+on:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Run with --dry-run (no writes) — for manual verification only; scheduled runs always run for real"
+        required: false
+        type: boolean
+        default: false
+
+# Only one run at a time — the merge engine is idempotent per §9, but no
+# reason to invite a race between two concurrent sweeps against the same DB.
+concurrency:
+  group: ingest-crossref
+  cancel-in-progress: false
+
+jobs:
+  ingest-crossref:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ingest-crossref
+        run: npm run ingest:crossref ${{ github.event.inputs.dry_run == 'true' && '-- --dry-run' || '' }}
+        env:
+          TURSO_DATABASE_URL: ${{ secrets.TURSO_DATABASE_URL }}
+          TURSO_AUTH_TOKEN: ${{ secrets.TURSO_AUTH_TOKEN }}
+          CROSSREF_MAILTO: ${{ vars.CROSSREF_MAILTO }}
+          CROSSREF_AUTHOR_SEARCH_LOOKBACK_DAYS: ${{ vars.CROSSREF_AUTHOR_SEARCH_LOOKBACK_DAYS }}

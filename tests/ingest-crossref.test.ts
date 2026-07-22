@@ -19,7 +19,8 @@ import { runMigrations } from "../db/migrate";
 process.env.CROSSREF_MAILTO ??= "test@example.com";
 
 const { searchByAuthor } = await import("../lib/crossref");
-const { runIngestCrossref, assertScopeIsSafe } = await import("../scripts/ingest-crossref");
+const { runIngestCrossref, runConfirmationGateSelfTest, assertConfirmationGateWired } = await import("../scripts/ingest-crossref");
+const { buildAuthorInputs } = await import("../lib/scholar-ingest");
 
 function jsonResponse(body: unknown, status = 200, headers: Record<string, string> = {}): Response {
   return new Response(JSON.stringify(body), { status, headers });
@@ -150,21 +151,71 @@ describe("searchByAuthor — surname gate (false-positive guard, real case: 'Ada
   });
 });
 
-describe("assertScopeIsSafe — refuses an unscoped real run without an explicit override", () => {
-  it("throws when the run is real, unscoped, and no override is given", () => {
-    expect(() => assertScopeIsSafe({ dryRun: false, facultyWpId: null }, false)).toThrow(/unscoped/i);
+// ops-notes.md §3 step 2: assertScopeIsSafe (scope-based blocking) is retired
+// — the empirical re-check proved scope never protected against the actual
+// harm (co-authors are always matched against the full roster regardless of
+// --faculty; see §3's root-cause finding), and the confirmation gate
+// (buildAuthorInputs) is what actually prevents an unconfirmed match from
+// writing chps_faculty, structurally, regardless of scope. This replaces it
+// with a cheap runtime self-test proving that gate is still wired into this
+// call path — defense-in-depth against a future refactor silently bypassing
+// it, not a scope restriction.
+describe("runConfirmationGateSelfTest — proves the confirmation gate is actually wired in, not vacuously passing", () => {
+  it("the REAL buildAuthorInputs passes both probes cleanly (no failures)", () => {
+    // Uses the actual production function, not a stub — this is the test
+    // that would fail today if lib/scholar-ingest.ts's gate ever regressed.
+    expect(runConfirmationGateSelfTest(buildAuthorInputs)).toEqual([]);
   });
 
-  it("does not throw for a dry-run, even unscoped", () => {
-    expect(() => assertScopeIsSafe({ dryRun: true, facultyWpId: null }, false)).not.toThrow();
+  it("catches a gate that's been bypassed and always confirms — for BOTH probe shapes, no affiliation data and conflicting affiliation", () => {
+    // Simulates the exact class of regression this self-test exists to
+    // catch: someone edits buildAuthorInputs (or swaps it out) and it starts
+    // unconditionally linking chps_faculty regardless of affiliation.
+    const brokenGate = (
+      authors: { name: string; position: number; affiliation?: string }[],
+      roster: { id: number; display_name: string }[],
+      nowIso: string
+    ) => authors.map((a) => ({ name: a.name, faculty_id: roster[0]?.id ?? null, role: "chps_faculty" as const, role_set_by: "ingest", role_set_at: nowIso, position: a.position }));
+
+    const failures = runConfirmationGateSelfTest(brokenGate as unknown as typeof buildAuthorInputs);
+
+    expect(failures.length).toBeGreaterThan(0);
+    expect(failures.some((f) => f.includes("no-affiliation-data probe"))).toBe(true);
+    expect(failures.some((f) => f.includes("conflicting-affiliation probe"))).toBe(true);
   });
 
-  it("does not throw for a real run scoped to a single faculty member", () => {
-    expect(() => assertScopeIsSafe({ dryRun: false, facultyWpId: "1069" }, false)).not.toThrow();
+  it("catches a vacuous setup — if the probe's own name never matches its own synthetic roster row, this must fail loudly, not silently pass", () => {
+    // If buildAuthorInputs (real or fake) never links faculty_id at all, the
+    // two role/role_set_by checks above would trivially pass regardless of
+    // whether the affiliation check ever actually ran — this specifically
+    // proves the self-test would catch THAT failure mode too, not just a
+    // wrong role.
+    const neverMatches = (
+      authors: { name: string; position: number; affiliation?: string }[],
+      _roster: unknown[],
+      nowIso: string
+    ) => authors.map((a) => ({ name: a.name, faculty_id: null, role: "unknown" as const, role_set_by: null, role_set_at: null, position: a.position }));
+
+    const failures = runConfirmationGateSelfTest(neverMatches as unknown as typeof buildAuthorInputs);
+
+    expect(failures.length).toBeGreaterThan(0);
+    expect(failures.some((f) => f.toLowerCase().includes("never matched"))).toBe(true);
+  });
+});
+
+describe("assertConfirmationGateWired — throws iff the self-test reports failures", () => {
+  it("does not throw against the real gate", () => {
+    expect(() => assertConfirmationGateWired()).not.toThrow();
   });
 
-  it("does not throw for a real, unscoped run when the override is explicitly passed", () => {
-    expect(() => assertScopeIsSafe({ dryRun: false, facultyWpId: null }, true)).not.toThrow();
+  it("throws with a clear message when the injected gate is broken", () => {
+    const brokenGate = (
+      authors: { name: string; position: number; affiliation?: string }[],
+      roster: { id: number; display_name: string }[],
+      nowIso: string
+    ) => authors.map((a) => ({ name: a.name, faculty_id: roster[0]?.id ?? null, role: "chps_faculty" as const, role_set_by: "ingest", role_set_at: nowIso, position: a.position }));
+
+    expect(() => assertConfirmationGateWired(brokenGate as unknown as typeof buildAuthorInputs)).toThrow(/confirmation gate self-test failed/i);
   });
 });
 
@@ -411,12 +462,33 @@ describe("runIngestCrossref — integration", () => {
         ]),
     });
 
-    await runIngestCrossref(client, { dryRun: false, facultyWpId: "1" });
+    const summary = await runIngestCrossref(client, { dryRun: false, facultyWpId: "1" });
 
     const authors = await client.execute("SELECT name, faculty_id, role FROM publication_authors ORDER BY position");
     expect(authors.rows).toHaveLength(2);
     expect(authors.rows[0]).toMatchObject({ faculty_id: facultyId, role: "chps_faculty" });
     expect(authors.rows[1]).toMatchObject({ faculty_id: null, role: "unknown" });
+    // The aggregate visibility this session's empirical re-check (ops-notes.md
+    // §3 step 1) relies on — a real, confirmed link tallies here, the
+    // unmatched stranger ("Xavier Nobody") does not (never touched the gate
+    // at all, faculty_id null).
+    expect(summary.confirmedFacultyLinks).toBe(1);
+    expect(summary.unconfirmedFacultyLinks).toBe(0);
+  });
+
+  it("§13 item 8 follow-up: an unconfirmed name match tallies in unconfirmedFacultyLinks, not confirmedFacultyLinks — this is the counter the fresh full-roster re-check reads", async () => {
+    await seedFaculty("1", "Adams, A.", "Alauna Adams");
+    stubFetch({
+      "Alauna Adams": () =>
+        searchResponse([
+          crossrefItem({ doi: "10.1/fisheries", title: "Evaluation of the Flats Fishery", authors: [{ given: "A.", family: "Adams", affiliation: "Bonefish & Tarpon Trust" }] }),
+        ]),
+    });
+
+    const summary = await runIngestCrossref(client, { dryRun: false, facultyWpId: "1" });
+
+    expect(summary.confirmedFacultyLinks).toBe(0);
+    expect(summary.unconfirmedFacultyLinks).toBe(1);
   });
 
   // ops-notes.md §5/§6: buildAuthorInputs is now a structural gate, not an

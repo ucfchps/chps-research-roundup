@@ -111,13 +111,19 @@ missing or misnamed secret surfaces as a failed run in that run's log.
 
 ---
 
-## 3. ★ `ingest-crossref` still has no workflow file — blocked, not just unbuilt
+## 3. ★ RESOLVED: `ingest-crossref` is now scheduled — history of how it got there
 
-`scripts/ingest-crossref.ts` (§13 Phase 3 item 8) has no `.github/workflows/ingest-crossref.yml`.
-A follow-up session investigated whether a per-faculty `--faculty <wp_id>` sweep loop (calling
-the same scoped path `assertScopeIsSafe` already protects) would resolve the false-positive risk
-that guard exists for, so a scheduled workflow could safely wrap it. **It does not — the
-investigation stopped there rather than building the sweep script or workflow.**
+**Status: `.github/workflows/ingest-crossref.yml` exists, runs daily at `0 3 * * *`, unscoped,
+for real.** This section is kept in full because the path to "safe to schedule" went through a
+dead end first (a scoping fix that turned out not to fix anything) before landing on the real
+fix (the confirmation gate, §5/§6). The history is the part worth not losing.
+
+`scripts/ingest-crossref.ts` (§13 Phase 3 item 8) originally shipped with no
+`.github/workflows/ingest-crossref.yml`. A follow-up session investigated whether a per-faculty
+`--faculty <wp_id>` sweep loop (calling the same scoped path `assertScopeIsSafe` protected)
+would resolve the false-positive risk that guard existed for, so a scheduled workflow could
+safely wrap it. **It does not — that investigation stopped there rather than building the sweep
+script or workflow.** A later session (below, "RE-CHECK") took a different path instead.
 
 ### What was tested
 
@@ -176,6 +182,70 @@ its top 20 relevance-ranked results; `query.author=Matt S. Stock` (full) returne
 that were all genuinely his exercise-physiology work. So Crossref's relevance ranking is *not*
 immune to the same class of degradation PubMed's exact boolean match suffered — but since the
 code already uses the richer field, there's no gap to fix here.
+
+### RE-CHECK (later session, after §5/§6's confirmation gate shipped): empirical proof, then the guard replaced
+
+Once `buildAuthorInputs` became a structural confirmation gate (§5/§6) rather than an
+informational flag, the premise above changed: the harm `assertScopeIsSafe` guarded against —
+an unconfirmed name match silently writing `chps_faculty` — is now prevented independent of
+scope. This was **verified empirically before touching the guard**, not assumed from the code
+review alone.
+
+**Fresh full-129-faculty unscoped dry-run, against the current (post-gate) codebase:**
+
+```
+129 faculty swept · 887 Crossref candidate(s) seen · 80 merged · 807 inserted new
+544 chps_faculty link(s) confirmed by affiliation · 66 unconfirmed name-only match(es)
+```
+
+`confirmedFacultyLinks` (544) can only increment when `buildAuthorInputs` assigned
+`role = 'chps_faculty'`, which itself only happens after `isUcfAffiliation` passed — so there is
+no path here that writes a confirmed link without corroborating affiliation, by construction.
+The empirical value: this ran cleanly at full scale on real, messy data (not just unit-test
+fixtures), with a realistic split rather than a suspicious 0% or 100%, and **66 unconfirmed
+matches — the exact same count** as the original pre-gate investigation's 66
+`nameOnlyMatchUnconfirmed` flags above. Same underlying signal; now gated instead of logged.
+
+**Guard replaced, not deleted.** `assertScopeIsSafe` (scope-based blocking, `--faculty` /
+`--i-accept-unconfirmed-identity-risk`) is gone. In its place, `runConfirmationGateSelfTest` /
+`assertConfirmationGateWired` (`scripts/ingest-crossref.ts`) — a cheap runtime self-test that
+runs unconditionally before every invocation, proving `buildAuthorInputs` still correctly
+refuses **both** unconfirmed shapes (no affiliation data at all, and affiliation present but
+conflicting) using its own synthetic probe candidate + synthetic roster row, fully disconnected
+from the real DB. Defense-in-depth against a future refactor silently bypassing the gate, not a
+barrier to running at all — `--faculty <wp_id>` still works as a plain search-scoping flag, it
+just no longer gates safety.
+
+Caught a real bug in its own first draft, which is itself evidence the tests aren't vacuous: the
+conflicting-affiliation probe originally used the string `"Definitely Not UCF University"` —
+`isUcfAffiliation`'s `\bUCF\b` alternative correctly matched the literal word "UCF" in it
+regardless of the surrounding "Not," so the self-test's own real-gate test failed against its
+own probe. Fixed the probe string (`"Unaffiliated Research Institute, Nowhere"`), not the
+regex — the regex was right.
+
+### Now scheduled
+
+`.github/workflows/ingest-crossref.yml` — daily, `cron: "0 3 * * *"` (staggered clear of
+`ingest-scholar`'s `0 */6 * * *` and `ingest-pubmed-orcid`'s `0 9 * * *`). Runs `npm run
+ingest:crossref` unscoped, for real, matching the other two workflows' conventions
+(`actions/checkout@v5`, `actions/setup-node@v5`, `npm ci`, `concurrency: { group:
+ingest-crossref, cancel-in-progress: false }`). One deliberate deviation: `workflow_dispatch`
+takes an optional `dry_run` boolean input, so a manual on-demand safety check doesn't require
+running the script locally — scheduled (cron) runs never see that input and always run for
+real.
+
+### ★ Operational consequence: this makes §8b more urgent, not less
+
+Running `ingest-crossref` daily and unscoped means the unconfirmed-match backlog
+(`npm run report:unconfirmed-matches`) will keep growing every day, indefinitely, on top of the
+151-row backlog already found by the §6 sweep — both the "no affiliation data" bucket and,
+more importantly, the "conflicting affiliation" bucket (the one that actually warrants a human
+look, §6). The confirmation gate prevents *wrong automated confirmation*; it does not review
+anything, and nothing currently drains the backlog it produces. This is a direct, foreseeable
+consequence of scheduling daily unscoped ingestion, not an incidental side effect — flagging it
+here so it isn't rediscovered as a surprise later. It strengthens the case for §8b (the personal
+review page, where faculty can confirm or reject their own unconfirmed matches) and/or a regular
+COMMS cadence of actually working through `report:unconfirmed-matches` — neither exists yet.
 
 ---
 
