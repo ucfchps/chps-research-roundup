@@ -315,7 +315,9 @@ describe("runIngestCrossref — integration", () => {
       "Alice Smith": () =>
         searchResponse([crossrefItem({ doi: "10.1/someone-elses-smith", title: "A Different Smith's Paper", authors: [{ given: "Bob", family: "Smith" }] })]),
       "Richard I. Zraick": () =>
-        searchResponse([crossrefItem({ doi: "10.1/zraick-paper", title: "A Real Zraick Paper", authors: [{ given: "Richard", family: "Zraick" }] })]),
+        searchResponse([
+          crossrefItem({ doi: "10.1/zraick-paper", title: "A Real Zraick Paper", authors: [{ given: "Richard", family: "Zraick", affiliation: "University of Central Florida" }] }),
+        ]),
     });
 
     const summary = await runIngestCrossref(client, { dryRun: false, facultyWpId: null });
@@ -392,7 +394,7 @@ describe("runIngestCrossref — integration", () => {
     expect(authors.rows[0].n).toBe(1); // no duplicate author row either
   });
 
-  it("an author matching a faculty row gets linked and role = 'chps_faculty'; an unmatched author stays unlinked", async () => {
+  it("an author matching a faculty row with a UCF-confirming affiliation gets linked and role = 'chps_faculty'; an unmatched author stays unlinked", async () => {
     const facultyId = await seedFaculty("1", "Zraick, R.I.", "Richard I. Zraick");
 
     stubFetch({
@@ -402,7 +404,7 @@ describe("runIngestCrossref — integration", () => {
             doi: "10.1234/coauthored",
             title: "A Coauthored Paper",
             authors: [
-              { given: "Richard", family: "Zraick" },
+              { given: "Richard", family: "Zraick", affiliation: "University of Central Florida" },
               { given: "Xavier", family: "Nobody" },
             ],
           }),
@@ -417,11 +419,17 @@ describe("runIngestCrossref — integration", () => {
     expect(authors.rows[1]).toMatchObject({ faculty_id: null, role: "unknown" });
   });
 
-  it("a name-only match (family+initial, no ORCID cross-check) whose Crossref affiliation string doesn't mention UCF is flagged 'unconfirmed', named with the paper and faculty member — not blocked, still inserted", async () => {
+  // ops-notes.md §5/§6: buildAuthorInputs is now a structural gate, not an
+  // informational flag — an unconfirmed name-only match writes role='unknown'
+  // (never chps_faculty) with a role_set_by tag identifying it as such,
+  // durably, in the same write. Replaces the old flagNameOnlyMatches tests,
+  // which only asserted a console-summary flag while the wrong link still
+  // got written as chps_faculty regardless.
+  it("a name-only match (family+initial, no ORCID cross-check) whose Crossref affiliation string doesn't mention UCF is GATED — writes role='unknown', not chps_faculty, faculty_id preserved as a reviewable hint", async () => {
     // The real case that motivated this: a marine-fisheries paper's
     // "Adams, A." author matched Alauna Adams (School of Social Work) on
     // family+initial alone. Her real affiliation would never appear here.
-    await seedFaculty("1", "Adams, A.", "Alauna Adams");
+    const facultyId = await seedFaculty("1", "Adams, A.", "Alauna Adams");
 
     stubFetch({
       "Alauna Adams": () =>
@@ -436,19 +444,13 @@ describe("runIngestCrossref — integration", () => {
 
     const summary = await runIngestCrossref(client, { dryRun: false, facultyWpId: "1" });
 
-    expect(summary.insertedNew).toBe(1); // not blocked — this is informational only
-    expect(summary.nameOnlyMatchUnconfirmed).toEqual([
-      {
-        publicationTitle: "Evaluation of the Flats Fishery in the Yucatan Peninsula",
-        facultyWpId: "1",
-        facultyDisplayName: "Adams, A.",
-        affiliation: "Bonefish & Tarpon Trust, Coral Gables, FL",
-      },
-    ]);
+    expect(summary.insertedNew).toBe(1); // not blocked — the publication still lands, just unconfirmed
+    const authors = await client.execute("SELECT faculty_id, role, role_set_by FROM publication_authors");
+    expect(authors.rows).toEqual([{ faculty_id: facultyId, role: "unknown", role_set_by: "ingest:unconfirmed_name_match_conflicting_affiliation" }]);
   });
 
-  it("a name-only match whose Crossref affiliation string DOES mention a UCF variant is not flagged", async () => {
-    await seedFaculty("1", "Zraick, R.I.", "Richard I. Zraick");
+  it("a name-only match whose Crossref affiliation string DOES mention a UCF variant writes role='chps_faculty' as normal — confirmed matches are not degraded by the gate", async () => {
+    const facultyId = await seedFaculty("1", "Zraick, R.I.", "Richard I. Zraick");
 
     stubFetch({
       "Richard I. Zraick": () =>
@@ -464,22 +466,22 @@ describe("runIngestCrossref — integration", () => {
     const summary = await runIngestCrossref(client, { dryRun: false, facultyWpId: "1" });
 
     expect(summary.insertedNew).toBe(1);
-    expect(summary.nameOnlyMatchUnconfirmed).toEqual([]);
+    const authors = await client.execute("SELECT faculty_id, role, role_set_by FROM publication_authors");
+    expect(authors.rows).toEqual([{ faculty_id: facultyId, role: "chps_faculty", role_set_by: "ingest" }]);
   });
 
-  it("a name-only match with no affiliation string at all is flagged, with affiliation reported as null", async () => {
-    await seedFaculty("1", "Zraick, R.I.", "Richard I. Zraick");
+  it("a name-only match with no affiliation string at all is GATED with the 'no data' tag — distinct from the 'conflicting affiliation' tag above", async () => {
+    const facultyId = await seedFaculty("1", "Zraick, R.I.", "Richard I. Zraick");
 
     stubFetch({
       "Richard I. Zraick": () =>
         searchResponse([crossrefItem({ doi: "10.1/no-affiliation", title: "A Paper With No Affiliation Data", authors: [{ given: "Richard", family: "Zraick" }] })]),
     });
 
-    const summary = await runIngestCrossref(client, { dryRun: false, facultyWpId: "1" });
+    await runIngestCrossref(client, { dryRun: false, facultyWpId: "1" });
 
-    expect(summary.nameOnlyMatchUnconfirmed).toEqual([
-      { publicationTitle: "A Paper With No Affiliation Data", facultyWpId: "1", facultyDisplayName: "Zraick, R.I.", affiliation: null },
-    ]);
+    const authors = await client.execute("SELECT faculty_id, role, role_set_by FROM publication_authors");
+    expect(authors.rows).toEqual([{ faculty_id: facultyId, role: "unknown", role_set_by: "ingest:unconfirmed_name_match" }]);
   });
 
   it(

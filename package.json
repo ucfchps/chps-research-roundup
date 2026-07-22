@@ -16,6 +16,8 @@
     "ingest:pubmed-orcid": "tsx scripts/ingest-pubmed-orcid.ts",
     "audit:fullname": "tsx scripts/audit-fullname-coverage.ts",
     "report:coverage": "tsx scripts/coverage-report.ts",
+    "report:unconfirmed-matches": "tsx scripts/report-unconfirmed-matches.ts",
+    "sweep:role-confirmations": "tsx scripts/sweep-role-confirmations.ts",
     "release:buffer": "tsx scripts/release-buffer.ts",
     "test": "vitest run"
   },

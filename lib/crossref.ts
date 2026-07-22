@@ -5,7 +5,7 @@
 // Deterministic. No AI, no DB, no roles/faculty_id — those are roster-matching
 // concerns for the merge engine (§7), not resolution.
 import { fetchWithRetry } from "./http";
-import { normalizeDoi, normalizeTitle } from "./matching";
+import { isUcfAffiliation, normalizeDoi, normalizeTitle } from "./matching";
 import type { CrossrefResolution, CrossrefResolutionAuthor } from "./types";
 
 const envMailto = process.env.CROSSREF_MAILTO;
@@ -178,21 +178,11 @@ function passesAcceptanceGate(
   return true;
 }
 
-// "university"/"univ."/"univ"/"u." (period optional) + "of central florida",
-// or a bare "UCF" — real Crossref affiliation strings seen this session used
-// "Univ. of Central Florida" (missed by a spelled-out-only match — the exact
-// string that slipped through on the Zraick run) alongside the fully
-// spelled-out form. Requiring the literal "central florida" after the
-// prefix keeps this safe against "University of Florida"/"University of
-// South Florida"/etc — those never match, since there's no "central".
-const UCF_AFFILIATION_PATTERN = /\b(?:university|univ\.?|u\.)\s+of\s+central\s+florida\b|\bUCF\b/i;
-
-// Exported so ingest-crossref.ts can check one specific matched author's own
-// affiliation string (not "does anyone on this paper look UCF," which is
-// what hasUcfAffiliation below answers) — same pattern, one source of truth.
-export function isUcfAffiliation(affiliation: string | null | undefined): boolean {
-  return affiliation ? UCF_AFFILIATION_PATTERN.test(affiliation) : false;
-}
+// Moved to lib/matching.ts (§13 item 10 follow-up) so buildAuthorInputs can
+// use it without a hard dependency on this module's CROSSREF_MAILTO
+// import-time throw. Re-exported here for backward compatibility with
+// existing callers/tests.
+export { isUcfAffiliation };
 
 function hasUcfAffiliation(item: CrossrefApiItem): boolean {
   return item.author?.some((a) => a.affiliation?.some((aff) => isUcfAffiliation(aff.name))) ?? false;

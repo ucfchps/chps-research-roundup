@@ -18,6 +18,22 @@ export function normalizeTitle(title: string): string {
     .trim();
 }
 
+// "university"/"univ."/"univ"/"u." (period optional) + "of central florida",
+// or a bare "UCF" — real Crossref affiliation strings seen used "Univ. of
+// Central Florida" (missed by a spelled-out-only match) alongside the fully
+// spelled-out form. Requiring the literal "central florida" after the prefix
+// keeps this safe against "University of Florida"/"University of South
+// Florida"/etc — those never match, since there's no "central". Lives here
+// (not lib/crossref.ts) so buildAuthorInputs below can gate on it without a
+// hard dependency on lib/crossref.ts's CROSSREF_MAILTO import-time throw —
+// every ingester needs this check, not just Crossref-specific ones.
+// lib/crossref.ts re-exports this same function for backward compatibility.
+const UCF_AFFILIATION_PATTERN = /\b(?:university|univ\.?|u\.)\s+of\s+central\s+florida\b|\bUCF\b/i;
+
+export function isUcfAffiliation(affiliation: string | null | undefined): boolean {
+  return affiliation ? UCF_AFFILIATION_PATTERN.test(affiliation) : false;
+}
+
 // Lowercase, strip the https://doi.org/ prefix — so a bare DOI and a
 // URL-prefixed DOI for the same paper compare equal.
 export function normalizeDoi(doi: string | null): string | null {
@@ -66,6 +82,10 @@ export interface AuthorInput {
   role_set_by: string | null;
   role_set_at: string | null;
   position: number;
+  // Raw evidence carried alongside the role decision (ops-notes.md §5/§6) —
+  // not persisted to publication_authors (no DB column for it); available
+  // for the caller/tests to inspect why buildAuthorInputs decided what it did.
+  affiliation?: string;
 }
 
 export interface ExistingAuthor extends AuthorInput {

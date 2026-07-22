@@ -2,7 +2,7 @@
 // value (the already-caught Crossref outcome, the already-fetched roster and
 // existing-match row) is a parameter, so this is testable without a database,
 // a mailbox, or a network. Composes lib/matching.ts (Session 5, unmodified).
-import { findMatch, mergeAuthors, mergeMetadata, normalizeTitle, promoteFromNeedsMetadata } from "./matching";
+import { findMatch, isUcfAffiliation, mergeAuthors, mergeMetadata, normalizeTitle, promoteFromNeedsMetadata } from "./matching";
 import type { AuthorInput, ExistingAuthor, MatchableExisting, MergeableExisting, MergedAuthor, PublicationMetadata } from "./matching";
 import type { CrossrefResolution, Faculty, PublicationStatus } from "./types";
 
@@ -143,16 +143,36 @@ export function matchAuthorNameToFaculty(authorName: string, roster: Faculty[]):
 
 // Turnkey construction: raw Crossref-formatted author names (already "Family,
 // G.I." citation form, see formatCrossrefAuthorName in lib/crossref.ts) -> a
-// full AuthorInput per author, faculty_id/role/role_set_by decided via
-// matchAuthorNameToFaculty above. Exported so a second ingestion source
-// (e.g. ingest-crossref) can reuse this exact construction instead of
-// growing a second, driftable copy of it.
+// full AuthorInput per author. Exported so every ingestion source
+// (ingest-crossref, ingest-scholar via decideArticleOutcome,
+// ingest-pubmed-orcid) reuses this exact construction instead of growing a
+// second, driftable copy of it.
+//
+// ★ ops-notes.md §5/§6: matchAuthorNameToFaculty alone (family + first
+// initial, no ORCID cross-check) is not identity confirmation — a real
+// wrong link shipped to production from exactly this gap (a "Zhu, Y."
+// match on an unrelated-field paper). This is the structural gate: a name
+// match only becomes role='chps_faculty' when its affiliation string
+// corroborates UCF. Otherwise faculty_id is still set — a reviewable hint,
+// not discarded — but role stays 'unknown', so unitsForPublication and the
+// citation formatter treat it exactly like any other unreviewed author
+// (§6a, §15.4) until a human confirms it (§8b) or the review surface
+// (scripts/report-unconfirmed-matches.ts) surfaces it. "No affiliation
+// data at all" (PubMed, always; Crossref whenever the field is genuinely
+// empty) and "affiliation present but doesn't mention UCF" (stronger
+// negative evidence) get distinct role_set_by tags — the second must not
+// silently look identical to the first.
 export function buildAuthorInputs(authors: CrossrefResolution["authors"], roster: Faculty[], nowIso: string): AuthorInput[] {
   return authors.map((a) => {
     const match = matchAuthorNameToFaculty(a.name, roster);
-    return match
-      ? { name: a.name, faculty_id: match.id, role: "chps_faculty" as const, role_set_by: "ingest", role_set_at: nowIso, position: a.position }
-      : { name: a.name, faculty_id: null, role: "unknown" as const, role_set_by: null, role_set_at: null, position: a.position };
+    if (!match) {
+      return { name: a.name, faculty_id: null, role: "unknown" as const, role_set_by: null, role_set_at: null, position: a.position, affiliation: a.affiliation };
+    }
+    if (isUcfAffiliation(a.affiliation)) {
+      return { name: a.name, faculty_id: match.id, role: "chps_faculty" as const, role_set_by: "ingest", role_set_at: nowIso, position: a.position, affiliation: a.affiliation };
+    }
+    const roleSetBy = a.affiliation ? "ingest:unconfirmed_name_match_conflicting_affiliation" : "ingest:unconfirmed_name_match";
+    return { name: a.name, faculty_id: match.id, role: "unknown" as const, role_set_by: roleSetBy, role_set_at: nowIso, position: a.position, affiliation: a.affiliation };
   });
 }
 

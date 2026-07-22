@@ -58,15 +58,19 @@ const MANGUM_MSG = gmailMessageFor(
 // title-match merge instead, masking the gap. Position order doesn't matter
 // for the test; this models the real paper's full (untruncated) author list,
 // of which the Scholar alert bylines only ever show a truncated prefix.
+// ops-notes.md §5/§6: Schellhase's and Mangum's own affiliations confirm
+// UCF — this test's point is the merge/linkage mechanics (§7), a genuinely
+// confirmed match for both, not the unconfirmed-match gate (covered
+// separately in tests/scholar-ingest.test.ts and tests/ingest-crossref.test.ts).
 const CROSSREF_ITEM = {
   DOI: "10.1123/ijatt.2025-0110",
   title: ["Exploring Job Satisfaction and Intention to Leave Among Athletic Trainers Working With Tactical Athletes in Military Clinical Practice Settings"],
   type: "journal-article",
   author: [
-    { given: "Kristen C.", family: "Schellhase", affiliation: [] },
+    { given: "Kristen C.", family: "Schellhase", affiliation: [{ name: "University of Central Florida" }] },
     { given: "W.", family: "Adam", affiliation: [] },
     { given: "A.", family: "Layne", affiliation: [] },
-    { given: "L. Colby", family: "Mangum", affiliation: [] },
+    { given: "L. Colby", family: "Mangum", affiliation: [{ name: "University of Central Florida" }] },
   ],
   "container-title": ["International Journal of Athletic Therapy and Training"],
   volume: "31", issue: "2", page: "88-95",

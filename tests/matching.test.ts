@@ -4,6 +4,7 @@
 import { describe, expect, it } from "vitest";
 import {
   findMatch,
+  isUcfAffiliation,
   mergeAuthors,
   mergeMetadata,
   normalizeDoi,
@@ -65,6 +66,38 @@ function existingPub(overrides: Partial<MatchableExisting> = {}): MatchableExist
     ...overrides,
   };
 }
+
+// §13 item 10 follow-up (ops-notes.md §5/§6): moved here from lib/crossref.ts
+// so buildAuthorInputs (below, and lib/scholar-ingest.ts) can gate on it
+// without a hard dependency on lib/crossref.ts's CROSSREF_MAILTO
+// import-time throw — every ingester (Crossref-direct, Scholar, ORCID,
+// PubMed) needs this check, not just the Crossref-specific ones.
+// lib/crossref.ts re-exports this same function for backward compatibility;
+// tests/crossref.test.ts still covers it via that re-export.
+describe("isUcfAffiliation", () => {
+  it("matches the fully spelled-out form", () => {
+    expect(isUcfAffiliation("University of Central Florida, Orlando, FL, USA")).toBe(true);
+  });
+
+  it("matches 'Univ. of Central Florida' — the real Zraick-run case that motivated this pattern", () => {
+    expect(isUcfAffiliation("Univ. of Central Florida")).toBe(true);
+  });
+
+  it("matches a bare 'UCF'", () => {
+    expect(isUcfAffiliation("UCF, Orlando, FL")).toBe(true);
+  });
+
+  it("does not match University of Florida or University of South Florida", () => {
+    expect(isUcfAffiliation("University of Florida")).toBe(false);
+    expect(isUcfAffiliation("University of South Florida")).toBe(false);
+  });
+
+  it("never throws on null/undefined/empty", () => {
+    expect(isUcfAffiliation(null)).toBe(false);
+    expect(isUcfAffiliation(undefined)).toBe(false);
+    expect(isUcfAffiliation("")).toBe(false);
+  });
+});
 
 describe("findMatch — §7 ladder, stops at first confident answer", () => {
   it("DOI match wins even when titles differ", () => {
@@ -176,6 +209,48 @@ describe("mergeAuthors — §7 author merge rules", () => {
     expect(merged[0].role).toBe("grad_student");
     expect(merged[0].role_set_by).toBe("faculty:42");
     expect(merged[0].faculty_id).toBeNull();
+  });
+
+  // ops-notes.md §5/§6: a NEW incoming shape as of the confirmation gate — a
+  // fresh candidate match can now itself be role='unknown' (unconfirmed),
+  // not just 'chps_faculty'. isHumanSet must still block on the EXISTING
+  // row's own role_set_by regardless of what the incoming candidate looks
+  // like — the guard was never conditioned on the incoming role.
+  it("a human-set role survives even when the fresh incoming match is itself unconfirmed (not just when it's chps_faculty)", () => {
+    const existing = [
+      { ...author({ name: "Zhu, Y.", role: "grad_student", role_set_by: "faculty:7", position: 0 }), id: 5 },
+    ];
+    const incoming: AuthorInput[] = [
+      author({ name: "Zhu, Y.", role: "unknown", faculty_id: 42, role_set_by: "ingest:unconfirmed_name_match_conflicting_affiliation", position: 0 }),
+    ];
+
+    const merged = mergeAuthors(existing, incoming, "crossref");
+
+    expect(merged[0].role).toBe("grad_student");
+    expect(merged[0].role_set_by).toBe("faculty:7");
+    expect(merged[0].faculty_id).toBeNull(); // never silently linked, same as the grad_student direction above
+  });
+
+  // Idempotency: re-running the SAME unconfirmed candidate against a row it
+  // already produced must not change anything (no duplicate write target,
+  // no drifting role_set_at, no re-derived role).
+  it("idempotent: re-merging the identical unconfirmed candidate against the row it already produced changes nothing", () => {
+    const existing = [
+      { ...author({ name: "Zhu, Y.", role: "unknown", faculty_id: 42, role_set_by: "ingest:unconfirmed_name_match_conflicting_affiliation", role_set_at: "2026-07-16T00:00:00.000Z", position: 0 }), id: 5 },
+    ];
+    const incoming: AuthorInput[] = [
+      author({ name: "Zhu, Y.", role: "unknown", faculty_id: 42, role_set_by: "ingest:unconfirmed_name_match_conflicting_affiliation", role_set_at: "2026-07-21T00:00:00.000Z", position: 0 }),
+    ];
+
+    const merged = mergeAuthors(existing, incoming, "crossref");
+
+    expect(merged).toHaveLength(1);
+    expect(merged[0]).toMatchObject({ role: "unknown", faculty_id: 42, role_set_by: "ingest:unconfirmed_name_match_conflicting_affiliation" });
+    // Neither branch in mergeAuthors fires for this pair (role isn't
+    // 'unknown'->'chps_faculty', and faculty_id is already non-null on both
+    // sides) — the existing row's own role_set_at is left untouched, not
+    // overwritten by the re-run's fresher timestamp.
+    expect(merged[0].role_set_at).toBe("2026-07-16T00:00:00.000Z");
   });
 
   it("never downgrades a machine-set chps_faculty back to unknown", () => {

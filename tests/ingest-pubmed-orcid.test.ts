@@ -50,12 +50,12 @@ function crossrefWorkResponse(item: unknown) {
   return jsonResponse({ message: item });
 }
 
-function crossrefItem(opts: { doi: string; title: string; authors: { given: string; family: string }[]; journal?: string; year?: number }) {
+function crossrefItem(opts: { doi: string; title: string; authors: { given: string; family: string; affiliation?: string }[]; journal?: string; year?: number }) {
   return {
     DOI: opts.doi,
     title: [opts.title],
     type: "journal-article",
-    author: opts.authors.map((a) => ({ given: a.given, family: a.family, affiliation: [] })),
+    author: opts.authors.map((a) => ({ given: a.given, family: a.family, affiliation: a.affiliation ? [{ name: a.affiliation }] : [] })),
     "container-title": [opts.journal ?? "Test Journal"],
     volume: "1",
     issue: "1",
@@ -202,7 +202,19 @@ describe("runIngestPubmedOrcid — integration", () => {
         ]),
       byDoi: {
         "10.1123/jsr.2024-0440": () =>
-          crossrefWorkResponse(crossrefItem({ doi: "10.1123/jsr.2024-0440", title: "A Dual-Task Agility Paper", authors: [{ given: "Matt", family: "Stock" }], journal: "Journal of Sport Rehabilitation" })),
+          crossrefWorkResponse(
+            crossrefItem({
+              doi: "10.1123/jsr.2024-0440",
+              title: "A Dual-Task Agility Paper",
+              // ops-notes.md §5/§6: ORCID's DOI-resolution round-trips through
+              // Crossref (lib/crossref.ts::resolveByDoi), so the same
+              // per-author affiliation data a Crossref-direct candidate
+              // carries is available here too — a UCF-confirming string is
+              // what makes this a genuinely confirmed match, not just a name hit.
+              authors: [{ given: "Matt", family: "Stock", affiliation: "University of Central Florida" }],
+              journal: "Journal of Sport Rehabilitation",
+            })
+          ),
       },
       esearch: () => esearchResponse([]),
       esummary: () => esummaryResponse([]),
@@ -217,8 +229,8 @@ describe("runIngestPubmedOrcid — integration", () => {
     const pubs = await client.execute("SELECT doi, source, status, journal FROM publications");
     expect(pubs.rows).toEqual([{ doi: "10.1123/jsr.2024-0440", source: "orcid", status: "pending_merge", journal: "Journal of Sport Rehabilitation" }]);
 
-    const authors = await client.execute("SELECT faculty_id, role FROM publication_authors");
-    expect(authors.rows).toEqual([{ faculty_id: facultyId, role: "chps_faculty" }]);
+    const authors = await client.execute("SELECT faculty_id, role, role_set_by FROM publication_authors");
+    expect(authors.rows).toEqual([{ faculty_id: facultyId, role: "chps_faculty", role_set_by: "ingest" }]);
   });
 
   it("an ORCID work with no DOI falls back to resolveByTitle", async () => {
@@ -277,10 +289,15 @@ describe("runIngestPubmedOrcid — integration", () => {
     expect(summary.insertedNew).toBe(1);
     const pubs = await client.execute("SELECT doi, source, status FROM publications");
     expect(pubs.rows).toEqual([{ doi: "10.5/pubmed-paper", source: "pubmed", status: "pending_merge" }]);
-    const authors = await client.execute("SELECT name, faculty_id, position FROM publication_authors ORDER BY position");
+    const authors = await client.execute("SELECT name, faculty_id, position, role, role_set_by FROM publication_authors ORDER BY position");
     expect(authors.rows).toEqual([
-      { name: "Harmon, K.K.", faculty_id: null, position: 0 },
-      { name: "Stock, M.S.", faculty_id: facultyId, position: 1 },
+      { name: "Harmon, K.K.", faculty_id: null, position: 0, role: "unknown", role_set_by: null },
+      // ops-notes.md §5/§6: PubMed's esummary has no per-author affiliation
+      // field at all — a real name match here is automatically unconfirmed,
+      // with no PubMed-specific code required to make that happen. faculty_id
+      // is still set as a reviewable hint; role stays 'unknown', never
+      // chps_faculty, until a human confirms it.
+      { name: "Stock, M.S.", faculty_id: facultyId, position: 1, role: "unknown", role_set_by: "ingest:unconfirmed_name_match" },
     ]);
   });
 

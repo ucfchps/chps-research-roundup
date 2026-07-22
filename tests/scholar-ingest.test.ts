@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildAuthorInputs,
   decideArticleOutcome,
   matchAuthorNameToFaculty,
   resolveDiscoveringFaculty,
@@ -181,7 +182,9 @@ describe("decideArticleOutcome — a resolved Crossref hit with no existing matc
     const resolution = {
       doi: "10.1/x", title: "A Test Paper", url: "https://doi.org/10.1/x", journal: "J", year: 2026,
       volume: "1", issue: "1", pages: "1-2", type: "journal-article",
-      authors: [{ name: "Doe, J.", position: 0 }, { name: "Smith, R.", position: 1 }],
+      // Doe carries a UCF-confirming affiliation — this test's point is a
+      // genuinely confirmed match (ops-notes.md §5/§6), not merely a name hit.
+      authors: [{ name: "Doe, J.", position: 0, affiliation: "University of Central Florida" }, { name: "Smith, R.", position: 1 }],
     };
     const roster = [faculty({ id: 7, display_name: "Doe, J." })];
 
@@ -193,8 +196,8 @@ describe("decideArticleOutcome — a resolved Crossref hit with no existing matc
     expect(outcome.publication.source).toBe("crossref");
     expect(outcome.publication.discovered_by_faculty_id).toBe(7);
     expect(outcome.authors).toEqual([
-      { name: "Doe, J.", faculty_id: 7, role: "chps_faculty", role_set_by: "ingest", role_set_at: NOW, position: 0 },
-      { name: "Smith, R.", faculty_id: null, role: "unknown", role_set_by: null, role_set_at: null, position: 1 },
+      { name: "Doe, J.", faculty_id: 7, role: "chps_faculty", role_set_by: "ingest", role_set_at: NOW, position: 0, affiliation: "University of Central Florida" },
+      { name: "Smith, R.", faculty_id: null, role: "unknown", role_set_by: null, role_set_at: null, position: 1, affiliation: undefined },
     ]);
     expect(outcome.discoveringFacultyLinked).toBe(true);
     expect(outcome.possibleDuplicateOf).toEqual([]); // nothing similar in `existing` ([])
@@ -280,7 +283,11 @@ describe("decideArticleOutcome — a resolved Crossref hit that matches an exist
     const resolution = {
       doi: "10.1/x", title: "A Test Paper", url: "https://doi.org/10.1/x", journal: "J", year: 2026,
       volume: "1", issue: "1", pages: "1-2", type: "journal-article",
-      authors: [{ name: "Doe, J.", position: 0 }, { name: "Smith, R.", position: 1 }],
+      // Smith's own incoming affiliation now confirms UCF — this test's point
+      // is mergeAuthors' unknown->chps_faculty upgrade path specifically
+      // (ops-notes.md §5/§6: that upgrade requires a genuinely confirmed
+      // incoming match, not merely a name hit).
+      authors: [{ name: "Doe, J.", position: 0 }, { name: "Smith, R.", position: 1, affiliation: "University of Central Florida" }],
     };
     const roster = [faculty({ id: 7, display_name: "Doe, J." }), faculty({ id: 8, display_name: "Smith, R.", scholar_user_id: "XYZ789AAAAJ" })];
     const existingMatch: ExistingMatch = {
@@ -455,6 +462,78 @@ describe("decideArticleOutcome — a resolved Crossref hit that matches an exist
     if (outcome.kind !== "merged") throw new Error("unreachable");
     expect(outcome.status).toBe("published");
     expect(outcome.firstSeenAt).toBeNull(); // already settled -> no promotion -> untouched
+  });
+});
+
+// ops-notes.md §5/§6 follow-up: matchAuthorNameToFaculty alone (family +
+// first initial) is not identity confirmation — a real wrong link (Zhu, Y.)
+// shipped to production from exactly this gap. This is the shared,
+// structural gate every ingester routes through via buildAuthorInputs,
+// replacing scripts/ingest-crossref.ts's now-retired flagNameOnlyMatches
+// (which only ever logged the same risk, never blocked the write).
+describe("buildAuthorInputs — the shared confirmation gate (ops-notes.md §5/§6)", () => {
+  const NOW2 = "2026-07-21T00:00:00.000Z";
+
+  it("name match + affiliation corroborates UCF -> chps_faculty, role_set_by='ingest' (today's confirmed-match behavior, unchanged)", () => {
+    const roster = [faculty({ id: 7, display_name: "Zraick, R.I." })];
+    const authors = [{ name: "Zraick, R.I.", position: 0, affiliation: "University of Central Florida, Orlando, FL" }];
+
+    const result = buildAuthorInputs(authors, roster, NOW2);
+
+    expect(result).toEqual([
+      { name: "Zraick, R.I.", faculty_id: 7, role: "chps_faculty", role_set_by: "ingest", role_set_at: NOW2, position: 0, affiliation: "University of Central Florida, Orlando, FL" },
+    ]);
+  });
+
+  it("name match, no affiliation data at all -> unknown, faculty_id preserved as a reviewable hint, role_set_by='ingest:unconfirmed_name_match'", () => {
+    // The exact shape of a PubMed-sourced author (esummary has no per-author
+    // affiliation field at all) and of a Crossref record with a genuinely
+    // empty affiliation array (§5: "inconsistently populated").
+    const roster = [faculty({ id: 7, display_name: "Zraick, R.I." })];
+    const authors = [{ name: "Zraick, R.I.", position: 0 }]; // no `affiliation` key at all
+
+    const result = buildAuthorInputs(authors, roster, NOW2);
+
+    expect(result).toEqual([
+      { name: "Zraick, R.I.", faculty_id: 7, role: "unknown", role_set_by: "ingest:unconfirmed_name_match", role_set_at: NOW2, position: 0, affiliation: undefined },
+    ]);
+  });
+
+  it("name match, affiliation present but does NOT mention UCF -> unknown, distinct role_set_by tag ('conflicting_affiliation') — stronger negative evidence than no data at all, must not look identical to it", () => {
+    // The confirmed real case this whole fix pack exists for: a "Zhu, Y."
+    // match whose actual Crossref affiliation was unrelated-field
+    // (embedded systems, quantum computing, etc.) — real evidence the name
+    // match is wrong, not merely unconfirmed.
+    const roster = [faculty({ id: 7, display_name: "Zhu, Y." })];
+    const authors = [{ name: "Zhu, Y.", position: 0, affiliation: "Department of Ophthalmology, University of Pennsylvania" }];
+
+    const result = buildAuthorInputs(authors, roster, NOW2);
+
+    expect(result).toEqual([
+      {
+        name: "Zhu, Y.", faculty_id: 7, role: "unknown", role_set_by: "ingest:unconfirmed_name_match_conflicting_affiliation",
+        role_set_at: NOW2, position: 0, affiliation: "Department of Ophthalmology, University of Pennsylvania",
+      },
+    ]);
+  });
+
+  it("the two unconfirmed buckets are genuinely distinguishable, not just differently-worded", () => {
+    const roster = [faculty({ id: 7, display_name: "Zhu, Y." })];
+    const noData = buildAuthorInputs([{ name: "Zhu, Y.", position: 0 }], roster, NOW2);
+    const conflicting = buildAuthorInputs([{ name: "Zhu, Y.", position: 0, affiliation: "Unrelated University" }], roster, NOW2);
+
+    expect(noData[0].role_set_by).not.toBe(conflicting[0].role_set_by);
+    expect(noData[0].role).toBe("unknown");
+    expect(conflicting[0].role).toBe("unknown");
+  });
+
+  it("no name match at all -> unknown, faculty_id null, role_set_by null (unchanged — this is a stranger, not an unconfirmed roster member)", () => {
+    const roster = [faculty({ id: 7, display_name: "Zraick, R.I." })];
+    const authors = [{ name: "Nobody, N.", position: 0, affiliation: "University of Central Florida" }];
+
+    const result = buildAuthorInputs(authors, roster, NOW2);
+
+    expect(result).toEqual([{ name: "Nobody, N.", faculty_id: null, role: "unknown", role_set_by: null, role_set_at: null, position: 0, affiliation: "University of Central Florida" }]);
   });
 });
 

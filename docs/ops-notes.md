@@ -209,44 +209,211 @@ which of the two names is current.
 
 ---
 
-## 5. ★ Suspected wrong author link already live in production — needs a human, not a query
+## 5. ★ RESOLVED: unconfirmed name matches are now a structural gate, not a console flag
 
-Found while spot-checking existing `source = 'crossref'` records for the §3 investigation above.
-**Suspected, not confirmed** — do not "fix" this from Crossref metadata alone; see reasoning
-below.
+**Status as of the follow-up session that closed this out: fixed, not just documented.**
+`buildAuthorInputs` (`lib/scholar-ingest.ts`) is now the shared confirmation gate every
+ingester routes through — a name match (family + first initial, `matchAuthorNameToFaculty`,
+still no ORCID cross-check) only becomes `role = 'chps_faculty'` when its affiliation string
+corroborates UCF (`isUcfAffiliation`, moved to `lib/matching.ts`). Otherwise it writes
+`role = 'unknown'` durably, with `faculty_id` preserved as a reviewable hint and a
+`role_set_by` tag distinguishing *no affiliation data at all*
+(`ingest:unconfirmed_name_match` — PubMed, always; Crossref/ORCID whenever the field is
+genuinely empty) from *affiliation present but doesn't mention UCF*
+(`ingest:unconfirmed_name_match_conflicting_affiliation` — stronger negative evidence, the
+exact Zhu case below). `scripts/report-unconfirmed-matches.ts`
+(`npm run report:unconfirmed-matches`) is the durable review surface this produces, replacing
+the old `nameOnlyMatchUnconfirmed` console-only flag (`flagNameOnlyMatches`,
+`ingest-crossref.ts`), which is retired.
 
-**`publications.id = 96`**, title *"Testing circuit-level theories of consciousness in humans"*
-(DOI `10.1016/j.tics.2025.08.012`, a *Trends in Cognitive Sciences* paper), has a
-`publication_authors` row linking it to `faculty` row `display_name = "Zhu, Y."` with
-`role = 'chps_faculty'`, written 2026-07-16 by a real (non-dry-run) `ingest-crossref` run —
-predates any of the dry-run investigation in §3.
+### The corrected picture on "which sources have the data"
 
-**Why it's suspicious:** `Zhu, Y.`'s name repeatedly produced unrelated-field false positives
-in the §3 dry-run sample — quantum error correction, embedded systems, underwater vehicle
-actuators, gut microbiome research — none plausibly CHPS work, all matched by family + first
-initial alone (`matchAuthorNameToFaculty`, no ORCID or affiliation cross-check). A consciousness/
-cognitive-science paper fits that same pattern: not an obvious match to any CHPS unit.
+The original write-up of this finding treated ORCID and PubMed as one undifferentiated gap.
+They are not the same:
 
-**Why it's still just "suspected":** `nameOnlyMatchUnconfirmed` (§3) is a console-only flag —
-nothing persists it, so this row's original ingest run gave no durable signal that a human
-should look at it. There's no `possible_duplicates` entry either (checked: zero rows for
-`publication_id = 96`) — that table is written by a completely different mechanism
-(`ingest-scholar`'s near-duplicate-title check), unrelated to `nameOnlyMatchUnconfirmed`. So this
-sat unflagged and un-actioned since 2026-07-16 with no trace anywhere until this session's manual
-DB query turned it up.
+- **Crossref-direct and Scholar-discovered-then-Crossref-resolved** always had per-author
+  affiliation data available (`CrossrefResolutionAuthor.affiliation`) — it just wasn't being
+  checked before this fix. Nothing new to fetch; the check was simply missing.
+- **ORCID works resolved by DOI** round-trip through `resolveByDoi` (`lib/crossref.ts`), which
+  returns the exact same `CrossrefResolutionAuthor` shape a Crossref-direct candidate does —
+  so ORCID candidates *also* already had this data available, dropped in the same spot.
+- **PubMed** genuinely, structurally lacks it — `esummary` has no per-author affiliation field
+  at all. This is the one source where "unconfirmed" isn't a missed check, it's the ceiling of
+  what the source can ever tell us.
 
-**Deliberately not touched in this session** — pulling the DOI's Crossref affiliation would only
-get to "this looks wrong," never to "confirmed wrong." Real confirmation is the person saying
-it isn't theirs (§8b's whole reason for existing), and unlinking based on metadata alone risks
-being just as wrong as the original match, permanently and silently (nothing re-links a role
-once cleared).
+Confirmed with a direct test (`tests/shared-confirmation-gate.test.ts`): the same author +
+affiliation fixture, run through all three real entry points (Crossref-direct search, Scholar
+alert → Crossref title resolution, ORCID work → Crossref DOI resolution), produces the
+identical `role`/`role_set_by` outcome in each — the gate doesn't drift between call sites.
 
-**Fastest real path, available today, no code needed:** someone on the team emails Zhu directly
-and asks — faster than waiting for §8b to ship, and it's the actual gold-standard answer either
-way.
+### The Zhu, Y. case (publications.id = 96) — reclassified, not deleted
 
-**The real underlying gap this exposes:** `nameOnlyMatchUnconfirmed` needs to persist somewhere
-queryable (a table, or a status/flag column) instead of only ever existing in one run's console
-output — otherwise every future ambiguous match has the same fate as this one: correctly detected
-at ingest time, then invisible forever after. Not scoped as a fix here; noting it so it doesn't
-get rediscovered from scratch next time.
+`Testing circuit-level theories of consciousness in humans` (DOI `10.1016/j.tics.2025.08.012`)
+had two `chps_faculty` links: `Zhu, Y.` (faculty_id 23) and `Dykstra, A.` (faculty_id 33). Only
+Zhu's was in scope for this session's retroactive fix:
+
+```sql
+UPDATE publication_authors
+SET role = 'unknown', role_set_by = 'ingest:unconfirmed_name_match', role_set_at = datetime('now')
+WHERE publication_id = 96 AND faculty_id = 23;
+```
+
+Applied. `role_set_by` deliberately used the *no-data* tag (`ingest:unconfirmed_name_match`),
+not the *conflicting-affiliation* one, matching what the row already recorded — `faculty_id`
+stays set, reversible in either direction once there's a real answer from Zhu (§8b, once it
+ships, or a direct email today — still the fastest real path).
+
+### Dykstra, A. (publication 96, same paper as Zhu) — flagged, NOT reclassified, weaker evidence than Zhu
+
+**Not touched in this session** — reclassifying it wasn't part of the instructions this entry
+was written against. Documented here with the same dedicated treatment Zhu got, specifically
+so it doesn't sit as a passing mention that quietly goes stale the way Zhu's case almost did
+before this conversation started.
+
+- **Real profile:** `faculty.id = 33`, `Andrew Dykstra`, School of Communication Sciences and
+  Disorders. Linked to exactly one publication in the whole database — this one.
+- **Bucket:** `ingest:unconfirmed_name_match` (no affiliation data at all) — **not**
+  `_conflicting_affiliation`. Weaker/neutral evidence, not active evidence of a wrong match.
+- **The evidence that actually distinguishes this from Zhu:** Dykstra's *other* candidate from
+  his own Crossref author search in the original §3 investigation was *"Combined MEG and EEG
+  suggest a limbic source network of the P3 including retrosplenial cortex and hippocampus"* —
+  genuine EEG/neuroscience work, topically consistent with a consciousness paper and with a CSD
+  faculty member's plausible research area. Zhu's other candidates in that same investigation
+  were quantum error correction, embedded systems, and gut microbiome research — nothing
+  adjacent to Health Sciences. Dykstra has no corroborating red flag; Zhu had several.
+- **Next step:** still needs the same real confirmation as any unconfirmed match (§8b once it
+  exists, or a direct email today) — but should not be worked with the same urgency as the 6
+  conflicting-affiliation rows in §6. Treat as normal-priority backlog, not a suspected error.
+
+---
+
+## 6. ★ Cross-source sweep: the real number, not an extrapolation from one case
+
+`npm run sweep:role-confirmations` (`scripts/sweep-role-confirmations.ts`) re-ran the exact
+gate from §5 against every **existing** `publication_authors` row with
+`role = 'chps_faculty'`, `role_set_by = 'ingest'` — i.e. every automated link the system had
+made before this session, regardless of which source originally discovered the paper. It's
+read-only: it fetches each row's publication DOI fresh from Crossref, rebuilds the author list
+through the same `buildAuthorInputs` the ingesters use, and reports what role that row would
+get *today* — nothing is written.
+
+### The real number
+
+The sweep was re-run after Zhu's row (§5) was reclassified, so it dropped out of the pool —
+151 rows checked here, not the original 152:
+
+```
+151 existing 'chps_faculty'/'ingest' rows checked
+ 91 still confirmed              (60%)
+ 60 now unconfirmed              (40%)
+    54 no affiliation data at all      (90% of the unconfirmed bucket)
+     6 conflicting affiliation         (10% of the unconfirmed bucket)
+  0 no DOI (unconfirmable)
+  0 DOI unresolvable
+  0 no longer matched (faculty member absent from the current author list entirely)
+```
+
+**The 54/6 split is the number that actually determines urgency, not the bare 60.** No
+affiliation data at all is weak/neutral evidence — Crossref's affiliation field being sparse is
+normal and expected (master plan §5: "inconsistently populated... many legitimate Crossref
+records carry an empty affiliation array"), and most of those 54 are almost certainly correct
+matches that simply can't be confirmed from this field. The 6 conflicting-affiliation rows are
+different in kind — the affiliation string is present and says something else, the same shape
+of evidence Zhu had. **Those 6 are the ones that warrant the same look Zhu got, not the full 60.**
+
+**All 151 are `source = 'crossref'`** — not because the sweep filtered on source (it
+deliberately didn't), but because no real (non-dry-run) `ingest-pubmed-orcid` run has ever
+happened yet (confirmed separately: `SELECT COUNT(*) FROM publications WHERE source IN
+('orcid','pubmed')` returns 0). `ingest-scholar`-discovered records also land here, since
+`decideArticleOutcome` stamps `source = 'crossref'` once a Scholar-discovered title resolves —
+the source column reflects metadata provenance, not discovery channel.
+
+### The 6 conflicting-affiliation rows — highest priority, same evidence shape as Zhu
+
+- Case Assignment Principles for Achieving Worker Well-Being, Organizational Justice, and Casework Quality → Stewart, C. (28)
+- Reliability of achieving target dehydration levels using a portable infrared sauna protocol in healthy young adults → Wells, A. (67)
+- Reliability of achieving target dehydration levels using a portable infrared sauna protocol in healthy young adults → Stout, J. (67)
+- Demographic and Acoustic Factors Related to Automatic Speech Recognition Inaccuracies for Child African American English Speakers → Fletcher, B. (85)
+- The influence of transitioning between grass and concrete surfaces on resultant tibial accelerations while running → Norte, G. (101)
+- Potential Influence of Acute Dysregulated Sleep on Fall Incidence Among Low-Income Older Women: A Case Study → Stout, J. (127)
+
+None of these 6 were individually investigated this session (only Zhu was, per the explicit
+scope) — this list is "same evidence shape as Zhu," not "confirmed wrong." Same posture as §5:
+a human needs to look, not an automated reclassification.
+
+### The other 54 (no affiliation data) — normal-priority backlog
+
+<details>
+<summary>Expand — same list scripts/report-unconfirmed-matches.ts now surfaces going forward (includes Dykstra, discussed above)</summary>
+
+- Metabolic and Phonatory Responses to Anaerobic Vocal Capacity Tasks With and Without Back Pressure → Zraick, R. (6)
+- Neural activity differences and their functional and clinical correlates after anterior cruciate ligament reconstruction: A systematic review of task-based fMRI studies → Norte, G. (7)
+- Mental Health Outcomes Among Non-English Primary Language Survivors of Intimate Partner Violence → Backes, B. (13)
+- Creatine monohydrate supplementation for recovery from muscle disuse: Timing matters → Stout, J. (15)
+- NFL's Alex Singleton and the Testicular Cancer Detection Gap → Rovito, M.J. (16)
+- Acoustic Measures of Articulation and Vocal Quality in Transgender People Completing Vocal Feminization Therapy → McKenna, V. (17)
+- Hyperacusis-inducing drug candidates → Salvi, R. (21)
+- Hyperacusis-inducing drug candidates → Eddins, A. (21)
+- Examining differences in parent-reported screen time from school to summer in children: an observational cohort study → Brazendale, K. (26)
+- The Pre-Kidney Transplant Cardiovascular Evaluation: A Narrative Review of Current Scientific Statements and Consensus Documents → Anderson, K. (27)
+- Improving the Readability of Spasmodic Dysphonia Patient Education Materials Using ChatGPT-4o Mini: A Cross-Sectional Study → Zraick, R. (33)
+- Foundations for writing: preschool oral storytelling following visual design and story grammar instruction → Towson, J. (34)
+- Examination and quantification of motor evoked potentials in the non-target resting leg → Stock, M. (44)
+- Effect of sex, leg dominance, and task on knee cartilage and anterior cruciate ligament biomechanics during single-leg landings-a pilot study → Norte, G. (46)
+- Shared Interactive Book Reading → Towson, J. (53)
+- Associations Between Fall Risk and Lower Limb Joint Range of Motion During Sit-to-Stand Among Community-Dwelling Older Adults → Stout, J. (55)
+- Why Integrate Mathematics, Science, and Children's Literature? → Towson, J. (56)
+- Free summer programming on elementary-aged children's food and beverage consumption: a randomized clinical trial → Brazendale, K. (60)
+- Correction: Drug use and sexual behaviors among women who inject drugs and use a syringe services program; Miami, Florida → Scheidell, J. (61)
+- Relationships between upper extremity neuromuscular function and patient-reported outcomes among individuals with a history of glenohumeral labral repair → Norte, G. (62)
+- Allocative efficiency of opioid overdose prevention strategies for people incarcerated in New Jersey → Scheidell, J. (74)
+- Real-Time Resonance Biofeedback for Gender-Affirming Voice Training: Usability Testing of the TruVox Web-Based Application → McKenna, V. (75)
+- Test-related psychological responses and quadriceps neuromuscular outcomes in people with and without patellofemoral pain → Norte, G. (77)
+- Novel evidence of age-related cortical and subcortical constraints in cross-education → Stock, M. (80)
+- A Model for Advocacy Approaches and Goals in Domestic Violence Transitional Housing → Backes, B. (83)
+- A Model for Advocacy Approaches and Goals in Domestic Violence Transitional Housing → Leibovits, I. (83)
+- Allocative efficiency analysis of strategies to reduce overdose deaths among people with opioid use disorder and history of incarceration in Connecticut → Scheidell, J. (88)
+- TruVox Web-Based Software for Vocal Pitch Training in Transgender Women: Development and Single-Session Evaluations → Wang, X. (95)
+- TruVox Web-Based Software for Vocal Pitch Training in Transgender Women: Development and Single-Session Evaluations → McKenna, V. (95)
+- Testing circuit-level theories of consciousness in humans → Dykstra, A. (96) — see dedicated write-up in §5
+- The Cost Effectiveness of a Free Summer Day Camp Voucher Program to Prevent Summer Weight Gain Among Children From Disadvantaged Households → Brazendale, K. (102)
+- Navigating service pathways out of youth homelessness: An analysis of shelter utilization in Central Florida → Lu, S. (103)
+- Using a Vortex Whistle System to Estimate Phonatory Airflow via the Phonation Quotient → Awan, S. (105)
+- Using a Vortex Whistle System to Estimate Phonatory Airflow via the Phonation Quotient → McKenna, V. (105)
+- Using a Vortex Whistle System to Estimate Phonatory Airflow via the Phonation Quotient → Eddins, D. (105)
+- Screen Time and Objectively Measured Sleep of U.S. College Students: A Brief Report → Lee, E.M. (114)
+- Screen Time and Objectively Measured Sleep of U.S. College Students: A Brief Report → Brazendale, K. (114)
+- Validity and reliability of a novel portable tension-gauge dynamometer for isometric and isotonic seated knee extension strength measurement → Norte, G. (117)
+- Health-related quality of life trajectories among older breast cancer survivors: a SEER-MHOS analysis → Lee, E.M. (122)
+- Health-related quality of life trajectories among older breast cancer survivors: a SEER-MHOS analysis → Ferdowsi, K. (122)
+- Drug use and sexual behaviors among women who inject drugs and use a syringe services program; Miami, Florida → Scheidell, J. (125)
+- Effects of Negative Emotions and Personality Traits on Laryngeal and Speech Motor Control → Zraick, R. (129)
+- Perinatal depression at the intersection of race/ethnicity and disability → Chapple, R. (130)
+- Comparing quantitative sensory testing and psychological factors between individuals with acute and chronic shoulder pain → Anderson, A. (132)
+- Comparing quantitative sensory testing and psychological factors between individuals with acute and chronic shoulder pain → Hanney, W. (132)
+- Abstract P3-01-06: Differences in health-related quality of life among breast cancer survivors by Hispanic origins → Lee, E.M. (133)
+- Abstract P3-01-06: Differences in health-related quality of life among breast cancer survivors by Hispanic origins → Rovito, M.J. (133)
+- Time-course and pressure-dependent changes in microvascular responses during ischemic preconditioning → Stout, J. (134)
+- Time-course and pressure-dependent changes in microvascular responses during ischemic preconditioning → Hill, E. (134)
+- The influence of chronic knee pain and age on conditioned pain modulation and motor unit control → Hill, E. (137)
+- The influence of chronic knee pain and age on conditioned pain modulation and motor unit control → Chaput, M. (137)
+- The influence of chronic knee pain and age on conditioned pain modulation and motor unit control → Anderson, A. (137)
+- The influence of chronic knee pain and age on conditioned pain modulation and motor unit control → Stock, M. (137)
+- Pneumococcal Community-Acquired Pneumonia (CAP) in Adults: Epidemiology, Pathophysiology, and Updated Vaccination Guidance → Lopez Castillo, H. (140)
+
+</details>
+
+### What this does and doesn't mean
+
+**Not** "60 wrong links," and even less so "60 equally-urgent links" — see the 54/6 split
+above. What it means: 60 links that were auto-confirmed on name alone now correctly show as
+`unknown`/reviewable instead of silently passing as settled fact — exactly the §15.4/§15.11
+posture ("when uncertain, mark unknown, never guess"; "surface invisible failures") applied
+retroactively instead of only going forward.
+
+**Not actioned in this session** — only publication 96 / Zhu was reclassified (§5), per the
+explicit scope given. The rest are visible now (`npm run report:unconfirmed-matches`) but
+still show as `chps_faculty` in the live data until someone decides how to handle a batch this
+size — a per-row email-and-wait like Zhu's doesn't scale to 60; likely needs either a COMMS
+bulk-review pass (start with the 6 conflicting-affiliation rows) or the §8b review page (once
+built) surfacing these to the affected faculty directly.

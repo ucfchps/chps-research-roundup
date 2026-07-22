@@ -13,14 +13,9 @@ import { config } from "dotenv";
 import path from "node:path";
 import { createClient, type Client } from "@libsql/client";
 import { getAlertCoverage } from "../lib/coverage";
-import { mergeAuthors, mergeMetadata, normalizeTitle, promoteFromNeedsMetadata, type AuthorInput, type ExistingAuthor, type MatchableExisting, type MergeableExisting } from "../lib/matching";
+import { mergeAuthors, mergeMetadata, normalizeTitle, promoteFromNeedsMetadata, type ExistingAuthor, type MatchableExisting, type MergeableExisting } from "../lib/matching";
 import { buildAuthorInputs, findCandidateMatch } from "../lib/scholar-ingest";
 import type { CrossrefResolution, Faculty, PublicationStatus } from "../lib/types";
-// isUcfAffiliation comes from lib/crossref.ts, which throws at import time if
-// CROSSREF_MAILTO is unset — imported dynamically alongside searchByAuthor
-// inside runIngestCrossref (same reason as everywhere else in this file),
-// then threaded into applyCandidate as a parameter.
-type IsUcfAffiliation = (affiliation: string | null | undefined) => boolean;
 
 config({ path: path.join(__dirname, "..", ".env.local") });
 
@@ -67,23 +62,6 @@ export interface SurnameGateRejection {
   count: number;
 }
 
-// A chps_faculty link this candidate produced via matchAuthorNameToFaculty —
-// family + first-initial only, no ORCID cross-check exists anywhere in this
-// pipeline yet. Not a gate (§5's "affiliation is a tiebreaker, never a
-// requirement" applies here too — sparse/missing affiliation data is common
-// and must not cost a real paper): purely informational, so whoever's
-// watching early sweeps has a prioritized list of likely mismatches. Real
-// case this would have caught immediately: a marine-fisheries paper's
-// "Adams, A." author matched Alauna Adams (School of Social Work) by
-// initials alone; that author's own Crossref affiliation string, if present,
-// almost certainly doesn't mention UCF.
-export interface NameOnlyMatchFlag {
-  publicationTitle: string;
-  facultyWpId: string | null;
-  facultyDisplayName: string;
-  affiliation: string | null; // null = Crossref gave no affiliation string for this author at all
-}
-
 // §15.11: a faculty member who was swept and genuinely found nothing must
 // not be indistinguishable from one where the sweep worked as intended and
 // simply found nothing NEW this run — those look identical as a bare count
@@ -104,54 +82,33 @@ export interface RunSummary {
   insertedNew: number;
   rejectedBySurnameGate: number;
   rejectedBySurnameGateByFaculty: SurnameGateRejection[];
-  nameOnlyMatchUnconfirmed: NameOnlyMatchFlag[];
   skippedFaculty: SkippedFaculty[];
   facultySweepOutcomes: FacultySweepOutcome[];
   dryRun: boolean;
-}
-
-// Checks each newly name-matched author from THIS candidate's own resolution
-// (not previously-linked authors already sitting on an existing record —
-// those were already checked, if at all, the run they were first linked) —
-// so a re-run over the same DOI doesn't re-flag someone every day forever.
-function flagNameOnlyMatches(
-  incomingAuthors: AuthorInput[],
-  resolutionAuthors: CrossrefResolution["authors"],
-  publicationTitle: string,
-  roster: Faculty[],
-  isUcfAffiliation: IsUcfAffiliation
-): NameOnlyMatchFlag[] {
-  const flags: NameOnlyMatchFlag[] = [];
-  for (const author of incomingAuthors) {
-    if (author.role !== "chps_faculty" || author.faculty_id === null) continue;
-    const resolutionAuthor = resolutionAuthors.find((ra) => ra.position === author.position);
-    const affiliation = resolutionAuthor?.affiliation ?? null;
-    if (isUcfAffiliation(affiliation)) continue; // confirmed — nothing to flag
-
-    const matchedFaculty = roster.find((f) => f.id === author.faculty_id);
-    flags.push({
-      publicationTitle,
-      facultyWpId: matchedFaculty?.wp_id ?? null,
-      facultyDisplayName: matchedFaculty?.display_name ?? `faculty_id ${author.faculty_id}`,
-      affiliation,
-    });
-  }
-  return flags;
 }
 
 // Runs one Crossref candidate through the existing merge engine (§7) exactly
 // like any other source — findMatch, then merge-into or insert-new. Crossref
 // always arrives with complete metadata, so a new insert is always
 // pending_merge, never needs_metadata.
+//
+// ★ ops-notes.md §5/§6: buildAuthorInputs (lib/scholar-ingest.ts) is now the
+// structural confirmation gate — a name match (family + first initial, no
+// ORCID cross-check) only becomes role='chps_faculty' when its Crossref
+// affiliation string corroborates UCF. Otherwise it writes role='unknown'
+// with a role_set_by tag identifying it as an unconfirmed match, durably
+// (scripts/report-unconfirmed-matches.ts reads these back). This retires the
+// old flagNameOnlyMatches, which only ever logged the same risk to one run's
+// console output without blocking the write — a parallel, driftable
+// implementation of the same check the shared gate now owns.
 async function applyCandidate(
   client: Client,
   resolution: CrossrefResolution,
   roster: Faculty[],
   nowIso: string,
   dryRun: boolean,
-  isUcfAffiliation: IsUcfAffiliation,
   sweptFacultyId: number
-): Promise<{ outcome: "merged" | "inserted"; nameOnlyMatchFlags: NameOnlyMatchFlag[]; linkedSweptFaculty: boolean }> {
+): Promise<{ outcome: "merged" | "inserted"; linkedSweptFaculty: boolean }> {
   const existingList = (await client.execute("SELECT id, doi, title_normalized FROM publications")).rows as unknown as MatchableExisting[];
   const matchResult = findCandidateMatch(resolution.title, resolution.doi, existingList);
   const incomingMetadata = {
@@ -159,7 +116,6 @@ async function applyCandidate(
     year: resolution.year, volume: resolution.volume, issue: resolution.issue, pages: resolution.pages,
   };
   const incomingAuthors = buildAuthorInputs(resolution.authors, roster, nowIso);
-  const nameOnlyMatchFlags = flagNameOnlyMatches(incomingAuthors, resolution.authors, resolution.title, roster, isUcfAffiliation);
   const linkedSweptFaculty = incomingAuthors.some((a) => a.faculty_id === sweptFacultyId && a.role === "chps_faculty");
 
   if (matchResult.type === "MATCH") {
@@ -208,7 +164,7 @@ async function applyCandidate(
         }
       }
     }
-    return { outcome: "merged", nameOnlyMatchFlags, linkedSweptFaculty };
+    return { outcome: "merged", linkedSweptFaculty };
   }
 
   // NEEDS_FUZZY is treated as "no match" this session — findCandidateMatch's
@@ -231,7 +187,7 @@ async function applyCandidate(
       });
     }
   }
-  return { outcome: "inserted", nameOnlyMatchFlags, linkedSweptFaculty };
+  return { outcome: "inserted", linkedSweptFaculty };
 }
 
 export async function runIngestCrossref(client: Client, opts: RunOptions): Promise<RunSummary> {
@@ -261,7 +217,6 @@ export async function runIngestCrossref(client: Client, opts: RunOptions): Promi
     insertedNew: 0,
     rejectedBySurnameGate: 0,
     rejectedBySurnameGateByFaculty: [],
-    nameOnlyMatchUnconfirmed: [],
     skippedFaculty: [],
     facultySweepOutcomes: [],
     dryRun: opts.dryRun,
@@ -302,12 +257,9 @@ export async function runIngestCrossref(client: Client, opts: RunOptions): Promi
 
     let linkedThisFaculty = false;
     for (const resolution of resolutions) {
-      const { outcome, nameOnlyMatchFlags, linkedSweptFaculty } = await applyCandidate(
-        client, resolution, roster, nowIso, opts.dryRun, crossref.isUcfAffiliation, f.id
-      );
+      const { outcome, linkedSweptFaculty } = await applyCandidate(client, resolution, roster, nowIso, opts.dryRun, f.id);
       if (outcome === "merged") summary.merged++;
       else summary.insertedNew++;
-      summary.nameOnlyMatchUnconfirmed.push(...nameOnlyMatchFlags);
       if (linkedSweptFaculty) linkedThisFaculty = true;
       console.log(`[${outcome}] "${resolution.title}" (via ${f.display_name})`);
     }
@@ -360,14 +312,10 @@ function printSummary(s: RunSummary): void {
     for (const f of s.rejectedBySurnameGateByFaculty) console.log(`  ${f.displayName} (wp_id ${f.wpId ?? "?"}): ${f.count}`);
   }
 
-  if (s.nameOnlyMatchUnconfirmed.length > 0) {
-    console.log(
-      `\n${s.nameOnlyMatchUnconfirmed.length} name-only match(es), affiliation unconfirmed — linked by family+initial alone (no ORCID cross-check exists yet), and the matched author's own Crossref affiliation string doesn't confirm UCF. Not blocked; prioritize these for a human look:`
-    );
-    for (const flag of s.nameOnlyMatchUnconfirmed) {
-      console.log(`  "${flag.publicationTitle}" -> ${flag.facultyDisplayName} (wp_id ${flag.facultyWpId ?? "?"}) — affiliation: ${flag.affiliation ?? "(none given)"}`);
-    }
-  }
+  // Unconfirmed name-only matches (ops-notes.md §5/§6) are no longer
+  // reported here — buildAuthorInputs writes them durably as
+  // role='unknown', role_set_by='ingest:unconfirmed_name_match(...)'.
+  // Run `npm run report:unconfirmed-matches` for the current list.
 
   if (s.skippedFaculty.length > 0) {
     console.log(`\n${s.skippedFaculty.length} faculty skipped this run (Crossref unavailable) — will retry next run:`);

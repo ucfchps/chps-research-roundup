@@ -191,6 +191,24 @@ describe("formatCitation — fixture reconstructions", () => {
   });
 });
 
+describe("★ ops-notes.md §5/§6: an unconfirmed name match (role='unknown', faculty_id populated) renders and derives units exactly like any other unknown author", () => {
+  it("formatAuthor renders it as plain text, same as a genuine stranger — the faculty_id hint never leaks into rendering", () => {
+    const unconfirmed = makeAuthor({ name: "Zhu, Y.", role: "unknown", role_set_by: "ingest:unconfirmed_name_match_conflicting_affiliation", faculty_id: 42, position: 0 });
+    const stranger = makeAuthor({ name: "Nobody, N.", role: "unknown", position: 1 });
+    expect(formatAuthor(unconfirmed)).toBe("Zhu, Y.");
+    expect(formatAuthor(unconfirmed)).toBe(formatAuthor({ ...stranger, name: "Zhu, Y." }));
+  });
+
+  it("unitsForPublication excludes an unconfirmed match even though faculty_id is populated — a populated faculty_id alone must never leak into unit derivation", () => {
+    const authors: PublicationAuthor[] = [
+      makeAuthor({ name: "Zhu, Y.", role: "unknown", role_set_by: "ingest:unconfirmed_name_match_conflicting_affiliation", faculty_id: 1, position: 0 }),
+    ];
+    const facultyById: Record<number, Faculty> = { 1: makeFaculty(1, "Department of Health Sciences") };
+
+    expect(unitsForPublication(authors, facultyById)).toEqual([]);
+  });
+});
+
 describe("formatCitation — explicit edge cases", () => {
   it("renders unknown and external identically", () => {
     const unknown = makeAuthor({ name: "Smith, J.", role: "unknown", position: 0 });
