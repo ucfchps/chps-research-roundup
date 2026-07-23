@@ -123,6 +123,50 @@ export async function applyLabel(id: string, labelId: string): Promise<void> {
   });
 }
 
+export interface SendMessageInput {
+  to: string;
+  from: string;
+  replyTo: string;
+  subject: string;
+  body: string; // plain text
+}
+
+// MIME encoded-word (RFC 2047) — a faculty display_name can carry diacritics
+// (this roster includes names like "Étoilé"), and a raw UTF-8 Subject header
+// is not valid RFC 2822.
+function encodeSubject(subject: string): string {
+  if (/^[\x00-\x7F]*$/.test(subject)) return subject;
+  return `=?UTF-8?B?${Buffer.from(subject, "utf-8").toString("base64")}?=`;
+}
+
+function buildRawMessage(input: SendMessageInput): string {
+  const headers = [
+    `From: ${input.from}`,
+    `To: ${input.to}`,
+    `Reply-To: ${input.replyTo}`,
+    `Subject: ${encodeSubject(input.subject)}`,
+    `MIME-Version: 1.0`,
+    `Content-Type: text/plain; charset="UTF-8"`,
+  ].join("\r\n");
+  const message = `${headers}\r\n\r\n${input.body}`;
+  return Buffer.from(message, "utf-8").toString("base64url");
+}
+
+// §8b "The email" — sent via the same OAuth flow as the read/label calls
+// above (one Gmail client module, per this codebase's per-API-module
+// convention). Throws GmailUnavailableError on failure rather than
+// swallowing it — the caller (the campaign loop) is responsible for
+// catching per-recipient so one bad address doesn't abort the batch.
+export async function sendMessage(input: SendMessageInput): Promise<void> {
+  const token = await getAccessToken();
+  const raw = buildRawMessage(input);
+  await gmailFetch(`${GMAIL_BASE}/messages/send`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ raw }),
+  });
+}
+
 function findPart(node: GmailMessagePart, mimeType: string): GmailMessagePart | null {
   if (node.mimeType === mimeType && node.body?.data) return node;
   for (const child of node.parts ?? []) {

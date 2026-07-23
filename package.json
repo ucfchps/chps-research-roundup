@@ -17,8 +17,12 @@
     "audit:fullname": "tsx scripts/audit-fullname-coverage.ts",
     "report:coverage": "tsx scripts/coverage-report.ts",
     "report:unconfirmed-matches": "tsx scripts/report-unconfirmed-matches.ts",
+    "report:rejected-attributions": "tsx scripts/report-rejected-attributions.ts",
     "sweep:role-confirmations": "tsx scripts/sweep-role-confirmations.ts",
     "release:buffer": "tsx scripts/release-buffer.ts",
+    "mint:review-token": "tsx scripts/mint-review-token.ts",
+    "campaign:run": "tsx scripts/run-campaign.ts",
+    "campaign:status": "tsx scripts/campaign-status.ts",
     "test": "vitest run"
   },
   "dependencies": {

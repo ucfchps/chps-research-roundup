@@ -20,6 +20,7 @@ describe("runMigrations", () => {
         "004_metadata_mismatches_issue.sql",
         "005_discovery_provenance.sql",
         "006_possible_duplicates.sql",
+        "007_citation_edits.sql",
       ]);
 
       const tables = await client.execute(

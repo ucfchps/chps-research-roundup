@@ -4,7 +4,7 @@ process.env.GMAIL_CLIENT_ID ??= "test-client-id";
 process.env.GMAIL_CLIENT_SECRET ??= "test-client-secret";
 process.env.GMAIL_REFRESH_TOKEN ??= "test-refresh-token";
 
-const { getAccessToken, listMessages, getMessage, applyLabel, extractHtmlBody, GmailUnavailableError, __resetTokenCacheForTests } =
+const { getAccessToken, listMessages, getMessage, applyLabel, extractHtmlBody, sendMessage, GmailUnavailableError, __resetTokenCacheForTests } =
   await import("../lib/gmail");
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -153,5 +153,64 @@ describe("extractHtmlBody", () => {
     };
 
     expect(extractHtmlBody(message)).toBeNull();
+  });
+});
+
+function decodeRawFromLastCall(): string {
+  const [, init] = vi.mocked(fetch).mock.calls[vi.mocked(fetch).mock.calls.length - 1] as [string, RequestInit];
+  const { raw } = JSON.parse(String(init.body)) as { raw: string };
+  return Buffer.from(raw, "base64url").toString("utf-8");
+}
+
+describe("sendMessage", () => {
+  it("POSTs to messages/send with a base64url-encoded RFC 2822 message containing From/To/Reply-To/Subject/body", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ access_token: "tok-1", expires_in: 3600 }));
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ id: "sent-1" }));
+
+    await sendMessage({
+      to: "faculty@ucf.edu",
+      from: "roundup@ucf.edu",
+      replyTo: "roundup@ucf.edu",
+      subject: "You have publications to review",
+      body: "Dr. Stock — you have 3 publications queued.",
+    });
+
+    const [url, init] = vi.mocked(fetch).mock.calls[1] as [string, RequestInit];
+    expect(url).toBe("https://gmail.googleapis.com/gmail/v1/users/me/messages/send");
+    expect(init.method).toBe("POST");
+    expect((init.headers as Record<string, string>).Authorization).toBe("Bearer tok-1");
+
+    const decoded = decodeRawFromLastCall();
+    expect(decoded).toContain("From: roundup@ucf.edu");
+    expect(decoded).toContain("To: faculty@ucf.edu");
+    expect(decoded).toContain("Reply-To: roundup@ucf.edu");
+    expect(decoded).toContain("Subject: You have publications to review");
+    expect(decoded).toContain("Dr. Stock — you have 3 publications queued.");
+  });
+
+  it("MIME-encodes a non-ASCII subject line (e.g. an accented faculty name) rather than sending it raw", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ access_token: "tok-1", expires_in: 3600 }));
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ id: "sent-1" }));
+
+    await sendMessage({
+      to: "faculty@ucf.edu",
+      from: "roundup@ucf.edu",
+      replyTo: "roundup@ucf.edu",
+      subject: "Bonjour Dr. Étoilé",
+      body: "body",
+    });
+
+    const decoded = decodeRawFromLastCall();
+    expect(decoded).toMatch(/Subject: =\?UTF-8\?B\?/);
+    expect(decoded).not.toContain("Subject: Bonjour Dr. Étoilé");
+  });
+
+  it("throws GmailUnavailableError when the send request fails, so the caller can catch it per-recipient", async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ access_token: "tok-1", expires_in: 3600 }));
+    vi.mocked(fetch).mockResolvedValue(new Response("bad address", { status: 400 }));
+
+    await expect(
+      sendMessage({ to: "bad@ucf.edu", from: "roundup@ucf.edu", replyTo: "roundup@ucf.edu", subject: "s", body: "b" })
+    ).rejects.toBeInstanceOf(GmailUnavailableError);
   });
 });
