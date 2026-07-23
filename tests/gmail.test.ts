@@ -1,11 +1,30 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
+import { createClient, type Client } from "@libsql/client";
+import { runMigrations } from "../db/migrate";
+import { setSetting } from "../lib/settings";
 
-process.env.GMAIL_CLIENT_ID ??= "test-client-id";
-process.env.GMAIL_CLIENT_SECRET ??= "test-client-secret";
-process.env.GMAIL_REFRESH_TOKEN ??= "test-refresh-token";
+// Unconditional, not ??=: importing db/migrate.ts below runs its own
+// dotenv.config() as an import-time side effect (static imports always
+// evaluate before this file's own top-level code), which would otherwise
+// load real credentials from .env.local ahead of these fallbacks.
+process.env.GMAIL_CLIENT_ID = "test-client-id";
+process.env.GMAIL_CLIENT_SECRET = "test-client-secret";
+process.env.GMAIL_REFRESH_TOKEN = "test-refresh-token";
 
-const { getAccessToken, listMessages, getMessage, applyLabel, extractHtmlBody, sendMessage, GmailUnavailableError, __resetTokenCacheForTests } =
-  await import("../lib/gmail");
+const {
+  getAccessToken,
+  listMessages,
+  getMessage,
+  applyLabel,
+  extractHtmlBody,
+  sendMessage,
+  GmailUnavailableError,
+  EmailNotificationsDisabledError,
+  __resetTokenCacheForTests,
+} = await import("../lib/gmail");
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status });
@@ -163,11 +182,28 @@ function decodeRawFromLastCall(): string {
 }
 
 describe("sendMessage", () => {
+  let dbDir: string;
+  let client: Client;
+
+  beforeEach(async () => {
+    dbDir = mkdtempSync(path.join(tmpdir(), "gmail-sendmessage-test-"));
+    client = createClient({ url: `file:${path.join(dbDir, "test.db")}` });
+    await runMigrations(client, path.join(__dirname, "..", "db", "migrations"));
+    // Migration seeds this disabled — these tests are about send mechanics,
+    // not the switch, so opt in explicitly. The switch itself is covered below.
+    await setSetting(client, "email_notifications_enabled", "true", "test-setup");
+  });
+
+  afterEach(() => {
+    client.close();
+    rmSync(dbDir, { recursive: true, force: true });
+  });
+
   it("POSTs to messages/send with a base64url-encoded RFC 2822 message containing From/To/Reply-To/Subject/body", async () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ access_token: "tok-1", expires_in: 3600 }));
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ id: "sent-1" }));
 
-    await sendMessage({
+    await sendMessage(client, {
       to: "faculty@ucf.edu",
       from: "roundup@ucf.edu",
       replyTo: "roundup@ucf.edu",
@@ -192,7 +228,7 @@ describe("sendMessage", () => {
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ access_token: "tok-1", expires_in: 3600 }));
     vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ id: "sent-1" }));
 
-    await sendMessage({
+    await sendMessage(client, {
       to: "faculty@ucf.edu",
       from: "roundup@ucf.edu",
       replyTo: "roundup@ucf.edu",
@@ -210,7 +246,30 @@ describe("sendMessage", () => {
     vi.mocked(fetch).mockResolvedValue(new Response("bad address", { status: 400 }));
 
     await expect(
-      sendMessage({ to: "bad@ucf.edu", from: "roundup@ucf.edu", replyTo: "roundup@ucf.edu", subject: "s", body: "b" })
+      sendMessage(client, { to: "bad@ucf.edu", from: "roundup@ucf.edu", replyTo: "roundup@ucf.edu", subject: "s", body: "b" })
     ).rejects.toBeInstanceOf(GmailUnavailableError);
+  });
+
+  describe("email notifications switch", () => {
+    it("throws EmailNotificationsDisabledError and makes zero fetch calls when disabled", async () => {
+      await setSetting(client, "email_notifications_enabled", "false", "test-setup");
+
+      await expect(
+        sendMessage(client, { to: "faculty@ucf.edu", from: "roundup@ucf.edu", replyTo: "roundup@ucf.edu", subject: "s", body: "b" })
+      ).rejects.toBeInstanceOf(EmailNotificationsDisabledError);
+
+      expect(fetch).not.toHaveBeenCalled();
+    });
+
+    it("sends normally once re-enabled", async () => {
+      await setSetting(client, "email_notifications_enabled", "false", "test-setup");
+      await setSetting(client, "email_notifications_enabled", "true", "test-setup");
+      vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ access_token: "tok-1", expires_in: 3600 }));
+      vi.mocked(fetch).mockResolvedValueOnce(jsonResponse({ id: "sent-1" }));
+
+      await expect(
+        sendMessage(client, { to: "faculty@ucf.edu", from: "roundup@ucf.edu", replyTo: "roundup@ucf.edu", subject: "s", body: "b" })
+      ).resolves.toBeUndefined();
+    });
   });
 });

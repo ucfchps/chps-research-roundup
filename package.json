@@ -23,6 +23,7 @@
     "mint:review-token": "tsx scripts/mint-review-token.ts",
     "campaign:run": "tsx scripts/run-campaign.ts",
     "campaign:status": "tsx scripts/campaign-status.ts",
+    "settings:email": "tsx scripts/settings-email.ts",
     "test": "vitest run"
   },
   "dependencies": {

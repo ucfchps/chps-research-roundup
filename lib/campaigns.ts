@@ -7,6 +7,7 @@
 import type { Client } from "@libsql/client";
 import { createReviewRequest, getReviewablePublications, unidentifiedCoAuthors } from "./review";
 import { sendMessage as realSendMessage, type SendMessageInput } from "./gmail";
+import { isEmailNotificationsEnabled } from "./settings";
 
 export interface FacultyReviewNeed {
   facultyId: number;
@@ -141,13 +142,41 @@ export interface CampaignRunResult {
   skippedAlreadyActive: string[];
   sendFailures: SendFailure[];
   testRedirects: TestRedirect[];
+  // true only when a real run aborted immediately because the kill switch
+  // (lib/settings.ts::isEmailNotificationsEnabled) is off — every other
+  // field is left at its zero value in that case.
+  notificationsDisabled: boolean;
+}
+
+function emptyResult(cycleLabel: string, dryRun: boolean, notificationsDisabled: boolean): CampaignRunResult {
+  return {
+    cycleLabel,
+    dryRun,
+    eligibleCount: 0,
+    sent: [],
+    skippedAlreadyActive: [],
+    sendFailures: [],
+    testRedirects: [],
+    notificationsDisabled,
+  };
 }
 
 // The mint/send layer. Skip-if-nothing is structural here, not just at
 // selection: an empty plan means this loop body never runs, so zero mints
 // and zero sends regardless of anything upstream.
+//
+// --dry-run is never gated by the notifications switch — it already never
+// sends or writes anything, so there's nothing for the switch to gate. A
+// real run checks the switch FIRST, before any faculty selection, so a
+// disabled run performs zero queries beyond the check itself — this is
+// deliberately redundant with sendMessage's own check (defense-in-depth for
+// any future caller that reaches sendMessage without going through here).
 export async function runCampaign(client: Client, cycleLabel: string, opts: RunCampaignOptions): Promise<CampaignRunResult> {
-  const sendMessageFn = opts.sendMessageFn ?? realSendMessage;
+  if (!opts.dryRun && !(await isEmailNotificationsEnabled(client))) {
+    return emptyResult(cycleLabel, opts.dryRun, true);
+  }
+
+  const sendMessageFn = opts.sendMessageFn ?? ((input: SendMessageInput) => realSendMessage(client, input));
   const plan = await buildCampaignPlan(client, cycleLabel);
 
   const scopedEntries = opts.facultyWpIds ? plan.entries.filter((e) => e.wpId && opts.facultyWpIds!.includes(e.wpId)) : plan.entries;
@@ -160,6 +189,7 @@ export async function runCampaign(client: Client, cycleLabel: string, opts: RunC
     skippedAlreadyActive: [],
     sendFailures: [],
     testRedirects: [],
+    notificationsDisabled: false,
   };
 
   for (const entry of scopedEntries) {

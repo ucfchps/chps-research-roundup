@@ -2,12 +2,25 @@
 // googleapis SDK dependency, same reasoning as lib/ai.ts and lib/crossref.ts:
 // we use four endpoints (OAuth token exchange, messages.list, messages.get,
 // messages.modify) of a REST API, not enough surface to justify an SDK.
+import type { Client } from "@libsql/client";
 import { fetchWithRetry } from "./http";
+import { isEmailNotificationsEnabled } from "./settings";
 
 export class GmailUnavailableError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
     super(message, options);
     this.name = "GmailUnavailableError";
+  }
+}
+
+// Session 16.2's kill switch. Thrown, never a silent no-op — a silent
+// no-op here is indistinguishable from "it sent fine" to any caller that
+// doesn't specifically check, which is exactly the invisible-failure shape
+// this project has been careful to avoid everywhere else.
+export class EmailNotificationsDisabledError extends Error {
+  constructor(message = "Email notifications are currently disabled") {
+    super(message);
+    this.name = "EmailNotificationsDisabledError";
   }
 }
 
@@ -156,8 +169,16 @@ function buildRawMessage(input: SendMessageInput): string {
 // above (one Gmail client module, per this codebase's per-API-module
 // convention). Throws GmailUnavailableError on failure rather than
 // swallowing it — the caller (the campaign loop) is responsible for
-// catching per-recipient so one bad address doesn't abort the batch.
-export async function sendMessage(input: SendMessageInput): Promise<void> {
+// catching per-recipient so one bad address doesn't abort the batch. Checks
+// the kill switch first and makes zero network calls when disabled — this is
+// the choke point every send eventually goes through, so this is where the
+// switch is actually enforced (lib/campaigns.ts::runCampaign's own check is
+// a redundant, deliberate early-abort for the campaign path specifically).
+export async function sendMessage(client: Client, input: SendMessageInput): Promise<void> {
+  if (!(await isEmailNotificationsEnabled(client))) {
+    throw new EmailNotificationsDisabledError();
+  }
+
   const token = await getAccessToken();
   const raw = buildRawMessage(input);
   await gmailFetch(`${GMAIL_BASE}/messages/send`, {

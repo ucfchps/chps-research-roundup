@@ -21,6 +21,7 @@ describe("runMigrations", () => {
         "005_discovery_provenance.sql",
         "006_possible_duplicates.sql",
         "007_citation_edits.sql",
+        "008_settings.sql",
       ]);
 
       const tables = await client.execute(

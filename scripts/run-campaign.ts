@@ -60,6 +60,14 @@ export function parseArgs(argv: string[]): {
 }
 
 function printSummary(r: CampaignRunResult): void {
+  if (r.notificationsDisabled) {
+    console.log(`Cycle: "${r.cycleLabel}"`);
+    console.log("\n★ Email notifications are currently DISABLED — nothing was processed.");
+    console.log("No faculty were selected, no tokens were minted, no review_requests rows were written, no email was sent.");
+    console.log('Enable with: npm run settings:email -- --enable --by "<your name>"');
+    return;
+  }
+
   if (r.dryRun) console.log("--dry-run: nothing minted, nothing sent.\n");
   console.log(`Cycle: "${r.cycleLabel}"`);
   console.log(`${r.eligibleCount} eligible.`);

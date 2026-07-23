@@ -15,6 +15,7 @@ import {
   getFacultyNeedingReview,
   runCampaign,
 } from "../lib/campaigns";
+import { setSetting } from "../lib/settings";
 
 describe("campaigns", () => {
   let dbDir: string;
@@ -242,6 +243,14 @@ describe("campaigns", () => {
   });
 
   describe("runCampaign", () => {
+    // Session 16.2: the migration now seeds email_notifications_enabled =
+    // 'false'. These tests are about runCampaign's other behaviors, written
+    // before the switch existed — opt in explicitly. The switch itself has
+    // its own describe block below, which manages the setting per test.
+    beforeEach(async () => {
+      await setSetting(client, "email_notifications_enabled", "true", "test-setup");
+    });
+
     async function seedEligibleFaculty(displayName: string, email: string | null = `${displayName}@ucf.edu`): Promise<number> {
       const facultyId = await seedFaculty({ displayName, email });
       const pubId = await seedPublication({ title: `${displayName}'s Paper` });
@@ -423,6 +432,60 @@ describe("campaigns", () => {
         const [input] = sendMessageFn.mock.calls[0] as [{ to: string }];
         expect(input.to).toBe("tester@ucf.edu");
         expect(result.testRedirects).toEqual([{ displayName: "Target Person, T.", realEmail: "target@ucf.edu" }]);
+      });
+    });
+
+    describe("email notifications switch", () => {
+      it("a real run aborts with zero DB writes and zero sendMessage calls when disabled", async () => {
+        await setSetting(client, "email_notifications_enabled", "false", "test-setup");
+        await seedEligibleFaculty("Should Not Be Emailed, S.");
+        const sendMessageFn = vi.fn().mockResolvedValue(undefined);
+
+        const result = await runCampaign(client, "Fall 2026 review", baseOpts({ sendMessageFn }));
+
+        expect(result.notificationsDisabled).toBe(true);
+        expect(result.eligibleCount).toBe(0);
+        expect(result.sent).toEqual([]);
+        expect(sendMessageFn).not.toHaveBeenCalled();
+        const rows = await client.execute("SELECT COUNT(*) as c FROM review_requests");
+        expect((rows.rows[0] as unknown as { c: number }).c).toBe(0);
+      });
+
+      it("--dry-run is unaffected by the switch in either state", async () => {
+        await seedEligibleFaculty("Dry Run While Disabled, D.");
+        await setSetting(client, "email_notifications_enabled", "false", "test-setup");
+        const sendMessageFn = vi.fn().mockResolvedValue(undefined);
+
+        const disabledResult = await runCampaign(client, "Fall 2026 review", baseOpts({ dryRun: true, sendMessageFn }));
+        expect(disabledResult.notificationsDisabled).toBe(false);
+        expect(disabledResult.sent).toContain("Dry Run While Disabled, D.");
+
+        await setSetting(client, "email_notifications_enabled", "true", "test-setup");
+        const enabledResult = await runCampaign(client, "Fall 2026 review", baseOpts({ dryRun: true, sendMessageFn }));
+        expect(enabledResult.notificationsDisabled).toBe(false);
+        expect(enabledResult.sent).toContain("Dry Run While Disabled, D.");
+
+        expect(sendMessageFn).not.toHaveBeenCalled();
+      });
+
+      it("respects each toggle transition without needing a process restart: disabled -> enabled -> disabled", async () => {
+        await seedEligibleFaculty("Toggling Person, T.");
+        const sendMessageFn = vi.fn().mockResolvedValue(undefined);
+
+        await setSetting(client, "email_notifications_enabled", "false", "test-setup");
+        const first = await runCampaign(client, "Cycle 1", baseOpts({ sendMessageFn }));
+        expect(first.notificationsDisabled).toBe(true);
+
+        await setSetting(client, "email_notifications_enabled", "true", "test-setup");
+        const second = await runCampaign(client, "Cycle 2", baseOpts({ sendMessageFn }));
+        expect(second.notificationsDisabled).toBe(false);
+        expect(second.sent).toContain("Toggling Person, T.");
+
+        await setSetting(client, "email_notifications_enabled", "false", "test-setup");
+        const third = await runCampaign(client, "Cycle 3", baseOpts({ sendMessageFn }));
+        expect(third.notificationsDisabled).toBe(true);
+
+        expect(sendMessageFn).toHaveBeenCalledTimes(1); // only the "enabled" middle run
       });
     });
   });
