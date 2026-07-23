@@ -20,6 +20,12 @@ export interface PublicationWithUnits {
   publication: Publication;
   authors: PublicationAuthor[];
   units: Unit[];
+  // Session 18.2's "ready" status dot: gold iff published, every co-author
+  // has been classified (no role='unknown'), and it's linked to at least
+  // one unit. The page's "N have unreviewed co-authors" banner counts
+  // !ready over this same field — never a second, independently-derived
+  // boolean — so the dot and the banner can never disagree.
+  ready: boolean;
 }
 
 export async function queryPublications(client: Client, filters: PublicationFilters = {}): Promise<PublicationWithUnits[]> {
@@ -84,7 +90,9 @@ export async function queryPublications(client: Client, filters: PublicationFilt
       await client.execute({ sql: "SELECT * FROM publication_authors WHERE publication_id = ? ORDER BY position", args: [pub.id] })
     ).rows as unknown as PublicationAuthor[];
     const authors = authorRows.map((a) => ({ ...a }));
-    results.push({ publication: pub, authors, units: unitsForPublication(authors, facultyById) });
+    const units = unitsForPublication(authors, facultyById);
+    const ready = pub.status === "published" && units.length > 0 && !authors.some((a) => a.role === "unknown");
+    results.push({ publication: pub, authors, units, ready });
   }
 
   return results;

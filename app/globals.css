@@ -10,6 +10,11 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  /* Brand gold, shared across the admin surface (login, publications, and
+     whatever admin screens follow) — one token, not a raw hex reintroduced
+     per page. Session 17.1 (login redesign) hadn't landed yet when this was
+     added; this is that token, defined here per its own Step 0 contingency. */
+  --color-ucf-gold: #ffc904;
 }
 
 @media (prefers-color-scheme: dark) {

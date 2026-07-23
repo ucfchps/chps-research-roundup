@@ -253,6 +253,73 @@ describe("queryPublications", () => {
     });
   });
 
+  describe("ready flag (Session 18.2's status dot)", () => {
+    it("is true when published, zero unknown-role authors, and at least one linked chps_faculty author", async () => {
+      const facultyId = await seedFaculty("Stock, M.", "Department of Health Sciences");
+      const pub = await seedPublication({ title: "Ready Paper", dateAdded: "2026-01-01" });
+      await seedAuthor(pub, facultyId, "Stock, M.", "chps_faculty", 0);
+
+      const results = await queryPublications(client);
+
+      expect(results[0].ready).toBe(true);
+    });
+
+    it("is false when there is an unknown-role co-author, even if published and unit-linked", async () => {
+      const facultyId = await seedFaculty("Stock, M.", "Department of Health Sciences");
+      const pub = await seedPublication({ title: "Unreviewed Coauthor Paper", dateAdded: "2026-01-01" });
+      await seedAuthor(pub, facultyId, "Stock, M.", "chps_faculty", 0);
+      await seedAuthor(pub, null, "Torralba, L.", "unknown", 1);
+
+      const results = await queryPublications(client);
+
+      expect(results[0].ready).toBe(false);
+    });
+
+    it("is false when status is not 'published', even with zero unknown authors and a linked unit", async () => {
+      const facultyId = await seedFaculty("Stock, M.", "Department of Health Sciences");
+      const pub = await seedPublication({ title: "Pending Paper", dateAdded: "2026-01-01", status: "pending_merge" });
+      await seedAuthor(pub, facultyId, "Stock, M.", "chps_faculty", 0);
+
+      const results = await queryPublications(client, { status: ["pending_merge"] });
+
+      expect(results[0].ready).toBe(false);
+    });
+
+    it("is false when there is no linked chps_faculty author (zero units), even with zero unknown authors", async () => {
+      const pub = await seedPublication({ title: "Orphan Paper", dateAdded: "2026-01-01" });
+      await seedAuthor(pub, null, "Somebody, S.", "external", 0);
+
+      const results = await queryPublications(client);
+
+      expect(results[0].units).toEqual([]);
+      expect(results[0].ready).toBe(false);
+    });
+
+    it("★ dot-vs-banner agreement: the count of not-ready publications equals what a banner counting them would show — same field, not two computations", async () => {
+      const facultyId = await seedFaculty("Stock, M.", "Department of Health Sciences");
+
+      const ready1 = await seedPublication({ title: "Ready One", dateAdded: "2026-01-01" });
+      await seedAuthor(ready1, facultyId, "Stock, M.", "chps_faculty", 0);
+
+      const ready2 = await seedPublication({ title: "Ready Two", dateAdded: "2026-01-01" });
+      await seedAuthor(ready2, facultyId, "Stock, M.", "chps_faculty", 0);
+
+      const notReady1 = await seedPublication({ title: "Not Ready One", dateAdded: "2026-01-01" });
+      await seedAuthor(notReady1, facultyId, "Stock, M.", "chps_faculty", 0);
+      await seedAuthor(notReady1, null, "Unidentified, U.", "unknown", 1);
+
+      const notReady2 = await seedPublication({ title: "Not Ready Two (zero unit)", dateAdded: "2026-01-01" });
+      await seedAuthor(notReady2, null, "Somebody, S.", "external", 0);
+
+      const results = await queryPublications(client);
+
+      const grayDotCount = results.filter((r) => !r.ready).length;
+      const bannerCount = results.filter((r) => !r.ready).length; // exactly what the page's banner computes
+      expect(grayDotCount).toBe(bannerCount);
+      expect(grayDotCount).toBe(2);
+    });
+  });
+
   describe("plain-object results", () => {
     it("returns genuinely plain objects (Object.prototype), not libSQL Row instances — required to pass this data as props into a Client Component", async () => {
       const facultyId = await seedFaculty("Stock, M.", "Department of Health Sciences");

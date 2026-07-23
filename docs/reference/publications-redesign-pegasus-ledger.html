@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Publications — Pegasus Ledger v2</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  body { font-family: 'Inter', sans-serif; background: #FAFAFA; color: #0A0A0A; }
+  .display { font-family: 'Archivo', sans-serif; }
+  .mono { font-family: 'JetBrains Mono', monospace; }
+  .chip-input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .chip-label {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 5px 12px; border-radius: 9999px; font-size: 12.5px;
+    border: 1px solid #D8D8D8; color: #5B5B5B; cursor: pointer;
+    transition: all .15s ease; user-select: none;
+  }
+  .chip-input:checked + .chip-label {
+    background: #0A0A0A; border-color: #0A0A0A; color: #FFC904; font-weight: 500;
+  }
+  .chip-label:hover { border-color: #B8B8B8; }
+  .ready-dot { width: 6px; height: 6px; border-radius: 9999px; background: #FFC904; }
+</style>
+</head>
+<body class="min-h-screen">
+
+<div class="flex min-h-screen">
+
+  <!-- SIDEBAR -->
+  <aside class="w-60 bg-[#0A0A0A] px-5 py-6 shrink-0 relative overflow-hidden">
+    <svg class="absolute inset-0 w-full h-full opacity-[0.05]" viewBox="0 0 240 800" preserveAspectRatio="xMidYMid slice">
+      <path d="M-40,60 C120,20 160,180 260,220 S420,420 480,460" stroke="#FFC904" stroke-width="1" fill="none"/>
+      <path d="M-60,280 C100,240 150,400 250,440 S400,640 470,680" stroke="#FFC904" stroke-width="1" fill="none"/>
+      <path d="M-30,520 C130,480 170,620 270,660 S430,760 490,790" stroke="#FFC904" stroke-width="1" fill="none"/>
+    </svg>
+
+    <div class="relative z-10 flex items-center gap-2.5 mb-9">
+      <div class="w-7 h-7 rounded-full border border-[#FFC904]/50 flex items-center justify-center shrink-0">
+        <div class="w-1.5 h-1.5 rounded-full bg-[#FFC904]"></div>
+      </div>
+      <span class="text-white text-sm tracking-wide">CHPS Roundup</span>
+    </div>
+
+    <nav class="relative z-10 space-y-0.5 text-sm">
+      <a class="flex items-center gap-2.5 px-3 py-2 rounded-md bg-white/10 text-white">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+        Publications
+      </a>
+      <a class="flex items-center gap-2.5 px-3 py-2 rounded-md text-[#9A9A9A] hover:text-white hover:bg-white/5 transition-colors">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M22 12h-6l-2 3h-4l-2-3H2"/><path d="M5.45 5.11 2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>
+        Pending submissions
+      </a>
+      <a class="flex items-center gap-2.5 px-3 py-2 rounded-md text-[#9A9A9A] hover:text-white hover:bg-white/5 transition-colors">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+        Needs metadata
+      </a>
+      <a class="flex items-center gap-2.5 px-3 py-2 rounded-md text-[#9A9A9A] hover:text-white hover:bg-white/5 transition-colors">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+        Review campaigns
+      </a>
+      <a class="flex items-center gap-2.5 px-3 py-2 rounded-md text-[#9A9A9A] hover:text-white hover:bg-white/5 transition-colors">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="2" y="3" width="20" height="5" rx="1"/><path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8M10 12h4"/></svg>
+        Archive
+      </a>
+    </nav>
+
+    <div class="relative z-10 mt-10 pt-4 border-t border-white/10 text-xs text-[#7A7A7A]">Signed in as COMMS</div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="flex-1 px-10 py-8 max-w-4xl">
+    <p class="display text-2xl font-semibold mb-1">Publications</p>
+    <p class="text-sm text-[#5B5B5B] mb-6">Browse, filter, and export — nothing here marks a publication as posted.</p>
+
+    <div class="border border-[#E5E5E5] rounded-xl bg-white p-5 mb-7 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+      <div class="grid grid-cols-3 gap-5 mb-5">
+        <div>
+          <label class="block text-[11px] uppercase tracking-wide text-[#8A8A8A] mb-1.5">Person</label>
+          <input class="w-full border border-[#D8D8D8] rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:border-[#FFC904] focus:ring-2 focus:ring-[#FFC904]/25" placeholder="Author name">
+        </div>
+        <div>
+          <label class="block text-[11px] uppercase tracking-wide text-[#8A8A8A] mb-1.5">Collected on or after</label>
+          <input type="date" class="w-full border border-[#D8D8D8] rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:border-[#FFC904] focus:ring-2 focus:ring-[#FFC904]/25">
+        </div>
+        <div>
+          <label class="block text-[11px] uppercase tracking-wide text-[#8A8A8A] mb-1.5">Collected on or before</label>
+          <input type="date" class="w-full border border-[#D8D8D8] rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:border-[#FFC904] focus:ring-2 focus:ring-[#FFC904]/25">
+        </div>
+      </div>
+
+      <label class="block text-[11px] uppercase tracking-wide text-[#8A8A8A] mb-2">Unit</label>
+      <div class="flex flex-wrap gap-2 mb-5">
+        <input type="checkbox" id="u1" class="chip-input" checked><label for="u1" class="chip-label">Health Sciences</label>
+        <input type="checkbox" id="u2" class="chip-input"><label for="u2" class="chip-label">Comm. Sciences and Disorders</label>
+        <input type="checkbox" id="u3" class="chip-input"><label for="u3" class="chip-label">Kinesiology and Rehab Sciences</label>
+        <input type="checkbox" id="u4" class="chip-input"><label for="u4" class="chip-label">Social Work</label>
+        <input type="checkbox" id="u5" class="chip-input"><label for="u5" class="chip-label">Autism and Related Disabilities</label>
+      </div>
+
+      <label class="block text-[11px] uppercase tracking-wide text-[#8A8A8A] mb-2">Status</label>
+      <div class="flex flex-wrap gap-2 mb-5">
+        <input type="checkbox" id="s1" class="chip-input" checked><label for="s1" class="chip-label">Published</label>
+        <input type="checkbox" id="s2" class="chip-input"><label for="s2" class="chip-label">Pending merge</label>
+        <input type="checkbox" id="s3" class="chip-input"><label for="s3" class="chip-label">Needs metadata</label>
+        <input type="checkbox" id="s4" class="chip-input"><label for="s4" class="chip-label">Rejected</label>
+      </div>
+
+      <button class="bg-[#0A0A0A] text-white text-sm font-medium px-4 py-2 rounded-md hover:bg-[#1A1A1A] transition-colors">Apply filters</button>
+    </div>
+
+    <div class="flex items-center gap-3 mb-1.5">
+      <span class="text-sm"><span class="display font-semibold text-base">24</span> publications match the current filters</span>
+    </div>
+    <div class="flex items-start gap-2 bg-[#FFF8E1] border border-[#F5E2A3] text-[#7A5D00] text-sm px-3.5 py-2 rounded-lg mb-7">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="mt-0.5 shrink-0"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>
+      24 of these have unreviewed co-authors — they won't render with a student asterisk until confirmed via the review page.
+    </div>
+
+    <div class="space-y-1 mb-9">
+
+      <div class="flex gap-3 px-4 py-3.5 rounded-lg hover:bg-[#F5F5F5] transition-colors group">
+        <div class="ready-dot mt-2 shrink-0" title="Ready for next roundup"></div>
+        <div class="flex-1">
+          <p class="text-sm leading-relaxed">Blackwell, C.W., Armstrong, F., &amp; <strong>López Castillo, H.</strong> (2025). <a class="text-[#8A6A00] hover:underline" href="#">Pneumococcal Community-Acquired Pneumonia (CAP) in Adults</a>. <span class="italic">The Journal for Nurse Practitioners</span>, 21(1), 105360.</p>
+          <div class="flex items-center gap-3 mt-1.5">
+            <span class="mono text-[11px] text-[#9A9A9A]">collected 2025-02-10</span>
+            <span class="text-[11px] px-2 py-0.5 rounded-full bg-[#F0F0F0] text-[#6B6B6B]">Health Sciences</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-3 px-4 py-3.5 rounded-lg hover:bg-[#F5F5F5] transition-colors group">
+        <div class="ready-dot mt-2 shrink-0" title="Ready for next roundup"></div>
+        <div class="flex-1">
+          <p class="text-sm leading-relaxed"><strong>Brazendale, K.</strong>, <strong>Jeune, S.</strong>, Garcia, J., Quelly, S., Gurnurkar, S., Hunt, E., Mehta, J., &amp; Dervisevic, A. (2025). <a class="text-[#8A6A00] hover:underline" href="#">Initial evidence comparing beverage and snack dietary patterns of children with autism spectrum disorders during school versus summer months</a>. <span class="italic">International Journal of Developmental Disabilities</span>, 1-10.</p>
+          <div class="flex items-center gap-3 mt-1.5">
+            <span class="mono text-[11px] text-[#9A9A9A]">collected 2025-05-19</span>
+            <span class="text-[11px] px-2 py-0.5 rounded-full bg-[#F0F0F0] text-[#6B6B6B]">Health Sciences</span>
+            <span class="text-[11px] px-2 py-0.5 rounded-full bg-[#F0F0F0] text-[#6B6B6B]">Autism and Related Disabilities</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-3 px-4 py-3.5 rounded-lg hover:bg-[#F5F5F5] transition-colors group">
+        <div class="w-1.5 h-1.5 rounded-full bg-[#D8D8D8] mt-2 shrink-0" title="Unreviewed co-authors"></div>
+        <div class="flex-1">
+          <p class="text-sm leading-relaxed">Lopez Torralba, L.*, Sukhu, B.**, de Azevedo Daruge, M.E.*, Chung, J., Loerzel, V., &amp; <strong>Lee, E.</strong> (2025). <a class="text-[#8A6A00] hover:underline" href="#">Evaluating Fatalism Among Breast Cancer Survivors in a Heterogeneous Hispanic Population</a>. <span class="italic">Current Oncology</span>, 32(8), 461.</p>
+          <div class="flex items-center gap-3 mt-1.5">
+            <span class="mono text-[11px] text-[#9A9A9A]">collected 2025-06-08</span>
+            <span class="text-[11px] px-2 py-0.5 rounded-full bg-[#F0F0F0] text-[#6B6B6B]">Health Sciences</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-3 px-4 py-3.5 rounded-lg hover:bg-[#F5F5F5] transition-colors group">
+        <div class="ready-dot mt-2 shrink-0" title="Ready for next roundup"></div>
+        <div class="flex-1">
+          <p class="text-sm leading-relaxed"><strong>Anderson, A.W.</strong> &amp; <strong>Hanney, W.J.</strong> (2025). <a class="text-[#8A6A00] hover:underline" href="#">Comparing Quantitative Sensory Testing and Psychological Factors Between Individuals with Acute Compared to Chronic Shoulder Pain</a>. <span class="italic">Journal of Bodywork &amp; Movement Therapies</span>, 44, 524-531.</p>
+          <div class="flex items-center gap-3 mt-1.5">
+            <span class="mono text-[11px] text-[#9A9A9A]">collected 2025-06-20</span>
+            <span class="text-[11px] px-2 py-0.5 rounded-full bg-[#F0F0F0] text-[#6B6B6B]">Kinesiology and Rehab Sciences</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="flex items-center gap-4 text-[11px] text-[#9A9A9A] mb-9 px-1">
+      <span class="flex items-center gap-1.5"><span class="ready-dot"></span> Ready — all co-authors reviewed</span>
+      <span class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-[#D8D8D8]"></span> Has unreviewed co-authors</span>
+    </div>
+
+    <div class="border border-[#E5E5E5] rounded-xl bg-white overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+      <div class="border-b border-[#E5E5E5] bg-[#FAFAFA] px-5 py-2.5 text-[13px] text-[#5B5B5B] flex items-center gap-2">
+        <span class="w-1.5 h-1.5 rounded-full bg-[#FFC904] shrink-0"></span>
+        This does not mark any publication as posted. Nothing on this page writes to the database.
+      </div>
+      <div class="p-5">
+        <p class="display text-lg font-semibold mb-0.5">Research Roundup: Publications by CHPS Faculty</p>
+        <p class="text-sm text-[#5B5B5B] mb-4">Preview &amp; Export HTML</p>
+        <div class="flex gap-2">
+          <button class="border border-[#D8D8D8] text-sm px-3.5 py-1.5 rounded-md hover:border-[#B8B8B8] transition-colors">Preview</button>
+          <button class="border border-[#D8D8D8] text-sm px-3.5 py-1.5 rounded-md hover:border-[#B8B8B8] transition-colors">HTML source</button>
+          <button class="bg-[#FFC904] text-[#0A0A0A] font-medium text-sm px-3.5 py-1.5 rounded-md ml-auto hover:bg-[#E5B500] transition-colors">Copy HTML</button>
+        </div>
+      </div>
+    </div>
+  </main>
+</div>
+
+</body>
+</html>

@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Login concept — floating paths</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  body { font-family: 'Inter', sans-serif; }
+  .display { font-family: 'Archivo', sans-serif; }
+  .flow-path {
+    stroke-dasharray: 260 900;
+    animation: dash 16s linear infinite;
+  }
+  @keyframes dash { to { stroke-dashoffset: -1160; } }
+  @keyframes fade { 0%, 100% { opacity: 0.12; } 50% { opacity: 0.45; } }
+</style>
+</head>
+<body class="min-h-screen">
+
+<div class="flex min-h-screen flex-col md:flex-row">
+
+  <!-- LEFT: flowing paths panel -->
+  <div class="relative w-full md:w-3/5 min-h-[280px] md:min-h-screen bg-black overflow-hidden">
+    <svg id="paths" class="absolute inset-0 w-full h-full" viewBox="0 0 800 600" preserveAspectRatio="xMidYMid slice"></svg>
+    <div class="absolute inset-0" style="background: radial-gradient(circle at 25% 30%, rgba(255,201,4,0.05), transparent 55%);"></div>
+
+    <div class="relative z-10 h-full flex flex-col justify-between p-10 md:p-14">
+      <div class="flex items-center gap-2.5">
+        <div class="w-7 h-7 rounded-full border border-[#FFC904]/60 flex items-center justify-center">
+          <div class="w-1.5 h-1.5 rounded-full bg-[#FFC904]"></div>
+        </div>
+        <span class="text-white text-sm tracking-wide">CHPS Research Roundup</span>
+      </div>
+
+      <div class="max-w-sm">
+        <p class="display text-white text-3xl md:text-4xl font-semibold leading-tight mb-4">
+          Every publication,<br>traced back to its people.
+        </p>
+        <p class="text-[#B8B8B8] text-sm leading-relaxed">
+          College of Health Professions and Sciences — internal tool for tracking, verifying, and publishing faculty research.
+        </p>
+      </div>
+
+      <p class="text-[#6B6B6B] text-xs">University of Central Florida</p>
+    </div>
+  </div>
+
+  <!-- RIGHT: minimal password-only login -->
+  <div class="w-full md:w-2/5 flex items-center justify-center bg-white px-8 py-16">
+    <div class="w-full max-w-[320px]">
+      <p class="display text-xl font-semibold mb-1 text-black">Admin sign in</p>
+      <p class="text-sm text-[#6B6B6B] mb-8">Enter the shared password to continue.</p>
+
+      <label class="block text-xs uppercase tracking-wide text-[#6B6B6B] mb-2">Password</label>
+      <input type="password" class="w-full border border-[#D9D9D9] rounded-md px-3 py-2.5 mb-4 text-sm focus:outline-none focus:border-[#FFC904] focus:ring-2 focus:ring-[#FFC904]/30 transition-shadow" placeholder="••••••••••••">
+
+      <button class="w-full bg-black text-white text-sm font-medium py-2.5 rounded-md hover:bg-[#1A1A1A] transition-colors">
+        Sign in
+      </button>
+
+      <p class="text-xs text-[#9A9A9A] mt-6">This tool is limited to CHPS communications staff.</p>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  const svg = document.getElementById('paths');
+  const NS = 'http://www.w3.org/2000/svg';
+  const count = 22;
+
+  for (let i = 0; i < count; i++) {
+    const yStart = -80 + i * 34;
+    const yMid = 220 + i * 14;
+    const yEnd = 720 - i * 6;
+    const xShift = i * 6;
+
+    const d = `M${-120 - xShift},${yStart} ` +
+      `C${140 - xShift},${yStart - 40} ${260 + xShift},${yMid - 120} ${420 + xShift},${yMid} ` +
+      `S${760 + xShift},${yEnd - 80} ${920 + xShift},${yEnd}`;
+
+    const path = document.createElementNS(NS, 'path');
+    path.setAttribute('d', d);
+    path.setAttribute('fill', 'none');
+    path.setAttribute('stroke', '#FFC904');
+    path.setAttribute('stroke-width', (0.5 + i * 0.03).toFixed(2));
+    path.classList.add('flow-path');
+    path.style.opacity = (0.08 + (i / count) * 0.3).toFixed(2);
+    path.style.animationDelay = `${-i * 0.7}s`;
+    svg.appendChild(path);
+  }
+</script>
+</body>
+</html>

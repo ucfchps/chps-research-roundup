@@ -11,7 +11,8 @@ const DEFAULT_LEGEND = "Bold denotes CHPS faculty. ** denotes a graduate student
 
 // Pure client-side computation — buildExportHtml has no I/O, and this
 // component already has the exact filtered results the server rendered, so
-// there's nothing for a Server Action to do here.
+// there's nothing for a Server Action to do here. Visual only (Session
+// 18.2): none of the state/handlers below changed from Session 18.
 export function ExportPanel({ results }: { results: PublicationWithUnits[] }) {
   const [title, setTitle] = useState(DEFAULT_TITLE);
   const [intro, setIntro] = useState(DEFAULT_INTRO);
@@ -44,69 +45,107 @@ export function ExportPanel({ results }: { results: PublicationWithUnits[] }) {
   }
 
   return (
-    <section className="border-t pt-8 flex flex-col gap-4">
-      <h2 className="text-lg font-semibold">Preview &amp; Export HTML</h2>
-      <p className="text-sm text-amber-900 bg-amber-50 border border-amber-200 rounded p-3">
+    <div className="border border-[#E5E5E5] rounded-xl bg-white overflow-hidden shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+      <div className="border-b border-[#E5E5E5] bg-[#FAFAFA] px-5 py-2.5 text-[13px] text-[#5B5B5B] flex items-center gap-2">
+        <span className="w-1.5 h-1.5 rounded-full bg-ucf-gold shrink-0" />
         This does not mark any publication as posted. Nothing on this page writes to the database — these same publications
         remain eligible and will show up here again the next time this page is used, until a separate finalize step (not yet
         built) is run.
-      </p>
-
-      <div className="flex flex-col gap-3 max-w-xl">
-        <label className="text-sm flex flex-col gap-1">
-          Post title
-          <input value={title} onChange={(e) => setTitle(e.target.value)} className="border rounded px-3 py-1.5" />
-        </label>
-        <label className="text-sm flex flex-col gap-1">
-          Intro paragraph
-          <textarea value={intro} onChange={(e) => setIntro(e.target.value)} rows={3} className="border rounded px-3 py-1.5" />
-        </label>
-        <label className="text-sm flex flex-col gap-1">
-          Legend line
-          <input value={legend} onChange={(e) => setLegend(e.target.value)} className="border rounded px-3 py-1.5" />
-        </label>
       </div>
 
-      <button type="button" onClick={handleGenerate} className="rounded bg-black text-white px-4 py-2 self-start">
-        Preview &amp; Export HTML
-      </button>
+      <div className="p-5 flex flex-col gap-4">
+        <p className="text-lg font-semibold" style={{ fontFamily: "var(--font-archivo)" }}>
+          Preview &amp; Export HTML
+        </p>
 
-      {html && (
-        <div>
-          <div className="flex gap-2 mb-2">
-            <button
-              type="button"
-              onClick={() => setTab("preview")}
-              className={`px-3 py-1 rounded text-sm ${tab === "preview" ? "bg-black text-white" : "border"}`}
-            >
-              Preview
-            </button>
-            <button
-              type="button"
-              onClick={() => setTab("source")}
-              className={`px-3 py-1 rounded text-sm ${tab === "source" ? "bg-black text-white" : "border"}`}
-            >
-              HTML source
-            </button>
-          </div>
+        <div className="flex flex-col gap-3 max-w-xl">
+          <label className="text-sm flex flex-col gap-1">
+            Post title
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              className="border border-[#D8D8D8] rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:border-ucf-gold focus:ring-2 focus:ring-ucf-gold/25"
+            />
+          </label>
+          <label className="text-sm flex flex-col gap-1">
+            Intro paragraph
+            <textarea
+              value={intro}
+              onChange={(e) => setIntro(e.target.value)}
+              rows={3}
+              className="border border-[#D8D8D8] rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:border-ucf-gold focus:ring-2 focus:ring-ucf-gold/25"
+            />
+          </label>
+          <label className="text-sm flex flex-col gap-1">
+            Legend line
+            <input
+              value={legend}
+              onChange={(e) => setLegend(e.target.value)}
+              className="border border-[#D8D8D8] rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:border-ucf-gold focus:ring-2 focus:ring-ucf-gold/25"
+            />
+          </label>
+        </div>
 
-          {tab === "preview" ? (
-            <div className="border rounded p-6 max-w-2xl" style={{ fontFamily: "Georgia, serif" }} dangerouslySetInnerHTML={{ __html: html }} />
-          ) : (
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setTab("preview")}
+            className="border border-[#D8D8D8] text-sm px-3.5 py-1.5 rounded-md hover:border-[#B8B8B8] transition-colors"
+            aria-pressed={tab === "preview"}
+          >
+            Preview
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("source")}
+            className="border border-[#D8D8D8] text-sm px-3.5 py-1.5 rounded-md hover:border-[#B8B8B8] transition-colors"
+            aria-pressed={tab === "source"}
+          >
+            HTML source
+          </button>
+          <button
+            type="button"
+            onClick={handleGenerate}
+            className="bg-[#0A0A0A] text-white text-sm font-medium px-3.5 py-1.5 rounded-md hover:bg-[#1A1A1A] transition-colors"
+          >
+            Preview &amp; Export HTML
+          </button>
+          {html && (
             <>
-              <div className="flex gap-2 mb-2">
-                <button type="button" onClick={handleCopy} className="rounded border px-3 py-1.5 text-sm">
-                  {copied ? "Copied" : "Copy HTML"}
-                </button>
-                <button type="button" onClick={handleDownload} className="rounded border px-3 py-1.5 text-sm">
-                  Download .html
-                </button>
-              </div>
-              <pre className="border rounded p-4 bg-zinc-50 text-xs overflow-x-auto whitespace-pre-wrap">{html}</pre>
+              <button
+                type="button"
+                onClick={handleCopy}
+                className="bg-ucf-gold text-[#0A0A0A] font-medium text-sm px-3.5 py-1.5 rounded-md ml-auto hover:bg-[#E5B500] transition-colors"
+              >
+                {copied ? "Copied" : "Copy HTML"}
+              </button>
+              <button
+                type="button"
+                onClick={handleDownload}
+                className="border border-[#D8D8D8] text-sm px-3.5 py-1.5 rounded-md hover:border-[#B8B8B8] transition-colors"
+              >
+                Download .html
+              </button>
             </>
           )}
         </div>
-      )}
-    </section>
+
+        {html &&
+          (tab === "preview" ? (
+            <div
+              className="border border-[#E5E5E5] rounded-md p-6 max-w-2xl"
+              style={{ fontFamily: "Georgia, serif" }}
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          ) : (
+            <pre
+              className="border border-[#E5E5E5] rounded-md p-4 bg-[#FAFAFA] text-xs overflow-x-auto whitespace-pre-wrap"
+              style={{ fontFamily: "var(--font-jetbrains-mono)" }}
+            >
+              {html}
+            </pre>
+          ))}
+      </div>
+    </div>
   );
 }

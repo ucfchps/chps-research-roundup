@@ -39,7 +39,9 @@ function makePublication(overrides: Partial<Publication> = {}): Publication {
 }
 
 function makeEntry(publication: Publication, authors: PublicationAuthor[], units: Unit[]): PublicationWithUnits {
-  return { publication, authors, units };
+  // ready is irrelevant to export/citation formatting — buildExportHtml
+  // never reads it. Defaulted here purely to satisfy the type.
+  return { publication, authors, units, ready: false };
 }
 
 describe("buildExportHtml", () => {
