@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CHPS research publications portal</title>
+<style>
+  :root {
+    --bg: #f6f5f2;
+    --card: #ffffff;
+    --border: #ddd9d0;
+    --text: #24231f;
+    --text-muted: #6b6a63;
+    --accent: #a5730f;
+    --accent-dark: #7a5509;
+    --danger: #a3342f;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  header {
+    padding: 20px 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  header h1 { font-size: 18px; font-weight: 600; margin: 0; }
+  nav { display: flex; gap: 8px; }
+  nav button {
+    padding: 8px 16px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: #fff;
+    cursor: pointer;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  nav button.active { background: var(--text); color: #fff; border-color: var(--text); }
+  main { max-width: 900px; margin: 0 auto; padding: 28px; }
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 24px 28px;
+    margin-bottom: 20px;
+  }
+  label {
+    display: block;
+    font-weight: 600;
+    font-size: 12px;
+    margin: 14px 0 6px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+  }
+  label:first-of-type { margin-top: 0; }
+  input[type=text], input[type=number], input[type=password], input[type=date], select, textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+  }
+  textarea { resize: vertical; }
+  .row3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  button.btn {
+    font-family: inherit;
+    font-size: 13px;
+    padding: 8px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text);
+    cursor: pointer;
+  }
+  button.btn:hover { border-color: #bdb8ac; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+  button.primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+  button.danger { color: var(--danger); border-color: var(--danger); }
+  .btnrow { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .hint { color: var(--text-muted); font-size: 12px; margin-top: 6px; }
+  .authorrow { display: grid; grid-template-columns: 1fr 160px 70px; gap: 8px; margin-bottom: 8px; align-items: center; }
+  .result, .pending-item {
+    padding: 14px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .result:last-child, .pending-item:last-child { border-bottom: none; }
+  .result a, .pending-item a { color: var(--accent-dark); }
+  .badge {
+    display: inline-block;
+    font-size: 11px;
+    padding: 2px 7px;
+    border-radius: 10px;
+    background: #f0e6d2;
+    color: var(--accent-dark);
+    margin-left: 6px;
+  }
+  .empty { color: var(--text-muted); font-size: 13px; padding: 20px 0; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+  .tab { padding: 7px 14px; border-radius: 6px; border: 1px solid var(--border); background: #fff; cursor: pointer; font-size: 13px; }
+  .tab.active { background: var(--text); color: #fff; border-color: var(--text); }
+  #preview { font-family: Georgia, "Times New Roman", serif; }
+  #preview h1 { font-size: 22px; margin: 0 0 6px; }
+  #preview h2 { font-size: 16px; margin: 24px 0 10px; padding-bottom: 5px; border-bottom: 2px solid var(--accent); color: var(--accent-dark); }
+  #preview p { margin: 0 0 12px; font-size: 14px; }
+  #sourceCode { width: 100%; min-height: 320px; font-family: var(--mono); font-size: 12px; white-space: pre-wrap; background: #fbfaf7; border: 1px solid var(--border); border-radius: 6px; padding: 14px; }
+  .status-msg { padding: 10px 14px; border-radius: 6px; font-size: 13px; margin-top: 10px; }
+  .status-ok { background: #eaf3de; color: #27500a; }
+  .status-err { background: #fcebeb; color: #791f1f; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>CHPS research publications</h1>
+  <nav>
+    <button id="navPortal" class="active" onclick="switchView('portal')">Faculty portal</button>
+    <button id="navAdmin" onclick="switchView('admin')">COMMS admin</button>
+  </nav>
+</header>
+
+<main>
+
+  <!-- ===================== FACULTY PORTAL ===================== -->
+  <section id="portalView">
+    <div class="card">
+      <p style="margin:0 0 10px; color:var(--text-muted);">Search the CHPS publications database by faculty name or study title. If something's missing, add it below — our team reviews every submission before it's added.</p>
+      <input type="text" id="searchBox" placeholder="Search by name or study title…" oninput="renderSearch()">
+      <div id="searchResults" style="margin-top:16px;"></div>
+    </div>
+
+    <div class="card">
+      <button class="btn" onclick="toggleForm()">Don't see one of your papers? Add it</button>
+      <div id="submitForm" style="display:none; margin-top:16px;">
+        <label>Your name (as it should appear, e.g. Smith, J.)</label>
+        <input type="text" id="yourName" placeholder="Smith, J.">
+
+        <label>Additional co-authors</label>
+        <div id="authorRows"></div>
+        <button type="button" class="btn" onclick="addAuthorRow()">Add another author</button>
+
+        <label>Title</label>
+        <input type="text" id="pTitle">
+
+        <label>Journal</label>
+        <input type="text" id="pJournal">
+
+        <div class="row3">
+          <div><label>Year</label><input type="number" id="pYear" value="2026"></div>
+          <div><label>Volume</label><input type="text" id="pVolume"></div>
+          <div><label>Issue</label><input type="text" id="pIssue"></div>
+        </div>
+        <label>Pages</label>
+        <input type="text" id="pPages">
+
+        <label>Link (DOI or article URL)</label>
+        <input type="text" id="pUrl" placeholder="https://doi.org/...">
+
+        <label>Unit</label>
+        <select id="pUnit">
+          <option>School of Communication Sciences and Disorders</option>
+          <option>Center for Autism and Related Disabilities</option>
+          <option>Department of Health Sciences</option>
+          <option>School of Kinesiology and Rehabilitation Sciences</option>
+          <option>School of Social Work</option>
+          <option>Not sure / other</option>
+        </select>
+
+        <label>Anything else COMMS should know? (optional)</label>
+        <textarea id="pNote" rows="2"></textarea>
+
+        <div class="btnrow">
+          <button class="btn primary" onclick="submitPending()">Submit for review</button>
+        </div>
+        <div id="submitStatus"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== COMMS ADMIN ===================== -->
+  <section id="adminView" style="display:none;">
+    <div class="card" id="adminLoginCard">
+      <label>Admin password</label>
+      <input type="password" id="adminPass">
+      <div class="btnrow"><button class="btn primary" onclick="tryLogin()">Unlock</button></div>
+      <div id="loginStatus"></div>
+      <p class="hint">Demo password: chps-comms-2026 — replace with real auth before this goes live anywhere real.</p>
+    </div>
+
+    <div id="adminPanel" style="display:none;">
+      <div class="tabs">
+        <div class="tab active" id="tabPendingBtn" onclick="showAdminTab('pending')">Pending submissions</div>
+        <div class="tab" id="tabGenBtn" onclick="showAdminTab('gen')">Generator</div>
+      </div>
+
+      <div id="pendingTabPanel">
+        <div class="card" id="pendingList"></div>
+      </div>
+
+      <div id="genTabPanel" style="display:none;">
+        <div class="card">
+          <div class="btnrow">
+            <button class="btn" onclick="loadDbIntoEditor()">Load published records into editor</button>
+            <button class="btn" onclick="saveEditorToDb()">Save editor contents to database</button>
+          </div>
+          <label>Publication records (JSON) — this is your working copy of the database</label>
+          <textarea id="jsonInput" style="height:200px; font-family:var(--mono); font-size:12px;"></textarea>
+          <div id="dbStatus"></div>
+        </div>
+
+        <div class="card">
+          <label>Post title</label>
+          <input type="text" id="title" value="Research Roundup: Publications by CHPS Faculty">
+          <label>Intro paragraph</label>
+          <textarea id="intro" rows="3">Faculty in the College of Health Professions and Sciences continue to advance research across a broad range of health and wellness topics. Below is a roundup of peer-reviewed publications by CHPS faculty during this period.</textarea>
+          <label>Legend line</label>
+          <input type="text" id="legend" value="Bold denotes CHPS faculty. ** denotes a graduate student co-author. * denotes an undergraduate student co-author.">
+          <label>Date range (filters on each record's "dateAdded")</label>
+          <div class="row2">
+            <input type="date" id="startDate" value="2025-01-01">
+            <input type="date" id="endDate" value="2025-06-30">
+          </div>
+          <div class="btnrow"><button class="btn primary" onclick="generate()">Generate roundup</button></div>
+        </div>
+
+        <div class="tabs">
+          <div class="tab active" id="tabPreviewBtn" onclick="showOutTab('preview')">Preview</div>
+          <div class="tab" id="tabSourceBtn" onclick="showOutTab('source')">HTML source</div>
+        </div>
+        <div id="tabPreview" class="card">
+          <div id="preview"><div class="empty">Generate a roundup to see a preview.</div></div>
+        </div>
+        <div id="tabSource" class="card" style="display:none;">
+          <div class="btnrow" style="margin-bottom:12px;">
+            <button class="btn" onclick="copySource()">Copy HTML</button>
+            <button class="btn" onclick="downloadSource()">Download .html</button>
+          </div>
+          <div id="sourceCode">Generate a roundup first.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+const PUB_KEY = 'chps-pubs-published';
+const PENDING_KEY = 'chps-pubs-pending';
+let publishedArr = [];
+let pendingArr = [];
+let lastHTML = '';
+let adminUnlocked = false;
+
+// ---------- storage helpers ----------
+async function loadArr(key) {
+  try {
+    const res = await window.storage.get(key, true);
+    return res ? JSON.parse(res.value) : [];
+  } catch (e) {
+    return [];
+  }
+}
+async function saveArr(key, arr) {
+  try {
+    await window.storage.set(key, JSON.stringify(arr), true);
+    return true;
+  } catch (e) {
+    console.error('Storage error:', e);
+    return false;
+  }
+}
+
+// ---------- shared formatting helpers ----------
+function esc(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+function slugify(str) {
+  return str.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+function formatAuthors(authors) {
+  const parts = authors.map(a => {
+    let n = esc(a.name);
+    if (a.role === 'grad_student') n += '**';
+    if (a.role === 'undergrad_student') n += '*';
+    if (a.role === 'chps_faculty') n = '<strong>' + n + '</strong>';
+    return n;
+  });
+  if (parts.length === 1) return parts[0];
+  if (parts.length === 2) return parts[0] + ' &amp; ' + parts[1];
+  return parts.slice(0, -1).join(', ') + ', &amp; ' + parts[parts.length - 1];
+}
+function citationHTML(pub) {
+  const authors = formatAuthors(pub.authors);
+  const tailBits = [];
+  if (pub.volume) tailBits.push(pub.volume + (pub.issue ? '(' + pub.issue + ')' : ''));
+  if (pub.pages) tailBits.push(pub.pages);
+  const tail = tailBits.length ? ', ' + tailBits.join(', ') : '';
+  return '<p>' + authors + ' (' + pub.year + '). <a href="' + esc(pub.url) + '" target="_blank" rel="noopener">' + esc(pub.title) + '</a>. <em>' + esc(pub.journal) + '</em>' + tail + '.</p>';
+}
+
+// ---------- view switching ----------
+function switchView(which) {
+  document.getElementById('portalView').style.display = which === 'portal' ? 'block' : 'none';
+  document.getElementById('adminView').style.display = which === 'admin' ? 'block' : 'none';
+  document.getElementById('navPortal').classList.toggle('active', which === 'portal');
+  document.getElementById('navAdmin').classList.toggle('active', which === 'admin');
+}
+
+// ---------- faculty portal: search ----------
+function renderSearch() {
+  const q = document.getElementById('searchBox').value.trim().toLowerCase();
+  const box = document.getElementById('searchResults');
+  if (!q) { box.innerHTML = '<div class="empty">Type a name or study title to search.</div>'; return; }
+  const matches = publishedArr.filter(p =>
+    p.title.toLowerCase().includes(q) || p.authors.some(a => a.name.toLowerCase().includes(q))
+  );
+  if (matches.length === 0) { box.innerHTML = '<div class="empty">No matches. If this is your paper, add it below.</div>'; return; }
+  box.innerHTML = matches.map(p => '<div class="result">' + citationHTML(p) + '<span class="badge">' + esc(p.unit) + '</span></div>').join('');
+}
+
+// ---------- faculty portal: submission form ----------
+function toggleForm() {
+  const f = document.getElementById('submitForm');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+  if (f.style.display === 'block' && document.getElementById('authorRows').children.length === 0) addAuthorRow();
+}
+function addAuthorRow() {
+  const container = document.getElementById('authorRows');
+  const row = document.createElement('div');
+  row.className = 'authorrow';
+  row.innerHTML =
+    '<input type="text" class="authorName" placeholder="Co-author name">' +
+    '<select class="authorRole">' +
+      '<option value="external" selected>Other / external</option>' +
+      '<option value="chps_faculty">CHPS faculty</option>' +
+      '<option value="grad_student">Grad student</option>' +
+      '<option value="undergrad_student">Undergrad student</option>' +
+    '</select>' +
+    '<button type="button" class="btn" onclick="this.parentElement.remove()">Remove</button>';
+  container.appendChild(row);
+}
+async function submitPending() {
+  const yourName = document.getElementById('yourName').value.trim();
+  const title = document.getElementById('pTitle').value.trim();
+  const url = document.getElementById('pUrl').value.trim();
+  const journal = document.getElementById('pJournal').value.trim();
+  const statusEl = document.getElementById('submitStatus');
+
+  if (!yourName || !title || !url || !journal) {
+    statusEl.innerHTML = '<div class="status-msg status-err">Please fill in your name, title, journal, and link.</div>';
+    return;
+  }
+
+  const coauthors = Array.from(document.querySelectorAll('#authorRows .authorrow')).map(row => ({
+    name: row.querySelector('.authorName').value.trim(),
+    role: row.querySelector('.authorRole').value
+  })).filter(a => a.name);
+
+  const record = {
+    id: 'pending-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+    unit: document.getElementById('pUnit').value,
+    dateAdded: new Date().toISOString().slice(0, 10),
+    year: parseInt(document.getElementById('pYear').value, 10) || new Date().getFullYear(),
+    authors: [{ name: yourName, role: 'chps_faculty' }, ...coauthors],
+    title: title,
+    url: url,
+    journal: journal,
+    volume: document.getElementById('pVolume').value.trim(),
+    issue: document.getElementById('pIssue').value.trim(),
+    pages: document.getElementById('pPages').value.trim(),
+    note: document.getElementById('pNote').value.trim()
+  };
+
+  pendingArr.push(record);
+  const ok = await saveArr(PENDING_KEY, pendingArr);
+  if (ok) {
+    statusEl.innerHTML = '<div class="status-msg status-ok">Submitted — the CHPS COMMS team will review it shortly.</div>';
+    document.getElementById('submitForm').reset && document.getElementById('submitForm').reset();
+    ['yourName','pTitle','pJournal','pVolume','pIssue','pPages','pUrl','pNote'].forEach(id => document.getElementById(id).value = '');
+    document.getElementById('authorRows').innerHTML = '';
+  } else {
+    statusEl.innerHTML = '<div class="status-msg status-err">Something went wrong saving this — please try again.</div>';
+  }
+}
+
+// ---------- admin: login ----------
+function tryLogin() {
+  const pass = document.getElementById('adminPass').value;
+  const statusEl = document.getElementById('loginStatus');
+  if (pass === 'chps-comms-2026') {
+    adminUnlocked = true;
+    document.getElementById('adminLoginCard').style.display = 'none';
+    document.getElementById('adminPanel').style.display = 'block';
+    renderPending();
+  } else {
+    statusEl.innerHTML = '<div class="status-msg status-err">Incorrect password.</div>';
+  }
+}
+function showAdminTab(which) {
+  document.getElementById('pendingTabPanel').style.display = which === 'pending' ? 'block' : 'none';
+  document.getElementById('genTabPanel').style.display = which === 'gen' ? 'block' : 'none';
+  document.getElementById('tabPendingBtn').classList.toggle('active', which === 'pending');
+  document.getElementById('tabGenBtn').classList.toggle('active', which === 'gen');
+}
+
+// ---------- admin: pending review ----------
+function renderPending() {
+  const box = document.getElementById('pendingList');
+  if (pendingArr.length === 0) { box.innerHTML = '<div class="empty">No pending submissions.</div>'; return; }
+  box.innerHTML = pendingArr.map((p, i) =>
+    '<div class="pending-item">' + citationHTML(p) +
+    '<span class="badge">' + esc(p.unit) + '</span>' +
+    (p.note ? '<div class="hint">Note: ' + esc(p.note) + '</div>' : '') +
+    '<div class="btnrow">' +
+      '<button class="btn primary" onclick="approvePending(' + i + ')">Approve &amp; publish</button>' +
+      '<button class="btn danger" onclick="rejectPending(' + i + ')">Reject</button>' +
+    '</div></div>'
+  ).join('');
+}
+async function approvePending(i) {
+  const rec = pendingArr[i];
+  rec.id = 'pub-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7);
+  publishedArr.push(rec);
+  pendingArr.splice(i, 1);
+  await saveArr(PUB_KEY, publishedArr);
+  await saveArr(PENDING_KEY, pendingArr);
+  renderPending();
+}
+async function rejectPending(i) {
+  pendingArr.splice(i, 1);
+  await saveArr(PENDING_KEY, pendingArr);
+  renderPending();
+}
+
+// ---------- admin: generator (working copy = jsonInput textarea) ----------
+function loadDbIntoEditor() {
+  document.getElementById('jsonInput').value = JSON.stringify(publishedArr, null, 2);
+  document.getElementById('dbStatus').innerHTML = '<div class="status-msg status-ok">Loaded ' + publishedArr.length + ' published record(s) into the editor.</div>';
+}
+async function saveEditorToDb() {
+  const statusEl = document.getElementById('dbStatus');
+  try {
+    const parsed = JSON.parse(document.getElementById('jsonInput').value || '[]');
+    publishedArr = parsed;
+    const ok = await saveArr(PUB_KEY, publishedArr);
+    statusEl.innerHTML = ok
+      ? '<div class="status-msg status-ok">Saved ' + publishedArr.length + ' record(s) to the shared database.</div>'
+      : '<div class="status-msg status-err">Save failed — try again.</div>';
+  } catch (e) {
+    statusEl.innerHTML = '<div class="status-msg status-err">Couldn\'t parse that JSON: ' + esc(e.message) + '</div>';
+  }
+}
+function generate() {
+  let records;
+  try { records = JSON.parse(document.getElementById('jsonInput').value || '[]'); }
+  catch (e) { document.getElementById('preview').innerHTML = '<div class="empty">Couldn\'t parse JSON: ' + esc(e.message) + '</div>'; return; }
+
+  const start = document.getElementById('startDate').value;
+  const end = document.getElementById('endDate').value;
+  const filtered = records.filter(r => (!start || r.dateAdded >= start) && (!end || r.dateAdded <= end));
+  if (filtered.length === 0) {
+    document.getElementById('preview').innerHTML = '<div class="empty">No records in that date range.</div>';
+    document.getElementById('sourceCode').textContent = '';
+    return;
+  }
+
+  const unitOrder = []; const byUnit = {};
+  filtered.forEach(r => { if (!byUnit[r.unit]) { byUnit[r.unit] = []; unitOrder.push(r.unit); } byUnit[r.unit].push(r); });
+
+  const title = esc(document.getElementById('title').value);
+  const intro = esc(document.getElementById('intro').value);
+  const legend = esc(document.getElementById('legend').value);
+
+  let html = '<h1>' + title + '</h1>\n<p>' + intro + '</p>\n<p><em>' + legend + '</em></p>\n';
+  html += '<h2>Quick jump</h2>\n<ul>\n';
+  unitOrder.forEach(u => { html += '  <li><a href="#' + slugify(u) + '">' + esc(u) + '</a></li>\n'; });
+  html += '</ul>\n';
+  unitOrder.forEach(u => {
+    html += '\n<h2 id="' + slugify(u) + '">' + esc(u) + '</h2>\n';
+    byUnit[u].forEach(pub => { html += citationHTML(pub) + '\n'; });
+  });
+
+  lastHTML = html;
+  document.getElementById('preview').innerHTML = html;
+  document.getElementById('sourceCode').textContent = html;
+}
+function showOutTab(which) {
+  document.getElementById('tabPreview').style.display = which === 'preview' ? 'block' : 'none';
+  document.getElementById('tabSource').style.display = which === 'source' ? 'block' : 'none';
+  document.getElementById('tabPreviewBtn').classList.toggle('active', which === 'preview');
+  document.getElementById('tabSourceBtn').classList.toggle('active', which === 'source');
+}
+function copySource() {
+  navigator.clipboard.writeText(lastHTML).then(() => {
+    const btn = event.target; const old = btn.textContent;
+    btn.textContent = 'Copied'; setTimeout(() => btn.textContent = old, 1200);
+  });
+}
+function downloadSource() {
+  const blob = new Blob([lastHTML], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = 'research-roundup.html'; a.click();
+  URL.revokeObjectURL(url);
+}
+
+// ---------- boot ----------
+async function boot() {
+  publishedArr = await loadArr(PUB_KEY);
+  pendingArr = await loadArr(PENDING_KEY);
+  if (publishedArr.length === 0) {
+    // seed with a couple of sample records so search has something to demo
+    publishedArr = [
+      { id: 'seed-1', unit: 'School of Communication Sciences and Disorders', dateAdded: '2025-03-02', year: 2025,
+        authors: [{name:'Bislick, L.', role:'chps_faculty'},{name:'Dietz, A.', role:'external'}],
+        title: 'Benefits of a Virtual, Adapted Yoga Practice for People With Aphasia: A Pilot Cohort Study',
+        journal: 'American Journal of Speech-Language Pathology', volume: '34', issue: '3', pages: '1380\u20131389',
+        url: 'https://pubmed.ncbi.nlm.nih.gov/40053880/' },
+      { id: 'seed-2', unit: 'School of Kinesiology and Rehabilitation Sciences', dateAdded: '2025-06-20', year: 2025,
+        authors: [{name:'Anderson, A.W.', role:'chps_faculty'},{name:'Hanney, W.J.', role:'chps_faculty'}],
+        title: 'Comparing Quantitative Sensory Testing and Psychological Factors Between Individuals with Acute Compared to Chronic Shoulder Pain',
+        journal: 'Journal of Bodywork & Movement Therapies', volume: '44', pages: '524-531',
+        url: 'https://doi.org/10.1016/j.jbmt.2025.06.018' }
+    ];
+    await saveArr(PUB_KEY, publishedArr);
+  }
+  renderSearch();
+}
+boot();
+</script>
+
+</body>
+</html>

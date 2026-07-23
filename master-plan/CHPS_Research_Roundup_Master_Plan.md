@@ -841,7 +841,7 @@ Track `opened_at` and `completed_at` so COMMS can see who has and hasn't respond
 - Lists past `roundups` rows with their stored HTML.
 - Allows un-stamping an edition (clearing `roundup_id` on its publications) if something needs to be pulled back and regenerated. Rare, but the alternative is hand-editing the database.
 
-**Note:** A working front-end prototype of the generator + portal already exists (built in an earlier session) demonstrating the layout, citation formatter, and submit→review→publish flow. Use it as a visual/behavioral reference; the logic is correct, but the storage layer and auth are placeholders that must be replaced with Turso and real server-side auth.
+**Note (corrected):** Two early prototypes were built as Claude.ai conversation artifacts on July 11, 2025 (before this repository existed) and have since been copied into `docs/reference/chps_publications_portal.html` and `docs/reference/chps_research_roundup_generator.html`. They're useful for **interaction flow and data shape only** — the search/submit/admin-review/generate sequence, the JSON record shape (`unit`, `dateAdded`, `authors: [{name, role}]`, etc.), and the citation-formatting logic they encode. **They are explicitly not a visual reference.** They were quick functional sketches, not design work, and the intended final UI is a professional, polished interface — treat their plain CSS-variable styling as disposable. The password check in the portal file and the artifact-based storage in both are placeholders only, superseded entirely by the real Turso-backed auth (Session 17) and database (Sessions 1–16) already built.
 
 ---
 

@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>CHPS research roundup generator</title>
+<style>
+  :root {
+    --bg: #f6f5f2;
+    --card: #ffffff;
+    --border: #ddd9d0;
+    --text: #24231f;
+    --text-muted: #6b6a63;
+    --accent: #a5730f;
+    --accent-dark: #7a5509;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.5;
+  }
+  header {
+    padding: 20px 28px;
+    border-bottom: 1px solid var(--border);
+    background: var(--card);
+  }
+  header h1 { font-size: 18px; font-weight: 600; margin: 0 0 4px; }
+  header p { margin: 0; color: var(--text-muted); font-size: 13px; }
+  .layout {
+    display: grid;
+    grid-template-columns: 380px 1fr;
+    gap: 0;
+    min-height: calc(100vh - 73px);
+  }
+  .panel {
+    padding: 20px 24px;
+    overflow-y: auto;
+  }
+  .controls {
+    border-right: 1px solid var(--border);
+    background: var(--card);
+  }
+  label {
+    display: block;
+    font-weight: 600;
+    font-size: 12px;
+    margin: 16px 0 6px;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+  }
+  label:first-of-type { margin-top: 0; }
+  input[type=text], input[type=date], textarea {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 13px;
+  }
+  textarea { font-family: var(--mono); font-size: 12px; resize: vertical; }
+  #jsonInput { height: 220px; }
+  #intro { height: 60px; }
+  .daterow { display: flex; gap: 10px; }
+  .daterow > div { flex: 1; }
+  .btnrow { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
+  button {
+    font-family: inherit;
+    font-size: 13px;
+    padding: 8px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: #fff;
+    color: var(--text);
+    cursor: pointer;
+  }
+  button:hover { border-color: #bdb8ac; }
+  button.primary {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+    font-weight: 600;
+  }
+  button.primary:hover { background: var(--accent-dark); border-color: var(--accent-dark); }
+  .hint { color: var(--text-muted); font-size: 12px; margin-top: 6px; line-height: 1.5; }
+  .tabs { display: flex; gap: 4px; margin-bottom: 16px; }
+  .tab {
+    padding: 7px 14px;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: #fff;
+    cursor: pointer;
+    font-size: 13px;
+  }
+  .tab.active { background: var(--text); color: #fff; border-color: var(--text); }
+  .output-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 28px 36px;
+    max-width: 780px;
+  }
+  #preview { font-family: Georgia, "Times New Roman", serif; line-height: 1.65; }
+  #preview h1 { font-size: 24px; margin: 0 0 6px; }
+  #preview h2 {
+    font-size: 17px;
+    margin: 28px 0 12px;
+    padding-bottom: 6px;
+    border-bottom: 2px solid var(--accent);
+    color: var(--accent-dark);
+  }
+  #preview p { margin: 0 0 14px; font-size: 14px; }
+  #preview .legend { font-size: 13px; color: var(--text-muted); font-style: italic; }
+  #preview .quickjump { font-size: 13px; }
+  #preview .quickjump a { color: var(--accent-dark); }
+  #preview a { color: var(--accent-dark); }
+  #sourceCode {
+    width: 100%;
+    min-height: 400px;
+    font-family: var(--mono);
+    font-size: 12px;
+    white-space: pre-wrap;
+    background: #fbfaf7;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 14px;
+  }
+  .empty {
+    color: var(--text-muted);
+    font-size: 13px;
+    padding: 40px 0;
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>CHPS research roundup generator</h1>
+  <p>Paste publication records, pick a date range, get WordPress-ready HTML in the Research Roundup format.</p>
+</header>
+
+<div class="layout">
+  <div class="panel controls">
+
+    <label for="title">Post title</label>
+    <input type="text" id="title" value="Research Roundup: Publications by CHPS Faculty">
+
+    <label for="intro">Intro paragraph</label>
+    <textarea id="intro">Faculty in the College of Health Professions and Sciences continue to advance research across a broad range of health and wellness topics. Below is a roundup of peer-reviewed publications by CHPS faculty during this period.</textarea>
+
+    <label for="legend">Legend line</label>
+    <input type="text" id="legend" value="Bold denotes CHPS faculty. ** denotes a graduate student co-author. * denotes an undergraduate student co-author.">
+
+    <label>Date range (filters on each record's "dateAdded")</label>
+    <div class="daterow">
+      <div><input type="date" id="startDate" value="2025-01-01"></div>
+      <div><input type="date" id="endDate" value="2025-06-30"></div>
+    </div>
+
+    <label for="jsonInput">Publication records (JSON)</label>
+    <textarea id="jsonInput"></textarea>
+    <div class="hint">Each record: unit, dateAdded, year, title, url, journal, volume, issue, pages, and authors — a list of { name, role }, where role is chps_faculty, grad_student, undergrad_student, or external.</div>
+
+    <div class="btnrow">
+      <button onclick="loadSample()">Load sample data</button>
+      <button onclick="document.getElementById('jsonInput').value=''">Clear</button>
+    </div>
+
+    <div class="btnrow" style="margin-top:20px;">
+      <button class="primary" onclick="generate()">Generate roundup</button>
+    </div>
+
+  </div>
+
+  <div class="panel">
+    <div class="tabs">
+      <div class="tab active" id="tabPreviewBtn" onclick="showTab('preview')">Preview</div>
+      <div class="tab" id="tabSourceBtn" onclick="showTab('source')">HTML source</div>
+    </div>
+
+    <div id="tabPreview">
+      <div class="output-card">
+        <div id="preview"><div class="empty">Load sample data and click "Generate roundup" to see a preview here.</div></div>
+      </div>
+    </div>
+
+    <div id="tabSource" style="display:none;">
+      <div class="btnrow" style="margin-bottom:12px;">
+        <button onclick="copySource()">Copy HTML</button>
+        <button onclick="downloadSource()">Download .html</button>
+      </div>
+      <div id="sourceCode">Generate a roundup first.</div>
+    </div>
+  </div>
+</div>
+
+<script>
+let lastHTML = '';
+
+function slugify(str) {
+  return str.toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+}
+
+function esc(str) {
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function formatAuthors(authors) {
+  const parts = authors.map(a => {
+    let n = esc(a.name);
+    if (a.role === 'grad_student') n += '**';
+    if (a.role === 'undergrad_student') n += '*';
+    if (a.role === 'chps_faculty') n = '<strong>' + n + '</strong>';
+    return n;
+  });
+  if (parts.length === 1) return parts[0];
+  if (parts.length === 2) return parts[0] + ' &amp; ' + parts[1];
+  return parts.slice(0, -1).join(', ') + ', &amp; ' + parts[parts.length - 1];
+}
+
+function citationHTML(pub) {
+  const authors = formatAuthors(pub.authors);
+  const tailBits = [];
+  if (pub.volume) tailBits.push(pub.volume + (pub.issue ? '(' + pub.issue + ')' : ''));
+  if (pub.pages) tailBits.push(pub.pages);
+  const tail = tailBits.length ? ', ' + tailBits.join(', ') : '';
+  return '<p>' + authors + ' (' + pub.year + '). <a href="' + esc(pub.url) + '" target="_blank" rel="noopener">' + esc(pub.title) + '</a>. <em>' + esc(pub.journal) + '</em>' + tail + '.</p>';
+}
+
+function generate() {
+  let records;
+  try {
+    records = JSON.parse(document.getElementById('jsonInput').value || '[]');
+  } catch (e) {
+    document.getElementById('preview').innerHTML = '<div class="empty">Couldn\'t parse that JSON: ' + esc(e.message) + '</div>';
+    return;
+  }
+
+  const start = document.getElementById('startDate').value;
+  const end = document.getElementById('endDate').value;
+  const filtered = records.filter(r => (!start || r.dateAdded >= start) && (!end || r.dateAdded <= end));
+
+  if (filtered.length === 0) {
+    document.getElementById('preview').innerHTML = '<div class="empty">No records fall inside that date range.</div>';
+    document.getElementById('sourceCode').textContent = '';
+    return;
+  }
+
+  const unitOrder = [];
+  const byUnit = {};
+  filtered.forEach(r => {
+    if (!byUnit[r.unit]) { byUnit[r.unit] = []; unitOrder.push(r.unit); }
+    byUnit[r.unit].push(r);
+  });
+
+  const title = esc(document.getElementById('title').value);
+  const intro = esc(document.getElementById('intro').value);
+  const legend = esc(document.getElementById('legend').value);
+
+  let html = '';
+  html += '<h1>' + title + '</h1>\n';
+  html += '<p>' + intro + '</p>\n';
+  html += '<p class="legend">' + legend + '</p>\n';
+  html += '<h2>Quick jump</h2>\n<ul class="quickjump">\n';
+  unitOrder.forEach(u => { html += '  <li><a href="#' + slugify(u) + '">' + esc(u) + '</a></li>\n'; });
+  html += '</ul>\n';
+
+  unitOrder.forEach(u => {
+    html += '\n<h2 id="' + slugify(u) + '">' + esc(u) + '</h2>\n';
+    byUnit[u].forEach(pub => { html += citationHTML(pub) + '\n'; });
+  });
+
+  lastHTML = html;
+  document.getElementById('preview').innerHTML = html;
+  document.getElementById('sourceCode').textContent = html;
+}
+
+function showTab(which) {
+  document.getElementById('tabPreview').style.display = which === 'preview' ? 'block' : 'none';
+  document.getElementById('tabSource').style.display = which === 'source' ? 'block' : 'none';
+  document.getElementById('tabPreviewBtn').classList.toggle('active', which === 'preview');
+  document.getElementById('tabSourceBtn').classList.toggle('active', which === 'source');
+}
+
+function copySource() {
+  navigator.clipboard.writeText(lastHTML).then(() => {
+    const btn = event.target;
+    const old = btn.textContent;
+    btn.textContent = 'Copied';
+    setTimeout(() => { btn.textContent = old; }, 1200);
+  });
+}
+
+function downloadSource() {
+  const blob = new Blob([lastHTML], { type: 'text/html' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'research-roundup.html';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function loadSample() {
+  const sample = [
+    { unit: "School of Communication Sciences and Disorders", dateAdded: "2025-01-14", year: 2025,
+      authors: [{name:"Dykstra, A.R.", role:"chps_faculty"},{name:"Zhu, Y.", role:"external"},{name:"Pujol, C.F.", role:"external"},{name:"Jones, S.R.", role:"external"},{name:"Marvan, T.", role:"external"},{name:"Bonaiuto, J.J.", role:"external"}],
+      title: "Testing Circuit-level Theories of Consciousness in Humans", journal: "Trends in Cognitive Sciences",
+      url: "https://www.sciencedirect.com/science/article/pii/S1364661325002372?via%3Dihub" },
+
+    { unit: "School of Communication Sciences and Disorders", dateAdded: "2025-03-02", year: 2025,
+      authors: [{name:"Bislick, L.", role:"chps_faculty"},{name:"Dietz, A.", role:"external"},{name:"Cornelius, K.", role:"external"},{name:"Duncan, E. S.", role:"external"},{name:"Engelhoven, A. E. R.", role:"external"},{name:"Hart, M. K.", role:"external"}],
+      title: "Benefits of a Virtual, Adapted Yoga Practice for People With Aphasia: A Pilot Cohort Study",
+      journal: "American Journal of Speech-Language Pathology", volume: "34", issue: "3", pages: "1380\u20131389",
+      url: "https://pubmed.ncbi.nlm.nih.gov/40053880/" },
+
+    { unit: "Department of Health Sciences", dateAdded: "2025-02-10", year: 2025,
+      authors: [{name:"Blackwell, C.W.", role:"external"},{name:"Armstrong, F.", role:"external"},{name:"L\u00f3pez Castillo, H.", role:"chps_faculty"}],
+      title: "Lenacapavir for HIV PrEP: Interim Phase III Clinical Data Evaluation", journal: "The Journal for Nurse Practitioners",
+      volume: "21", issue: "4", pages: "105360", url: "https://www.npjournal.org/article/S1555-4155(25)00043-1/fulltext" },
+
+    { unit: "Department of Health Sciences", dateAdded: "2025-05-19", year: 2025,
+      authors: [{name:"Rovito, M.J.", role:"chps_faculty"},{name:"Brazendale, K.", role:"chps_faculty"},{name:"Gibson, S.", role:"external"},{name:"Martinez, S.", role:"undergrad_student"},{name:"Fairman, C.", role:"external"},{name:"Badolato, C.", role:"external"},{name:"Lyon, T.", role:"external"},{name:"Baird, B.", role:"external"},{name:"Langan, J.", role:"external"},{name:"Leslie, M.K.", role:"external"}],
+      title: "Physical Activity and Testicular Cancer Survivorship Health-Related Quality of Life: A Scoping Review",
+      journal: "Therapeutic Advances in Urology", volume: "17", url: "https://journals.sagepub.com/doi/10.1177/17562872251322658" },
+
+    { unit: "Department of Health Sciences", dateAdded: "2025-06-08", year: 2025,
+      authors: [{name:"Lopez Torralba, L.", role:"undergrad_student"},{name:"Sukhu, B.", role:"grad_student"},{name:"de Azevedo Daruge, M. E.", role:"undergrad_student"},{name:"Chung, J.", role:"external"},{name:"Loerzel, V.", role:"external"},{name:"Lee, E.", role:"chps_faculty"}],
+      title: "Evaluating Fatalism Among Breast Cancer Survivors in a Heterogeneous Hispanic Population: A Cross-Sectional Study",
+      journal: "Current Oncology", volume: "32", issue: "8", pages: "461", url: "https://www.mdpi.com/1718-7729/32/8/461" },
+
+    { unit: "School of Kinesiology and Rehabilitation Sciences", dateAdded: "2025-06-20", year: 2025,
+      authors: [{name:"Anderson, A.W.", role:"chps_faculty"},{name:"Hanney, W.J.", role:"chps_faculty"}],
+      title: "Comparing Quantitative Sensory Testing and Psychological Factors Between Individuals with Acute Compared to Chronic Shoulder Pain",
+      journal: "Journal of Bodywork & Movement Therapies", volume: "44", pages: "524-531",
+      url: "https://doi.org/10.1016/j.jbmt.2025.06.018" },
+
+    { unit: "School of Social Work", dateAdded: "2025-04-11", year: 2025,
+      authors: [{name:"Anderson, K. M.", role:"chps_faculty"}],
+      title: "Cultivating Research Literacy in Social Work Majors Through Participatory Action Research on Adverse Childhood Experiences",
+      journal: "Journal of Teaching in Social Work", pages: "642-659",
+      url: "https://www.tandfonline.com/doi/full/10.1080/08841233.2025.2469532" },
+
+    { unit: "Center for Autism and Related Disabilities", dateAdded: "2025-01-30", year: 2025,
+      authors: [{name:"Williams, N.", role:"external"},{name:"Tayek, K. A.", role:"external"},{name:"Daly, K.", role:"external"}],
+      title: "Arts in Medicine: Nurturing Creativity Through Community Collaboration", journal: "Medical Education", pages: "660-661",
+      url: "https://asmepublications.onlinelibrary.wiley.com/doi/10.1111/medu.15640" }
+  ];
+  document.getElementById('jsonInput').value = JSON.stringify(sample, null, 2);
+}
+
+loadSample();
+</script>
+
+</body>
+</html>
