@@ -7,7 +7,7 @@ import { UNITS, type PublicationStatus, type Unit } from "@/lib/types";
 import { ExportPanel } from "./ExportPanel";
 import { Sidebar } from "./Sidebar";
 import { FilterChip } from "./FilterChip";
-import { archivo, inter, jetbrainsMono } from "./fonts";
+import { archivo, inter, jetbrainsMono } from "../fonts";
 
 export const metadata: Metadata = {
   title: "Publications",

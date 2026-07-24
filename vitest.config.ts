@@ -11,4 +11,12 @@ export default defineConfig({
       "@": path.resolve(__dirname, "."),
     },
   },
+  // JSX transform for .tsx test files (tests/admin-login-page.test.tsx,
+  // Session 17.1). This Vite version transforms via oxc, not esbuild — an
+  // `esbuild.jsx` option here is silently ignored in favor of oxc's own
+  // config, hence `oxc` (not `esbuild`) below. Vite/oxc's own transform, not
+  // @vitejs/plugin-react, since this is the only thing that needed it.
+  oxc: {
+    jsx: { runtime: "automatic" },
+  },
 });

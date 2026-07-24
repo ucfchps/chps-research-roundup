@@ -15,6 +15,17 @@
      per page. Session 17.1 (login redesign) hadn't landed yet when this was
      added; this is that token, defined here per its own Step 0 contingency. */
   --color-ucf-gold: #ffc904;
+  /* Session 17.1: the login page's drifting-paths background. First custom
+     animation in this project — Tailwind v4 has no tailwind.config.js to put
+     this in, so it lives here in @theme's --animate-* convention, generating
+     an `animate-flow-path` utility paired with the @keyframes below. */
+  --animate-flow-path: flow-path 16s linear infinite;
+}
+
+@keyframes flow-path {
+  to {
+    stroke-dashoffset: -1160;
+  }
 }
 
 @media (prefers-color-scheme: dark) {
