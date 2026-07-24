@@ -1,11 +1,22 @@
-// Visual-only (Session 18.2). The actual <input type="checkbox"> stays in
-// the DOM as a real, submittable form control — only visually hidden
-// (Tailwind's sr-only, not display:none/opacity:0+zero-size, so it stays in
-// the accessibility tree and the tab order). The reference file
-// (docs/reference/publications-redesign-pegasus-ledger.html) has no focus
-// state for the hidden-checkbox pattern — peer-focus-visible: below is the
-// fix: a visible ring on the label when the underlying input has keyboard
-// focus, so tabbing through filters works without a mouse.
+// Visual-only (Session 18.2; fixed in 18.3). The actual <input
+// type="checkbox"> stays in the DOM as a real, submittable form control —
+// only visually hidden (Tailwind's sr-only, not display:none/opacity:0+zero-
+// size, so it stays in the accessibility tree and the tab order). The
+// reference file (docs/reference/publications-redesign-pegasus-ledger.html)
+// has no focus state for the hidden-checkbox pattern — peer-focus-visible:
+// below is the fix: a visible ring on the label when the underlying input
+// has keyboard focus, so tabbing through filters works without a mouse.
+//
+// ★ 18.3: the input+label pair MUST be wrapped in its own element, not a
+// bare Fragment. Tailwind's peer-checked: compiles to a general-sibling CSS
+// selector (~), which matches ANY later sibling carrying "peer" — not just
+// the one immediately paired with it. Multiple chips rendered as Fragments
+// inside the same flex row become flat DOM siblings of EACH OTHER's inputs
+// and labels, so an earlier checked chip's "active" style cascaded onto
+// every later chip in that row regardless of ITS OWN checked state — real
+// bug, shipped to production, caught from a screenshot showing every status
+// chip lit up simultaneously. This span gives each pair its own CSS sibling
+// scope, so peer-checked: can only ever match its own paired input.
 export function FilterChip({
   name,
   value,
@@ -19,7 +30,7 @@ export function FilterChip({
 }) {
   const id = `chip-${name}-${value}`;
   return (
-    <>
+    <span className="inline-flex">
       <input type="checkbox" id={id} name={name} value={value} defaultChecked={defaultChecked} className="peer sr-only" />
       <label
         htmlFor={id}
@@ -27,6 +38,6 @@ export function FilterChip({
       >
         {label}
       </label>
-    </>
+    </span>
   );
 }
