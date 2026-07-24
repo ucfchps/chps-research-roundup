@@ -4,10 +4,12 @@ import { useState } from "react";
 import { buildExportHtml } from "@/lib/roundup-export";
 import type { PublicationWithUnits } from "@/lib/publications";
 
-const DEFAULT_TITLE = "Research Roundup: Publications by CHPS Faculty";
-const DEFAULT_INTRO =
+// Shared with FinalizePanel.tsx (Session 19) so the finalize flow's defaults
+// never drift from the preview/export flow's — one set of copy, not two.
+export const DEFAULT_TITLE = "Research Roundup: Publications by CHPS Faculty";
+export const DEFAULT_INTRO =
   "Faculty in the College of Health Professions and Sciences continue to advance research across a broad range of health and wellness topics. Below is a roundup of peer-reviewed publications by CHPS faculty during this period.";
-const DEFAULT_LEGEND = "Bold denotes CHPS faculty. ** denotes a graduate student co-author. * denotes an undergraduate student co-author.";
+export const DEFAULT_LEGEND = "Bold denotes CHPS faculty. ** denotes a graduate student co-author. * denotes an undergraduate student co-author.";
 
 // Pure client-side computation — buildExportHtml has no I/O, and this
 // component already has the exact filtered results the server rendered, so

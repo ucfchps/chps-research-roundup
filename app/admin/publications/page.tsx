@@ -3,8 +3,10 @@ import { client } from "@/lib/db";
 import { requireAdminSession } from "../session";
 import { queryPublications, type PublicationFilters, type PublicationWithUnits } from "@/lib/publications";
 import { formatCitation, sortCitationsWithinUnit } from "@/lib/citation";
+import { getFacultyWithOutstandingReview, type OutstandingReviewer } from "@/lib/review";
 import { UNITS, type PublicationStatus, type Unit } from "@/lib/types";
 import { ExportPanel } from "./ExportPanel";
+import { FinalizePanel } from "./FinalizePanel";
 import { Sidebar } from "./Sidebar";
 import { FilterChip } from "./FilterChip";
 import { archivo, inter, jetbrainsMono } from "../fonts";
@@ -76,6 +78,34 @@ export default async function PublicationsPage({
 
   const resultsById = new Map<number, PublicationWithUnits>(results.map((r) => [r.publication.id, r]));
   const sorted = sortCitationsWithinUnit(results.map((r) => ({ publication: r.publication, authors: r.authors })));
+
+  // Finalize (§6b, §8c Tab 4) is deliberately independent of the ad-hoc
+  // browsing filters above — its own cutoff-date input, its own fresh
+  // eligibility query (status='published' AND roundup_id IS NULL AND
+  // date_added <= cutoff, no start date), never whatever happens to be
+  // filtered on the page right now.
+  const finalizeCutoff = typeof sp.finalizeCutoff === "string" && sp.finalizeCutoff ? sp.finalizeCutoff : null;
+  let finalizeResults: PublicationWithUnits[] = [];
+  const outstandingReviewersByPublication: Record<number, OutstandingReviewer[]> = {};
+  if (finalizeCutoff) {
+    finalizeResults = await queryPublications(client, { status: ["published"], excludeAlreadyPosted: true, dateAddedTo: finalizeCutoff });
+
+    const linkedFacultyIdsByPub = new Map<number, Set<number>>();
+    const allFacultyIds = new Set<number>();
+    for (const r of finalizeResults) {
+      const ids = new Set(
+        r.authors.filter((a) => a.role === "chps_faculty" && a.faculty_id !== null).map((a) => a.faculty_id as number)
+      );
+      linkedFacultyIdsByPub.set(r.publication.id, ids);
+      for (const id of ids) allFacultyIds.add(id);
+    }
+
+    const outstanding = await getFacultyWithOutstandingReview(client, [...allFacultyIds]);
+    for (const r of finalizeResults) {
+      const pubFacultyIds = linkedFacultyIdsByPub.get(r.publication.id)!;
+      outstandingReviewersByPublication[r.publication.id] = outstanding.filter((o) => pubFacultyIds.has(o.facultyId));
+    }
+  }
 
   return (
     <div className={`flex min-h-screen ${inter.variable} ${archivo.variable} ${jetbrainsMono.variable}`} style={{ fontFamily: "var(--font-inter)" }}>
@@ -224,6 +254,38 @@ export default async function PublicationsPage({
         )}
 
         <ExportPanel results={results} />
+
+        <section className="mt-10">
+          <p className="text-2xl font-semibold mb-1" style={{ fontFamily: "var(--font-archivo)" }}>
+            Finalize an edition
+          </p>
+          <p className="text-sm text-[#5B5B5B] mb-6">
+            Independent of the filters above — eligibility here is always published, unposted, and collected on or before the cutoff date (§6b), regardless
+            of anything selected in the browser above.
+          </p>
+
+          <form method="get" className="border border-[#E5E5E5] rounded-xl bg-white p-5 flex items-end gap-3 shadow-[0_1px_2px_rgba(0,0,0,0.03)]">
+            <div>
+              <label htmlFor="finalizeCutoff" className="block text-[11px] uppercase tracking-wide text-[#8A8A8A] mb-1.5">
+                Cutoff date (collected on or before)
+              </label>
+              <input
+                type="date"
+                id="finalizeCutoff"
+                name="finalizeCutoff"
+                defaultValue={finalizeCutoff ?? ""}
+                className="border border-[#D8D8D8] rounded-md px-2.5 py-1.5 text-sm focus:outline-none focus:border-ucf-gold focus:ring-2 focus:ring-ucf-gold/25"
+              />
+            </div>
+            <button type="submit" className="bg-[#0A0A0A] text-white text-sm font-medium px-4 py-2 rounded-md hover:bg-[#1A1A1A] transition-colors">
+              Show eligible publications
+            </button>
+          </form>
+
+          {finalizeCutoff && (
+            <FinalizePanel results={finalizeResults} outstandingReviewersByPublication={outstandingReviewersByPublication} cutoff={finalizeCutoff} />
+          )}
+        </section>
       </main>
     </div>
   );

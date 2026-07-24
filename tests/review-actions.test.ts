@@ -11,6 +11,7 @@ import { runMigrations } from "../db/migrate";
 import {
   addMissingPublication,
   editCitation,
+  isPublicationFinalized,
   rejectAuthorAttribution,
   setCoAuthorRole,
 } from "../lib/review-actions";
@@ -83,6 +84,23 @@ describe("review-actions", () => {
     }>;
     return rows[0];
   }
+
+  describe("isPublicationFinalized — the single shared guard every write below routes through", () => {
+    it("is false for a publication with no roundup_id", async () => {
+      const pubId = await seedPublication({ title: "Unposted Paper" });
+      expect(await isPublicationFinalized(client, pubId)).toBe(false);
+    });
+
+    it("is true for a publication with roundup_id set", async () => {
+      await client.execute(`INSERT INTO roundups (label, generated_at, pub_count, html) VALUES ('Spring 2026', datetime('now'), 1, '<html></html>')`);
+      const pubId = await seedPublication({ title: "Finalized Paper", roundupId: 1 });
+      expect(await isPublicationFinalized(client, pubId)).toBe(true);
+    });
+
+    it("is false for a publication id that doesn't exist (existence is each caller's own concern)", async () => {
+      expect(await isPublicationFinalized(client, 999999)).toBe(false);
+    });
+  });
 
   describe("setCoAuthorRole", () => {
     it("tags an unknown-role co-author with a plain-language role, stamping role_set_by/role_set_at", async () => {
@@ -162,6 +180,25 @@ describe("review-actions", () => {
       const row = await getAuthor(zhuRowId);
       expect(row.role).toBe("chps_faculty");
       expect(row.faculty_id).toBe(zhuId);
+    });
+
+    // Session 19 §3: even a still-valid (unrevoked, unexpired) token holder
+    // could submit a stale form built before finalize happened. The
+    // publication's own roundup_id — not the token's state — is what must
+    // gate this write, since the archived roundups.html snapshot must never
+    // silently drift from the live table after the fact.
+    it("refuses to tag a co-author on a publication that has already been finalized (roundup_id set)", async () => {
+      const facultyId = await seedFaculty("Zraick, R.I.");
+      await client.execute(`INSERT INTO roundups (label, generated_at, pub_count, html) VALUES ('Spring 2026', datetime('now'), 1, '<html></html>')`);
+      const pubId = await seedPublication({ title: "Already Finalized Paper", roundupId: 1 });
+      await seedAuthor(pubId, facultyId, "Zraick, R.I.", "chps_faculty", 0);
+      const coAuthorRowId = await seedAuthor(pubId, null, "Torralba, L.", "unknown", 1);
+
+      const ok = await setCoAuthorRole(client, facultyId, coAuthorRowId, "grad_student");
+
+      expect(ok).toBe(false);
+      const row = await getAuthor(coAuthorRowId);
+      expect(row.role).toBe("unknown"); // untouched — the archived snapshot must not drift
     });
   });
 
@@ -253,6 +290,19 @@ describe("review-actions", () => {
       expect(dykstraRowAfter.role).toBe("chps_faculty");
       expect(dykstraRowAfter.faculty_id).toBe(dykstraId);
     });
+
+    it("refuses to unlink an attribution on a publication that has already been finalized (roundup_id set)", async () => {
+      const facultyId = await seedFaculty("Zraick, R.I.");
+      await client.execute(`INSERT INTO roundups (label, generated_at, pub_count, html) VALUES ('Spring 2026', datetime('now'), 1, '<html></html>')`);
+      const pubId = await seedPublication({ title: "Already Finalized Paper", roundupId: 1 });
+      const ownRowId = await seedAuthor(pubId, facultyId, "Zraick, R.I.", "chps_faculty", 0);
+
+      const ok = await rejectAuthorAttribution(client, facultyId, ownRowId);
+
+      expect(ok).toBe(false);
+      const row = await getAuthor(ownRowId);
+      expect(row.faculty_id).toBe(facultyId); // untouched
+    });
   });
 
   describe("editCitation", () => {
@@ -290,6 +340,19 @@ describe("review-actions", () => {
       const otherFacultyId = await seedFaculty("Stock, M.S.");
       const pubId = await seedPublication({ title: "Someone Else's Paper", journal: "Old Journal" });
       await seedAuthor(pubId, otherFacultyId, "Stock, M.S.", "chps_faculty", 0);
+
+      const ok = await editCitation(client, facultyId, pubId, { journal: "Hijacked Journal" });
+
+      expect(ok).toBe(false);
+      const pub = (await client.execute({ sql: "SELECT journal FROM publications WHERE id = ?", args: [pubId] })).rows[0] as unknown as { journal: string };
+      expect(pub.journal).toBe("Old Journal");
+    });
+
+    it("refuses to edit a publication that has already been finalized (roundup_id set)", async () => {
+      const facultyId = await seedFaculty("Zraick, R.I.");
+      await client.execute(`INSERT INTO roundups (label, generated_at, pub_count, html) VALUES ('Spring 2026', datetime('now'), 1, '<html></html>')`);
+      const pubId = await seedPublication({ title: "Already Finalized Paper", journal: "Old Journal", roundupId: 1 });
+      await seedAuthor(pubId, facultyId, "Zraick, R.I.", "chps_faculty", 0);
 
       const ok = await editCitation(client, facultyId, pubId, { journal: "Hijacked Journal" });
 

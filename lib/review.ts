@@ -129,6 +129,38 @@ export async function getReviewablePublications(client: Client, facultyId: numbe
   return publications;
 }
 
+export interface OutstandingReviewer {
+  facultyId: number;
+  displayName: string;
+}
+
+// Session 19 finalize pre-flight warning: "who among these faculty still has
+// real review work pending, regardless of cycle" — generalizes
+// lib/campaigns.ts::buildCampaignPlan's cycle-scoped "already has an active
+// token" check by dropping the cycle_label constraint and adding the
+// completed_at leg (that check only ever needed revoked/expiry, since a
+// completed request for the SAME cycle wouldn't re-mint anyway).
+export async function getFacultyWithOutstandingReview(client: Client, facultyIds: number[]): Promise<OutstandingReviewer[]> {
+  if (facultyIds.length === 0) return [];
+
+  const now = new Date().toISOString();
+  const placeholders = facultyIds.map(() => "?").join(",");
+  const rows = (
+    await client.execute({
+      sql: `SELECT DISTINCT f.id as facultyId, f.display_name as displayName
+            FROM review_requests rr
+            JOIN faculty f ON f.id = rr.faculty_id
+            WHERE rr.faculty_id IN (${placeholders})
+              AND rr.completed_at IS NULL
+              AND rr.revoked = 0
+              AND rr.expires_at > ?`,
+      args: [...facultyIds, now],
+    })
+  ).rows as unknown as OutstandingReviewer[];
+
+  return rows.map((r) => ({ ...r }));
+}
+
 // The single definition of "who does the plain-language role picker apply
 // to" — genuinely unidentified names only (faculty_id null). A co-author row
 // already linked to a DIFFERENT real faculty member (their own still-

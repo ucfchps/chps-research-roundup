@@ -603,6 +603,8 @@ When COMMS finalizes a roundup:
 
 This makes double-posting **structurally impossible** rather than a thing a human has to remember to check.
 
+**Review tokens (§8b) are deliberately left untouched by finalize.** The review page already live-queries `roundup_id IS NULL` on every load, so a fully-finalized faculty member naturally sees nothing left to review without any token being revoked — and a faculty member with some publications finalized and others still pending needs their token to keep working regardless. The real risk finalize introduces is a stale write landing on an already-archived publication after the fact, which is closed at the write boundary instead — see the correction note under §8b's security model, item 3.
+
 ### UI implications
 - The generator's primary control is an **end date**, not a range. Optionally show the start boundary as read-only context: *"Includes everything collected since the last roundup (Oct 17, 2025)."*
 - Show the eligible count before generating: *"142 publications ready for this roundup."*
@@ -756,6 +758,12 @@ When a faculty member submits a paper, match it (DOI → normalized title → fu
 5. **⚠️ `<meta name="referrer" content="no-referrer">` on this page.** It is full of outbound links to DOIs and publisher sites. Without this, clicking one sends a `Referer` header containing **the full URL, token included**, to that publisher's server. Also `rel="noopener noreferrer"` on every outbound link.
 6. **No destructive actions.** Nothing that deletes another person's records or touches an already-posted roundup.
 7. **Revocable** (`revoked` flag), in case a link gets forwarded somewhere it shouldn't.
+
+> **★ Correction (Session 19): item 3's "or on publication of the next roundup" was never built, deliberately.** When finalize (§6b) shipped, this token-expiration idea turned out to be solving a problem that didn't need solving, and papering over one that did.
+>
+> The review page (item 4 above, "What the page shows") already scopes every query to `roundup_id IS NULL`, live, on every load — never a cached list. So a faculty member whose *every* publication just got finalized already sees an empty review page next time, with zero tokens touched. A faculty member with *some* publications finalized and others still pending must keep a working token for their real remaining work — expiring "on publication of the next roundup" would cut them off mid-task, which is exactly the outcome §3 of the Session 19 spec ruled out.
+>
+> The actual gap was never "is this token still valid" — it's "can a mutation reach a publication that was already archived into a `roundups.html` snapshot before the reviewing tab's next reload." A token being valid was never the problem; a *write landing late* was. So `lib/review-actions.ts`'s four writing functions (`setCoAuthorRole`, `rejectAuthorAttribution`, `editCitation`, `addMissingPublication`'s "linked_you" outcome) each check `isPublicationFinalized()` before writing, and refuse if the target publication's `roundup_id` is already set — regardless of the submitting token's own state. That check is the actual fix; no token-revocation-on-finalize logic exists, or should be added, to solve this.
 
 ---
 

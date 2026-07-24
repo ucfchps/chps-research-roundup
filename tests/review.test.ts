@@ -11,6 +11,7 @@ import { runMigrations } from "../db/migrate";
 import { generateReviewToken, hashToken } from "../lib/tokens";
 import {
   createReviewRequest,
+  getFacultyWithOutstandingReview,
   getReviewablePublications,
   getReviewRequestByToken,
   markReviewComplete,
@@ -346,6 +347,56 @@ describe("getReviewRequestByToken / getReviewablePublications", () => {
 
       expect(ownUnconfirmedRow(pub, 1)?.name).toBe("Zhu, Y.");
       expect(ownUnconfirmedRow(pub, 999)).toBeUndefined();
+    });
+  });
+
+  describe("getFacultyWithOutstandingReview", () => {
+    it("returns a faculty member with an active (not completed, not expired, not revoked) review request", async () => {
+      const facultyId = await seedFaculty("Zraick, R.I.");
+      await seedReviewRequest(facultyId);
+
+      const result = await getFacultyWithOutstandingReview(client, [facultyId]);
+
+      expect(result).toEqual([{ facultyId, displayName: "Zraick, R.I." }]);
+    });
+
+    it("excludes a faculty member whose only review request is completed", async () => {
+      const facultyId = await seedFaculty("Zraick, R.I.");
+      const { token } = await seedReviewRequest(facultyId);
+      const reviewRequest = await getReviewRequestByToken(client, token);
+      await markReviewComplete(client, reviewRequest!.id);
+
+      expect(await getFacultyWithOutstandingReview(client, [facultyId])).toEqual([]);
+    });
+
+    it("excludes a faculty member whose only review request is expired", async () => {
+      const facultyId = await seedFaculty("Zraick, R.I.");
+      await seedReviewRequest(facultyId, { expiresAt: new Date(Date.now() - 1000).toISOString() });
+
+      expect(await getFacultyWithOutstandingReview(client, [facultyId])).toEqual([]);
+    });
+
+    it("excludes a faculty member whose only review request is revoked", async () => {
+      const facultyId = await seedFaculty("Zraick, R.I.");
+      await seedReviewRequest(facultyId, { revoked: 1 });
+
+      expect(await getFacultyWithOutstandingReview(client, [facultyId])).toEqual([]);
+    });
+
+    it("ignores faculty ids not in the requested list, and never duplicates a faculty with multiple review_requests rows", async () => {
+      const includedId = await seedFaculty("Zraick, R.I.");
+      const excludedId = await seedFaculty("Stock, M.S.");
+      await seedReviewRequest(includedId);
+      await seedReviewRequest(includedId, { slug: "second-token" });
+      await seedReviewRequest(excludedId);
+
+      const result = await getFacultyWithOutstandingReview(client, [includedId]);
+
+      expect(result).toEqual([{ facultyId: includedId, displayName: "Zraick, R.I." }]);
+    });
+
+    it("returns an empty array for an empty facultyIds input, without querying", async () => {
+      expect(await getFacultyWithOutstandingReview(client, [])).toEqual([]);
     });
   });
 });

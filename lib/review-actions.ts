@@ -10,6 +10,24 @@ import type { AuthorRole } from "./types";
 
 const TAGGABLE_ROLES: readonly AuthorRole[] = ["chps_faculty", "grad_student", "undergrad_student", "external"];
 
+// Session 19 (§6b): the single definition of "this publication has already
+// been permanently archived into a roundup." Every function below that
+// writes to publications or publication_authors for a given publication
+// routes through this — one shared source of truth, not a rule re-typed
+// (and possibly drifted) in each function. The gap this closes is a stale
+// browser tab submitting an action minutes or hours after finalize ran, not
+// a sub-millisecond transaction race — so a plain pre-check round trip here
+// is exactly as safe as an inline atomic SQL guard would be, and far easier
+// for a future write to remember to call. Existence of the publication
+// itself is each caller's own concern (they already check ownership/scope
+// independently); a nonexistent id is reported as not-finalized here.
+export async function isPublicationFinalized(client: Client, publicationId: number): Promise<boolean> {
+  const row = (await client.execute({ sql: "SELECT roundup_id FROM publications WHERE id = ?", args: [publicationId] })).rows[0] as unknown as
+    | { roundup_id: number | null }
+    | undefined;
+  return row ? row.roundup_id !== null : false;
+}
+
 // §8b: "Tag co-author roles." Only ever touches a row that is (a) currently
 // unknown and (b) either genuinely unidentified (faculty_id NULL — the actual
 // "who is this person" case) or the reviewing faculty's OWN row (the
@@ -21,6 +39,10 @@ export async function setCoAuthorRole(client: Client, facultyId: number, publica
   if (!TAGGABLE_ROLES.includes(role)) {
     throw new Error(`"${role}" is not a plain-language role option — never expose "unknown" as a target`);
   }
+
+  const row = (await client.execute({ sql: "SELECT publication_id FROM publication_authors WHERE id = ?", args: [publicationAuthorId] }))
+    .rows[0] as unknown as { publication_id: number } | undefined;
+  if (!row || (await isPublicationFinalized(client, row.publication_id))) return false;
 
   const result = await client.execute({
     sql: `UPDATE publication_authors
@@ -45,6 +67,10 @@ export async function setCoAuthorRole(client: Client, facultyId: number, publica
 // being silently overwritten) while being distinguishable from a normal
 // confirmation, and gives COMMS a visible trail via report-rejected-attributions.ts.
 export async function rejectAuthorAttribution(client: Client, facultyId: number, publicationAuthorId: number): Promise<boolean> {
+  const row = (await client.execute({ sql: "SELECT publication_id FROM publication_authors WHERE id = ?", args: [publicationAuthorId] }))
+    .rows[0] as unknown as { publication_id: number } | undefined;
+  if (!row || (await isPublicationFinalized(client, row.publication_id))) return false;
+
   const result = await client.execute({
     sql: `UPDATE publication_authors
           SET faculty_id = NULL, role = 'unknown', role_set_by = ?, role_set_at = ?
@@ -72,6 +98,7 @@ export async function editCitation(client: Client, facultyId: number, publicatio
     args: [publicationId, facultyId],
   });
   if (linked.rows.length === 0) return false;
+  if (await isPublicationFinalized(client, publicationId)) return false;
 
   const current = (
     await client.execute({
@@ -139,14 +166,10 @@ export async function addMissingPublication(client: Client, facultyId: number, s
   const match = findMatch({ doi: submission.doi, title: submission.title }, existing);
 
   if (match.type === "MATCH") {
-    const pub = (
-      await client.execute({
-        sql: "SELECT roundup_id FROM publications WHERE id = ?",
-        args: [match.publicationId],
-      })
-    ).rows[0] as unknown as { roundup_id: number | null };
-
-    if (pub.roundup_id !== null) {
+    if (await isPublicationFinalized(client, match.publicationId)) {
+      const pub = (
+        await client.execute({ sql: "SELECT roundup_id FROM publications WHERE id = ?", args: [match.publicationId] })
+      ).rows[0] as unknown as { roundup_id: number | null };
       const roundup = (
         await client.execute({ sql: "SELECT label FROM roundups WHERE id = ?", args: [pub.roundup_id] })
       ).rows[0] as unknown as { label: string } | undefined;

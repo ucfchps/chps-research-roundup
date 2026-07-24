@@ -24,6 +24,7 @@
     "campaign:run": "tsx scripts/run-campaign.ts",
     "campaign:status": "tsx scripts/campaign-status.ts",
     "settings:email": "tsx scripts/settings-email.ts",
+    "roundup:unstamp": "tsx scripts/unstamp-roundup.ts",
     "test": "vitest run"
   },
   "dependencies": {
