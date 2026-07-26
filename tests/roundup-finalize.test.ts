@@ -117,17 +117,45 @@ describe("finalizeRoundup / unstampRoundup", () => {
       expect(byId.get(c)).toBeNull(); // untouched — stays eligible
     });
 
-    it("a zero-linked-author (zero-unit) checked publication still gets stamped, even though it renders in no unit section", async () => {
+    it("rejects a zero-linked-author (zero-unit) checked publication unless explicitly acknowledged (Session 22, Bug 2)", async () => {
       const orphan = await seedPublication({ title: "Orphan Paper", dateAdded: "2026-01-01" });
       await seedAuthor(orphan, null, "Somebody, S.", "external", 0);
 
-      const result = await finalizeRoundup(client, { ...BASE_PARAMS, publicationIds: [orphan] });
+      await expect(finalizeRoundup(client, { ...BASE_PARAMS, publicationIds: [orphan] })).rejects.toThrow(/no linked CHPS faculty author/);
+
+      const roundupsCount = (await client.execute("SELECT COUNT(*) as c FROM roundups")).rows[0] as unknown as { c: number };
+      expect(roundupsCount.c).toBe(0);
+      const row = (await client.execute({ sql: "SELECT roundup_id FROM publications WHERE id = ?", args: [orphan] })).rows[0] as unknown as {
+        roundup_id: number | null;
+      };
+      expect(row.roundup_id).toBeNull();
+    });
+
+    it("stamps a zero-unit publication when its id is explicitly listed in acknowledgedZeroUnitIds", async () => {
+      const orphan = await seedPublication({ title: "Orphan Paper", dateAdded: "2026-01-01" });
+      await seedAuthor(orphan, null, "Somebody, S.", "external", 0);
+
+      const result = await finalizeRoundup(client, { ...BASE_PARAMS, publicationIds: [orphan], acknowledgedZeroUnitIds: [orphan] });
 
       expect(result.pubCount).toBe(1);
       const row = (await client.execute({ sql: "SELECT roundup_id FROM publications WHERE id = ?", args: [orphan] })).rows[0] as unknown as {
         roundup_id: number | null;
       };
       expect(row.roundup_id).toBe(result.roundupId);
+    });
+
+    it("a real acknowledgment does not accidentally acknowledge OTHER zero-unit publications not explicitly listed", async () => {
+      const orphanA = await seedPublication({ title: "Orphan A", dateAdded: "2026-01-01" });
+      await seedAuthor(orphanA, null, "Somebody, S.", "external", 0);
+      const orphanB = await seedPublication({ title: "Orphan B", dateAdded: "2026-01-01" });
+      await seedAuthor(orphanB, null, "Someone, S.", "external", 0);
+
+      await expect(
+        finalizeRoundup(client, { ...BASE_PARAMS, publicationIds: [orphanA, orphanB], acknowledgedZeroUnitIds: [orphanA] })
+      ).rejects.toThrow(/Orphan B/);
+
+      const roundupsCount = (await client.execute("SELECT COUNT(*) as c FROM roundups")).rows[0] as unknown as { c: number };
+      expect(roundupsCount.c).toBe(0); // all-or-nothing — orphanA must not get stamped either
     });
   });
 

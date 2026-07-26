@@ -27,6 +27,7 @@ export interface SyncSummary {
   lowConfidenceCitation: number;
   notGoogleScholar: number;
   unparseableProfile: number;
+  nonFacultyClassificationImported: number;
   scholarIdCollisions: ScholarIdCollision[];
 }
 
@@ -47,17 +48,30 @@ const UPSERT_SQL = `
     last_synced_at = excluded.last_synced_at
 `;
 
-export async function syncRoster(client: Client, apiUrl: string): Promise<SyncSummary> {
+export async function syncRoster(client: Client, apiUrl: string, opts: { dryRun?: boolean } = {}): Promise<SyncSummary> {
+  const dryRun = opts.dryRun ?? false;
   const [people, classTermNames] = await Promise.all([
     fetchRoster(apiUrl),
     fetchClassTaxonomy(apiUrl),
   ]);
 
   const mapped = people.map((p) => mapPersonToFaculty(p, classTermNames));
-  const included = mapped.filter((f) => includeInRoster(f.classification, f.research_profile_url));
 
-  const existing = await client.execute("SELECT wp_id, scholar_user_id, display_name FROM faculty");
+  // Session 22 (§9 amendment): import EVERYONE WordPress returns. Gating the
+  // INSERT on includeInRoster() is what silently erased Kaileigh Tayek (CARD
+  // Program Manager, Staff-classified, no research profile URL) from
+  // `faculty` entirely — not active = 0, not present with unit NULL, just
+  // never a row at all, so matchAuthorNameToFaculty could never find her
+  // when she co-authored a real paper (Session 21). includeInRoster's §7
+  // rule ("worth actively tracking via Scholar/ORCID") is still meaningful —
+  // it now only drives the nonFacultyClassificationImported count below, an
+  // informational report, never a gate on existing in the table.
+  const included = mapped;
+  const nonFacultyClassification = mapped.filter((f) => !includeInRoster(f.classification, f.research_profile_url));
+
+  const existing = await client.execute("SELECT wp_id, scholar_user_id, display_name, active FROM faculty");
   const existingWpIds = new Set(existing.rows.map((r) => String(r.wp_id)));
+  const existingActiveWpIds = new Set(existing.rows.filter((r) => Number(r.active) === 1).map((r) => String(r.wp_id)));
 
   // scholar_user_id -> current owner. Seeded from the DB, then updated as we
   // process this run's batch — catches collisions against prior syncs AND
@@ -79,6 +93,7 @@ export async function syncRoster(client: Client, apiUrl: string): Promise<SyncSu
     lowConfidenceCitation: 0,
     notGoogleScholar: 0,
     unparseableProfile: 0,
+    nonFacultyClassificationImported: nonFacultyClassification.length,
     scholarIdCollisions: [],
   };
 
@@ -120,13 +135,15 @@ export async function syncRoster(client: Client, apiUrl: string): Promise<SyncSu
     }
 
     const isNew = !existingWpIds.has(f.wp_id);
-    await client.execute({
-      sql: UPSERT_SQL,
-      args: [
-        f.wp_id, f.slug, f.display_name, f.full_name, f.email, f.unit,
-        f.research_profile_url, scholarUserIdToStore, f.orcid, f.classification, now,
-      ],
-    });
+    if (!dryRun) {
+      await client.execute({
+        sql: UPSERT_SQL,
+        args: [
+          f.wp_id, f.slug, f.display_name, f.full_name, f.email, f.unit,
+          f.research_profile_url, scholarUserIdToStore, f.orcid, f.classification, now,
+        ],
+      });
+    }
 
     if (isNew) summary.inserted++;
     else summary.updated++;
@@ -134,8 +151,22 @@ export async function syncRoster(client: Client, apiUrl: string): Promise<SyncSu
 
   // Deactivate — never delete; publications reference faculty rows. Covers
   // both "vanished from WordPress" and "no longer meets the §7 roster filter."
+  //
+  // A wp_id = NULL row (a real person manually inserted with no matching
+  // WordPress record — e.g. Session 21's Tayek insert) can never be
+  // deactivated here for real: existingWpIds collapses every such row to the
+  // single JS string "null" (String(null)), but the actual UPDATE below
+  // binds that as a literal TEXT parameter, and SQL NULL never equals the
+  // string 'null' — the WHERE clause can't match, so it's always a
+  // real no-op. Skip it explicitly rather than let dry-run's Set-membership
+  // approximation report a deactivation the real path could never perform.
   for (const wpId of existingWpIds) {
+    if (wpId === "null") continue;
     if (includedWpIds.has(wpId)) continue;
+    if (dryRun) {
+      if (existingActiveWpIds.has(wpId)) summary.deactivated++;
+      continue;
+    }
     const result = await client.execute({
       sql: "UPDATE faculty SET active = 0, last_synced_at = ? WHERE wp_id = ? AND active = 1",
       args: [now, wpId],
@@ -156,6 +187,10 @@ function printSummary(summary: SyncSummary) {
   console.log(`${summary.lowConfidenceCitation} with a low-confidence citation name  (from toCitationName — needs a human)`);
   console.log(`${summary.notGoogleScholar} with a research profile that is not Google Scholar   (expected; not an error)`);
   console.log(`${summary.unparseableProfile} with an unparseable profile URL (bad directory link — needs fixing)`);
+  console.log(
+    `${summary.nonFacultyClassificationImported} imported under a non-faculty employment classification (e.g. Staff, ` +
+      `no research profile — the Tayek/CARD case) — informational only; does not affect bolding or role derivation (§6 ROLES)`
+  );
 
   if (summary.scholarIdCollisions.length > 0) {
     console.log(`\n${summary.scholarIdCollisions.length} scholar_user_id collision(s) — fix in WordPress:`);
@@ -169,6 +204,8 @@ function printSummary(summary: SyncSummary) {
 }
 
 async function main() {
+  const dryRun = process.argv.includes("--dry-run");
+
   const url = process.env.TURSO_DATABASE_URL;
   const authToken = process.env.TURSO_AUTH_TOKEN;
   const apiUrl = process.env.WP_DIRECTORY_API_URL;
@@ -180,7 +217,8 @@ async function main() {
   }
 
   const client = createClient({ url, authToken });
-  const summary = await syncRoster(client, apiUrl);
+  const summary = await syncRoster(client, apiUrl, { dryRun });
+  if (dryRun) console.log("DRY RUN — nothing written.\n");
   printSummary(summary);
 }
 

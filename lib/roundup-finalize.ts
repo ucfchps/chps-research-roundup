@@ -18,6 +18,15 @@ export interface FinalizeParams {
   intro: string;
   legendLine: string;
   publicationIds: number[];
+  // Session 22 (Bug 2): a publication with zero linked CHPS faculty authors
+  // derives no unit (§6a) and never appears in the generated HTML — stamping
+  // it anyway silently marks it "already posted" forever with nothing to
+  // show for it. Any such publication in publicationIds MUST also appear
+  // here, or finalize rejects the whole request (§15.11 — never default a
+  // gap to something that looks like a decision). This is the boundary that
+  // actually writes roundup_id, so it's enforced here regardless of what the
+  // UI does or doesn't check by default.
+  acknowledgedZeroUnitIds?: number[];
 }
 
 export interface FinalizeResult {
@@ -37,6 +46,16 @@ export async function finalizeRoundup(client: Client, params: FinalizeParams): P
 
   if (toInclude.length === 0) {
     throw new Error("No eligible publications in the selected set — nothing to finalize.");
+  }
+
+  const acknowledged = new Set(params.acknowledgedZeroUnitIds ?? []);
+  const unacknowledgedZeroUnit = toInclude.filter((r) => r.units.length === 0 && !acknowledged.has(r.publication.id));
+  if (unacknowledgedZeroUnit.length > 0) {
+    const list = unacknowledgedZeroUnit.map((r) => `#${r.publication.id} "${r.publication.title}"`).join(", ");
+    throw new Error(
+      `${unacknowledgedZeroUnit.length} publication(s) have no linked CHPS faculty author and would be marked posted without appearing in any ` +
+        `unit section: ${list}. Include their ids in acknowledgedZeroUnitIds to finalize them anyway.`
+    );
   }
 
   const html = buildExportHtml({ title: params.title, intro: params.intro, legend: params.legendLine, publications: toInclude });

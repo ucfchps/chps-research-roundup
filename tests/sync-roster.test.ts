@@ -65,7 +65,13 @@ const EDDINS = person({
   },
 });
 
-// CARD, Staff-only, no research profile — must be excluded by the §7 filter.
+// CARD, Staff-only, no research profile. Session 21 found this exact shape
+// (Kaileigh Tayek) silently absent from `faculty` entirely — not
+// active = 0, not present with unit NULL, just never inserted. §7's
+// Faculty/Leadership/has-profile rule still describes who's worth actively
+// tracking (see includeInRoster), but it must never be a condition for
+// EXISTING in the table at all — that's the only way matchAuthorNameToFaculty
+// can ever find her when she co-authors something (§9 amendment, Session 22).
 const CARD_STAFF = person({
   id: 25163, slug: "fabiola-gomez", title: { rendered: "Fabiola Gomez" },
   departments: [439], class: [467],
@@ -88,23 +94,30 @@ describe("syncRoster", () => {
     vi.unstubAllGlobals();
   });
 
-  it("inserts only roster-qualifying people (§7): Rovito and Eddins in, CARD Staff-only excluded", async () => {
+  it("imports EVERYONE WordPress returns, including CARD Staff-only with no research profile (§9 amendment, Session 22)", async () => {
     stubFetch([ROVITO, EDDINS, CARD_STAFF]);
 
     const summary = await syncRoster(client, API_URL);
 
     expect(summary.fetched).toBe(3);
-    expect(summary.included).toBe(2);
-    expect(summary.inserted).toBe(2);
+    expect(summary.included).toBe(3);
+    expect(summary.inserted).toBe(3);
     expect(summary.updated).toBe(0);
     expect(summary.deactivated).toBe(0);
+    expect(summary.nonFacultyClassificationImported).toBe(1);
 
-    const rows = await client.execute("SELECT wp_id, display_name, unit FROM faculty ORDER BY wp_id");
-    expect(rows.rows.map((r) => r.wp_id)).toEqual(["1163", "88001"]);
+    const rows = await client.execute("SELECT wp_id, display_name, unit, classification, active FROM faculty ORDER BY wp_id");
+    expect(rows.rows.map((r) => r.wp_id)).toEqual(["1163", "25163", "88001"]);
 
     const rovito = rows.rows.find((r) => r.wp_id === "1163")!;
     expect(rovito.display_name).toBe("Rovito, M.J.");
     expect(rovito.unit).toBe("Department of Health Sciences");
+
+    const cardStaff = rows.rows.find((r) => r.wp_id === "25163")!;
+    expect(cardStaff.display_name).toBe("Gomez, F.");
+    expect(cardStaff.classification).toBe("Staff");
+    expect(cardStaff.active).toBe(1);
+    expect(cardStaff.unit).toBe("Center for Autism and Related Disabilities");
   });
 
   it("is idempotent: a second run with identical data inserts nothing new and deactivates nothing", async () => {
@@ -238,5 +251,55 @@ describe("syncRoster", () => {
     const rows = await client.execute("SELECT wp_id, scholar_user_id FROM faculty ORDER BY wp_id");
     expect(rows.rows[0].scholar_user_id).toBe("SHARED_ID_AAAAJ");
     expect(rows.rows[1].scholar_user_id).toBeNull();
+  });
+
+  it("--dry-run reports the same summary (including nonFacultyClassificationImported) but writes nothing", async () => {
+    stubFetch([ROVITO, EDDINS, CARD_STAFF]);
+
+    const summary = await syncRoster(client, API_URL, { dryRun: true });
+
+    expect(summary.fetched).toBe(3);
+    expect(summary.inserted).toBe(3);
+    expect(summary.nonFacultyClassificationImported).toBe(1);
+
+    const count = await client.execute("SELECT COUNT(*) as n FROM faculty");
+    expect(count.rows[0].n).toBe(0);
+  });
+
+  it("--dry-run reports a deactivation without writing it", async () => {
+    stubFetch([ROVITO, EDDINS]);
+    await syncRoster(client, API_URL);
+
+    stubFetch([ROVITO]); // Eddins no longer present
+    const summary = await syncRoster(client, API_URL, { dryRun: true });
+
+    expect(summary.deactivated).toBe(1);
+
+    const eddins = await client.execute("SELECT active FROM faculty WHERE wp_id = '88001'");
+    expect(eddins.rows[0].active).toBe(1); // untouched — still active
+  });
+
+  // Regression: a manually-inserted faculty row with wp_id = NULL (e.g. a
+  // real person who couldn't be matched to a live WordPress record — see
+  // Session 21's Tayek insert) can never be deactivated by this loop for
+  // real: `UPDATE ... WHERE wp_id = ?` binds the JS string "null", and SQL
+  // NULL never equals the literal string "null". Both the real path and the
+  // dry-run approximation must agree with that — dry-run must not report a
+  // deactivation that a real run could never actually perform.
+  it("never reports (or performs) a deactivation for a wp_id = NULL row, in either mode", async () => {
+    await client.execute({
+      sql: `INSERT INTO faculty (wp_id, slug, display_name, active) VALUES (NULL, 'manual-insert', 'Manual, P.', 1)`,
+    });
+
+    stubFetch([ROVITO]);
+    const dryRunSummary = await syncRoster(client, API_URL, { dryRun: true });
+    expect(dryRunSummary.deactivated).toBe(0);
+
+    stubFetch([ROVITO]);
+    const realSummary = await syncRoster(client, API_URL);
+    expect(realSummary.deactivated).toBe(0);
+
+    const manual = await client.execute("SELECT active FROM faculty WHERE display_name = 'Manual, P.'");
+    expect(manual.rows[0].active).toBe(1); // still active — never touched
   });
 });

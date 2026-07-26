@@ -46,8 +46,16 @@ function nonEmpty(value: string | null | undefined): string | null {
 
 // §7 — do NOT filter on `class` alone. At least one active, publishing faculty
 // member is Leadership-only, and the entire CARD roster is classed Staff.
-// Self-healing: the moment anyone adds a research profile link, they enter the
-// roster regardless of classification.
+// Self-healing: the moment anyone adds a research profile link, they enter
+// this filter regardless of classification.
+//
+// Session 22 amendment: this is NO LONGER a gate on whether sync-roster
+// inserts a person into `faculty` at all — see scripts/sync-roster.ts. Using
+// it that way silently erased Kaileigh Tayek (CARD Program Manager, Staff,
+// no profile) from the table entirely (Session 21). It still answers a real
+// question — "is this person worth actively tracking via Scholar/ORCID" —
+// and sync-roster uses it only to report nonFacultyClassificationImported,
+// never to decide who exists in `faculty`.
 export function includeInRoster(
   classification: string | null,
   researchProfileUrl: string | null

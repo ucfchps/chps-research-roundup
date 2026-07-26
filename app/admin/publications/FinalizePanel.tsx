@@ -5,12 +5,21 @@
 // leaves it out of THIS pass — it stays eligible (roundup_id stays NULL)
 // and reappears next time. None of the three pre-flight warnings below
 // block finalize — they're informed-consent, not gates (§8c Tab 4).
+//
+// Session 22 (Bug 2, §15.11): the one exception is a zero-unit publication
+// (no linked CHPS faculty author, §6a) — it renders in no unit section at
+// all, so a checked-by-default box would silently mark it "posted" with
+// nothing to show for it. That default is exactly the "gap that looks like
+// a decision" §15.11 exists to prevent, so these default UNCHECKED, and
+// checking one requires a second, explicit confirmation (see toggle below).
+// The real guarantee lives server-side (lib/roundup-finalize.ts) — this is
+// the UX guard, not the enforcement boundary.
 import { useActionState, useState } from "react";
 import { formatCitation } from "@/lib/citation";
 import type { PublicationWithUnits } from "@/lib/publications";
 import type { OutstandingReviewer } from "@/lib/review";
 import { finalizeRoundupAction } from "./finalize-actions";
-import { initialFinalizeFormState } from "./finalize-shared";
+import { initialFinalizeFormState, defaultCheckedPublicationIds, zeroUnitPublications } from "./finalize-shared";
 import { DEFAULT_TITLE, DEFAULT_INTRO, DEFAULT_LEGEND } from "./ExportPanel";
 
 export function FinalizePanel({
@@ -24,7 +33,8 @@ export function FinalizePanel({
 }) {
   const [state, formAction, pending] = useActionState(finalizeRoundupAction, initialFinalizeFormState);
 
-  const [checked, setChecked] = useState<Set<number>>(new Set(results.map((r) => r.publication.id)));
+  const [checked, setChecked] = useState<Set<number>>(new Set(defaultCheckedPublicationIds(results)));
+  const [acknowledgedZeroUnit, setAcknowledgedZeroUnit] = useState<Set<number>>(new Set());
   const [title, setTitle] = useState(DEFAULT_TITLE);
   const [intro, setIntro] = useState(DEFAULT_INTRO);
   const [legend, setLegend] = useState(DEFAULT_LEGEND);
@@ -33,18 +43,41 @@ export function FinalizePanel({
   const [confirmText, setConfirmText] = useState("");
   const [showConfirm, setShowConfirm] = useState(false);
 
-  function toggle(id: number) {
-    setChecked((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  function toggle(r: PublicationWithUnits) {
+    const id = r.publication.id;
+    const isZeroUnit = r.units.length === 0;
+
+    if (checked.has(id)) {
+      setChecked((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      if (isZeroUnit) {
+        setAcknowledgedZeroUnit((prev) => {
+          const next = new Set(prev);
+          next.delete(id);
+          return next;
+        });
+      }
+      return;
+    }
+
+    if (isZeroUnit) {
+      const confirmed = window.confirm(
+        `"${r.publication.title}" has no linked CHPS faculty author and will not appear anywhere in the exported HTML. Mark it posted anyway?`
+      );
+      if (!confirmed) return;
+      setAcknowledgedZeroUnit((prev) => new Set(prev).add(id));
+    }
+
+    setChecked((prev) => new Set(prev).add(id));
   }
 
   const checkedResults = results.filter((r) => checked.has(r.publication.id));
   const unreviewedCoAuthorCount = checkedResults.filter((r) => !r.ready).length;
-  const zeroUnitCount = checkedResults.filter((r) => r.units.length === 0).length;
+  const zeroUnitResults = zeroUnitPublications(results);
+  const checkedZeroUnitResults = zeroUnitResults.filter((r) => checked.has(r.publication.id));
 
   const outstandingFaculty = new Map<number, string>();
   for (const r of checkedResults) {
@@ -68,6 +101,9 @@ export function FinalizePanel({
         </p>
 
         <input type="hidden" name="cutoffDate" value={cutoff} />
+        {[...acknowledgedZeroUnit].map((id) => (
+          <input key={id} type="hidden" name="acknowledgedZeroUnitIds" value={id} />
+        ))}
 
         <div className="flex flex-col gap-3 max-w-xl">
           <label className="text-sm flex flex-col gap-1">
@@ -131,7 +167,7 @@ export function FinalizePanel({
                   name="publicationIds"
                   value={r.publication.id}
                   checked={checked.has(r.publication.id)}
-                  onChange={() => toggle(r.publication.id)}
+                  onChange={() => toggle(r)}
                   className="mt-1"
                 />
                 <span
@@ -151,12 +187,35 @@ export function FinalizePanel({
               unreviewed co-authors.
             </p>
           )}
-          {zeroUnitCount > 0 && (
-            <p className="bg-[#FDEDEC] border border-[#F3C6C2] text-[#7A2E26] px-3.5 py-2 rounded-lg">
-              {zeroUnitCount} included publication{zeroUnitCount === 1 ? "" : "s"} {zeroUnitCount === 1 ? "has" : "have"} no linked CHPS faculty author and{" "}
-              {zeroUnitCount === 1 ? "belongs" : "belong"} to no unit — {zeroUnitCount === 1 ? "it" : "they"} will still be marked posted, but will not appear
-              in the exported HTML.
-            </p>
+          {zeroUnitResults.length > 0 && (
+            <div className="bg-[#FFF8E1] border border-[#F5E2A3] text-[#7A5D00] px-3.5 py-2 rounded-lg">
+              <p>
+                {zeroUnitResults.length} publication{zeroUnitResults.length === 1 ? "" : "s"} {zeroUnitResults.length === 1 ? "has" : "have"} no linked CHPS
+                faculty author and {zeroUnitResults.length === 1 ? "is" : "are"} excluded by default (won&apos;t appear in any unit section):
+              </p>
+              <ul className="mt-1 list-disc list-inside">
+                {zeroUnitResults.map((r) => (
+                  <li key={r.publication.id}>
+                    #{r.publication.id} — {r.publication.title}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+          {checkedZeroUnitResults.length > 0 && (
+            <div className="bg-[#FDEDEC] border border-[#F3C6C2] text-[#7A2E26] px-3.5 py-2 rounded-lg">
+              <p>
+                {checkedZeroUnitResults.length} checked publication{checkedZeroUnitResults.length === 1 ? "" : "s"} will be marked posted despite appearing
+                nowhere in the exported HTML (explicitly confirmed):
+              </p>
+              <ul className="mt-1 list-disc list-inside">
+                {checkedZeroUnitResults.map((r) => (
+                  <li key={r.publication.id}>
+                    #{r.publication.id} — {r.publication.title}
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
           {outstandingFaculty.size > 0 && (
             <div className="bg-[#F0F4FF] border border-[#C6D4F3] text-[#26377A] px-3.5 py-2 rounded-lg">

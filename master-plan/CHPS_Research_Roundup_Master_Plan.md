@@ -543,6 +543,48 @@ NOT roundup units — ignore, never guess a mapping for these:
 >
 > **Never guess a student role.** Ingest assigns `chps_faculty` or `unknown`. It never assigns `grad_student`, `undergrad_student`, or `external` on its own.
 
+> ### ⚠️ Open design question (Session 20): `chps_faculty` is doing double duty
+> `chps_faculty` currently means two things at once: *this person's unit counts toward §6a
+> derivation* and *bold this name*. The backfill acceptance test hit a real case where those
+> two meanings pull apart: a CARD staff member (Program Manager, not faculty) is the only
+> CHPS-affiliated author on the college's one CARD publication — the live post correctly
+> left her unbolded (she's staff, and the legend's convention is specifically "bolded names
+> denote CHPS **faculty**"), but with no other role available, linking her at all means
+> either bolding someone who isn't faculty, or leaving the paper unlinked to any unit and
+> letting the whole CARD section disappear.
+>
+> Session 20 resolved this pragmatically — link her as `chps_faculty` (bold, gets CARD
+> reproduced) — but that's a policy call standing in for a real model gap, not a fix. The
+> clean version is a fifth role, something like `chps_staff`: **derives a unit like
+> `chps_faculty` does, but never bolds.** That threads through §6 ROLES (this table),
+> `lib/citation.ts::formatAuthor` and `unitsForPublication`, and the review page's
+> plain-language role picker (§8b) — a contained change, not a rewrite, but a real one.
+> Revisit if COMMS says staff shouldn't render bold, or if another unit turns out to have
+> the same shape (a unit whose only "CHPS person" on a paper is staff, not faculty).
+
+> ### ⚠️ Open follow-up (Session 21): Chen, X.S.'s identity is unresolved — 5 real papers are excluded from the 2025 edition
+> Five 2025 publications (`development-and-validation-of-equations-to-estim`,
+> `a-social-engagement-technology-based-randomized`, `the-digital-displacement-on-everyday-activities`,
+> `the-use-of-portable-a-mode-ultrasound-in-appendi`, `loneliness-among-older-caregivers-in-the-califor`)
+> list "Chen, X.S." as their only CHPS-faculty author. A name match alone isn't identity
+> confirmation (§7), and independent verification (Crossref affiliation lookup) didn't
+> resolve which real CHPS faculty member — if any — this is, so Chen was deliberately left
+> `chps_faculty` with `faculty_id = NULL` rather than guessed. Because §6a unit derivation
+> requires a linked `faculty_id`, all five papers derive **zero units** and are excluded
+> from every section of the generated roundup (`lib/publications.ts::queryPublications`
+> still returns them as eligible/unready; `lib/roundup-export.ts::buildExportHtml` never
+> renders them, since it groups strictly by unit). The Session 21 operational backfill
+> (§13.24) explicitly finalized WITHOUT stamping these five, specifically so they remain
+> eligible for a future edition rather than being silently marked "already posted" while
+> never having been visibly published anywhere.
+>
+> **To close this out:** confirm Chen's real identity (or confirm they are not CHPS-affiliated
+> at all, in which case these five should be relinked to `external` instead of `chps_faculty`),
+> link the correct `faculty_id`, then include them in the next edition's backfill/ingest pass.
+> Until then, any pre-flight check before finalizing an edition should keep surfacing these
+> five by name (see `scripts/backfill-verify-production-2025.ts`'s §8c Tab 4 pre-flight
+> warning) rather than letting them disappear from view.
+
 ---
 
 ## 6a. ★ Units are DERIVED and MULTI-VALUED
@@ -895,6 +937,49 @@ per-person exception list to maintain.
 > profile link or its classification changes. **That must be surfaced loudly** in the coverage
 > report (§11) as "canonical unit with zero roster members" — not discovered later as an empty
 > section in a published post (§15.11).
+>
+> **Update (Session 22):** this rule is no longer a gate on whether `sync-roster` inserts a
+> person into `faculty` at all — see the tracked item immediately below. It still describes
+> who's worth actively tracking via Scholar/ORCID; it no longer decides who exists in the table.
+
+> ### 🔴 Tracked item (Session 22): CARD (and possibly other units) maintain a second,
+> ### unsynced staff roster outside `healthprofessions.ucf.edu` — an architectural gap, not a bug
+>
+> **This is organizational, not technical.** Nothing in `sync-roster`'s code can fix it — the
+> fix is getting CARD's real roster mirrored into the WordPress directory this system queries,
+> or standing up a second, explicit ingestion source for it. Do not mistake this for something
+> a future filter or parsing tweak resolves; Session 22's Bug 1 fix (stop silently dropping
+> Staff-classified `person` records) is complete and correctly scoped — this is a *different*
+> gap, one level up: some real CHPS-affiliated staff have no `person` record in
+> `healthprofessions.ucf.edu` at all, under any classification.
+>
+> **Confirmed, by name:** Kaileigh Tayek (CARD Program Manager — the person whose invisibility
+> forced this whole investigation in Session 21), Amanda Evans, and Camila Follaco. All three
+> appear as current, active staff on CARD's own site, **ucf-card.org** — a completely separate
+> web platform from `healthprofessions.ucf.edu` — but return zero results from
+> `/wp-json/wp/v2/person` under any slug, name search, or department filter (confirmed directly
+> against the live endpoint, Session 22). Tayek's own `/person/{slug}/` page on
+> `healthprofessions.ucf.edu`, once indexed by search engines, now 404s — her record isn't
+> merely misclassified, it doesn't exist there.
+>
+> **This list is almost certainly a lower bound, not a census.** Tayek surfaced only because she
+> co-authored a real paper that forced a by-hand investigation (Session 21); Evans and Follaco
+> were found only as a byproduct of cross-referencing one center's staff page against the WP
+> directory, not because anyone went looking for gaps systematically. **No other unit has been
+> checked.** If a lab site, a program's own page, or any other staff listing outside
+> `healthprofessions.ucf.edu` exists for Communication Sciences and Disorders, Social Work,
+> Kinesiology, or Health Sciences the same way it does for CARD, the same invisibility applies
+> there, silently, and nobody has looked.
+>
+> **The concrete failure mode, not just a data-completeness curiosity:** a CARD-affiliated (or
+> similarly situated) co-author on a *future* paper won't be recognized by
+> `matchAuthorNameToFaculty`, won't be bolded, and — per §6a's unit-derivation rule — their
+> paper derives **zero units** and silently drops from every section of the roundup, exactly
+> like Chen's 5 papers (§6 ROLES) and exactly like Tayek's own paper did before Session 21's
+> by-hand catch. Nothing in this system will flag it as a gap; it will just look like a paper
+> that was never posted, and someone will have to notice its absence the same expensive way
+> Tayek's case was noticed, unless this is resolved organizationally or a future session adds an
+> explicit second ingestion source.
 
 ---
 
