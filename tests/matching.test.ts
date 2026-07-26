@@ -7,6 +7,7 @@ import {
   isUcfAffiliation,
   mergeAuthors,
   mergeMetadata,
+  normalizeAuthorName,
   normalizeDoi,
   normalizeTitle,
   type AuthorInput,
@@ -41,6 +42,46 @@ describe("normalizeTitle — real-world variants", () => {
 
   it("collapses whitespace and lowercases", () => {
     expect(normalizeTitle("  Some   TITLE  ")).toBe("some title");
+  });
+});
+
+// Session 21 (§13.24 operational backfill): a real production regression —
+// mergeAuthors used normalizeTitle (which only COLLAPSES whitespace, never
+// removes it) as its author-dedup key. Two real, equally valid formats for
+// the same compound-initial name ("Lubiak, S.M." vs "Lubiak, S. M.") differ
+// by exactly one internal space, so they normalized to DIFFERENT strings
+// and a real reconcile run appended 11 already-existing authors as
+// duplicates on one publication alone. Author names, unlike titles, have no
+// initial-spacing convention worth preserving — internal whitespace within
+// a name is never semantically meaningful the way it is in a title.
+describe("normalizeAuthorName — internal whitespace collapses to nothing (unlike normalizeTitle)", () => {
+  it("'Lubiak, S.M.' and 'Lubiak, S. M.' normalize the same", () => {
+    expect(normalizeAuthorName("Lubiak, S.M.")).toBe(normalizeAuthorName("Lubiak, S. M."));
+  });
+
+  it("still normalizes case and diacritics like normalizeTitle does", () => {
+    expect(normalizeAuthorName("ÇINAR, B.")).toBe(normalizeAuthorName("Cinar, B."));
+  });
+
+  it("different people (different initials) still normalize differently", () => {
+    expect(normalizeAuthorName("Yilmaz, Y.")).not.toBe(normalizeAuthorName("Yilmaz, G."));
+  });
+
+  // Real same-surname-different-person cases this exact session hit
+  // (Session 20's Anderson name-collision split; Session 20's two distinct
+  // Lees; Session 21's still-unresolved Chen ambiguity) — the fix must
+  // never treat any of these as the same person just because collapsing
+  // internal whitespace made them shorter strings to compare.
+  it("Anderson, A.W. (Kinesiology) and Anderson, K.M. (Social Work) — a real name collision — stay distinct", () => {
+    expect(normalizeAuthorName("Anderson, A.W.")).not.toBe(normalizeAuthorName("Anderson, K.M."));
+  });
+
+  it("Lee, Y.H. and Lee, E. — two distinct real Health Sciences faculty — stay distinct", () => {
+    expect(normalizeAuthorName("Lee, Y.H.")).not.toBe(normalizeAuthorName("Lee, E."));
+  });
+
+  it("Chen, X.S. (fixture) and Chen, S. (production roster) — the still-unresolved ambiguous case — stay distinct", () => {
+    expect(normalizeAuthorName("Chen, X.S.")).not.toBe(normalizeAuthorName("Chen, S."));
   });
 });
 
@@ -335,6 +376,111 @@ describe("mergeAuthors — §7 author merge rules", () => {
 
     expect(merged).toHaveLength(1); // "New Person" never added from a Scholar source
     expect(merged[0].role).toBe("chps_faculty"); // and the existing entry is untouched
+  });
+
+  // Session 21 (§13.24 operational backfill): 'manual' incoming already means
+  // "passed a COMMS review gate" everywhere else in this codebase (§8c Tab 1
+  // approvals) — a human-verified backfill reconcile is the same shape of
+  // trust. Every OTHER source (crossref/pubmed/orcid/scholar) must keep the
+  // narrower chps_faculty-only upgrade, since §15.4 forbids ingest from ever
+  // assigning a student role on its own.
+  describe("'manual' incoming source: the human-verified-backfill upgrade path", () => {
+    it("upgrades unknown -> grad_student from a 'manual' incoming source", () => {
+      const existing = [{ ...author({ name: "Torralba, L.", role: "unknown", position: 2 }), id: 1 }];
+      const incoming: AuthorInput[] = [author({ name: "Torralba, L.", role: "grad_student", role_set_by: "manual:backfill-2025", position: 2 })];
+
+      const merged = mergeAuthors(existing, incoming, "manual");
+
+      expect(merged[0].role).toBe("grad_student");
+      expect(merged[0].role_set_by).toBe("manual:backfill-2025");
+    });
+
+    it("upgrades unknown -> undergrad_student from a 'manual' incoming source", () => {
+      const existing = [{ ...author({ name: "Sukhu, B.", role: "unknown", position: 0 }), id: 1 }];
+      const incoming: AuthorInput[] = [author({ name: "Sukhu, B.", role: "undergrad_student", role_set_by: "manual:backfill-2025", position: 0 })];
+
+      const merged = mergeAuthors(existing, incoming, "manual");
+
+      expect(merged[0].role).toBe("undergrad_student");
+    });
+
+    it("upgrades unknown -> external from a 'manual' incoming source (a human confirming 'not CHPS', not just 'not yet reviewed')", () => {
+      const existing = [{ ...author({ name: "Garcia, J.", role: "unknown", position: 1 }), id: 1 }];
+      const incoming: AuthorInput[] = [author({ name: "Garcia, J.", role: "external", role_set_by: "manual:backfill-2025", position: 1 })];
+
+      const merged = mergeAuthors(existing, incoming, "manual");
+
+      expect(merged[0].role).toBe("external");
+    });
+
+    it("the SAME grad_student incoming role from crossref/pubmed/orcid/scholar does NOT upgrade unknown (§15.4: ingest never assigns student roles)", () => {
+      for (const source of ["crossref", "pubmed", "orcid", "scholar"] as const) {
+        const existing = [{ ...author({ name: "Torralba, L.", role: "unknown", position: 0 }), id: 1 }];
+        const incoming: AuthorInput[] = [author({ name: "Torralba, L.", role: "grad_student", role_set_by: "somehow-set", position: 0 })];
+
+        const merged = mergeAuthors(existing, incoming, source);
+
+        expect(merged[0].role, `source=${source}`).toBe("unknown");
+      }
+    });
+
+    it("a human-set role (faculty:/comms:) still survives a 'manual' merge — the isHumanSet guard applies regardless of incoming source", () => {
+      const existing = [{ ...author({ name: "Zhu, Y.", role: "unknown", role_set_by: "comms:jsmith", position: 0 }), id: 1 }];
+      const incoming: AuthorInput[] = [author({ name: "Zhu, Y.", role: "chps_faculty", faculty_id: 99, role_set_by: "manual:backfill-2025", position: 0 })];
+
+      const merged = mergeAuthors(existing, incoming, "manual");
+
+      expect(merged[0].role).toBe("unknown");
+      expect(merged[0].role_set_by).toBe("comms:jsmith");
+      expect(merged[0].faculty_id).toBeNull();
+    });
+
+    it("a 'manual' source can still add a genuinely new author (unlike scholar)", () => {
+      const existing = [{ ...author({ name: "Zraick, R.I.", role: "chps_faculty", faculty_id: 1, position: 0 }), id: 1 }];
+      const incoming: AuthorInput[] = [
+        author({ name: "Zraick, R.I.", role: "chps_faculty", faculty_id: 1, position: 0 }),
+        author({ name: "New Person, X.", role: "grad_student", role_set_by: "manual:backfill-2025", position: 1 }),
+      ];
+
+      const merged = mergeAuthors(existing, incoming, "manual");
+
+      expect(merged).toHaveLength(2);
+      expect(merged.find((a) => a.name === "New Person, X.")?.role).toBe("grad_student");
+    });
+
+    // The real production regression this session found: an existing
+    // author formatted "Surname, X.M." (no internal space) must be
+    // recognized as the SAME person as an incoming "Surname, X. M." (with a
+    // space) — not appended as a duplicate. A real reconcile run hit this
+    // exact shape and doubled an 11-author list to 22 before the fix below.
+    it("does not duplicate an author whose only difference from an existing row is internal initial spacing", () => {
+      const existing = [{ ...author({ name: "Lubiak, S.M.", role: "unknown", position: 0 }), id: 1 }];
+      const incoming: AuthorInput[] = [author({ name: "Lubiak, S. M.", role: "grad_student", role_set_by: "manual:backfill-2025", position: 0 })];
+
+      const merged = mergeAuthors(existing, incoming, "manual");
+
+      expect(merged).toHaveLength(1); // not 2 — same person, not a duplicate
+      expect(merged[0].role).toBe("grad_student");
+    });
+
+    // The other half of the fix's safety: it must not OVER-correct and
+    // start merging genuinely different people who happen to share a
+    // surname. Same three real cases as the normalizeAuthorName tests
+    // above, exercised at the mergeAuthors level this time — an existing
+    // "Anderson, A.W." row must stay untouched, and the incoming
+    // "Anderson, K.M." must land as its own separate, new author.
+    it("a real same-surname, different-person case (the Anderson collision) is never merged into one row", () => {
+      const existing = [{ ...author({ name: "Anderson, A.W.", role: "chps_faculty", faculty_id: 10, role_set_by: "ingest", position: 0 }), id: 1 }];
+      const incoming: AuthorInput[] = [author({ name: "Anderson, K.M.", role: "chps_faculty", faculty_id: 20, role_set_by: "manual:backfill-2025", position: 0 })];
+
+      const merged = mergeAuthors(existing, incoming, "manual");
+
+      expect(merged).toHaveLength(2);
+      const original = merged.find((a) => a.name === "Anderson, A.W.")!;
+      expect(original.faculty_id).toBe(10); // untouched, not overwritten by the incoming K.M. link
+      const added = merged.find((a) => a.name === "Anderson, K.M.")!;
+      expect(added.faculty_id).toBe(20);
+    });
   });
 });
 

@@ -75,6 +75,18 @@ export function findMatch(candidate: PublicationCandidate, existing: MatchableEx
   return { type: "NEEDS_FUZZY" };
 }
 
+// Session 21 (§13.24 operational backfill): a real production regression —
+// mergeAuthors's own dedup key used to be normalizeTitle(name), which only
+// COLLAPSES whitespace, never removes it. Two equally valid formats of the
+// same compound-initial name ("Lubiak, S.M." vs "Lubiak, S. M.") differ by
+// exactly one internal space and normalized to DIFFERENT strings — a real
+// reconcile run appended 11 already-existing authors as duplicates on one
+// publication alone before this fix. Unlike a title, a name's internal
+// whitespace is never semantically meaningful, so this strips it entirely.
+export function normalizeAuthorName(name: string): string {
+  return normalizeTitle(name).replace(/\s+/g, "");
+}
+
 export interface AuthorInput {
   name: string;
   faculty_id: number | null;
@@ -96,7 +108,11 @@ export interface MergedAuthor extends AuthorInput {
   id: number | null; // null = not yet persisted — caller must insert
 }
 
-function isHumanSet(roleSetBy: string | null): boolean {
+// Exported so callers outside the merge itself (e.g. a reconcile script
+// reporting WHY a fixture-vs-production disagreement was left alone) can
+// ask the same question mergeAuthors already answers internally, rather
+// than re-deriving the "faculty:"/"comms:" prefix check a second place.
+export function isHumanSet(roleSetBy: string | null): boolean {
   return roleSetBy !== null && (roleSetBy.startsWith("faculty:") || roleSetBy.startsWith("comms:"));
 }
 
@@ -111,19 +127,31 @@ export function mergeAuthors(
   incomingSource: PublicationSource
 ): MergedAuthor[] {
   const merged: MergedAuthor[] = existing.map((a) => ({ ...a }));
-  const byName = new Map(merged.map((a) => [normalizeTitle(a.name), a]));
+  const byName = new Map(merged.map((a) => [normalizeAuthorName(a.name), a]));
 
   for (const inAuthor of incoming) {
-    const key = normalizeTitle(inAuthor.name);
+    const key = normalizeAuthorName(inAuthor.name);
     const match = byName.get(key);
 
     if (match) {
       if (isHumanSet(match.role_set_by)) continue; // never touch — full stop
 
-      // Only ever upgrade unknown -> chps_faculty. Ingest never assigns
-      // grad_student/undergrad_student/external, so that's the only upgrade
-      // machine data can offer, and a known role never gets downgraded.
-      if (match.role === "unknown" && inAuthor.role === "chps_faculty") {
+      // 'manual' already means "passed a COMMS review gate" everywhere else
+      // in this codebase (§8c Tab 1 approvals) — a human-verified backfill
+      // reconcile (§13.24) is that same shape of trust, so it may set ANY
+      // role, not just chps_faculty (that's the whole point: student status
+      // has no machine-readable source and must come from a human, §8b).
+      // Every other source keeps the narrower upgrade below — ingest must
+      // never assign a student role on its own (§15.4).
+      if (match.role === "unknown" && incomingSource === "manual") {
+        match.role = inAuthor.role;
+        match.faculty_id = inAuthor.faculty_id;
+        match.role_set_by = inAuthor.role_set_by;
+        match.role_set_at = inAuthor.role_set_at;
+      } else if (match.role === "unknown" && inAuthor.role === "chps_faculty") {
+        // Only ever upgrade unknown -> chps_faculty. Ingest never assigns
+        // grad_student/undergrad_student/external, so that's the only
+        // upgrade machine data can offer, and a known role never downgrades.
         match.role = "chps_faculty";
         match.faculty_id = inAuthor.faculty_id;
         match.role_set_by = inAuthor.role_set_by;

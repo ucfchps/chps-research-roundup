@@ -25,6 +25,8 @@
     "campaign:status": "tsx scripts/campaign-status.ts",
     "settings:email": "tsx scripts/settings-email.ts",
     "roundup:unstamp": "tsx scripts/unstamp-roundup.ts",
+    "backfill:test": "tsx scripts/backfill-2025.ts",
+    "backup:db": "tsx scripts/backup-db.ts",
     "test": "vitest run"
   },
   "dependencies": {

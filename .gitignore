@@ -13,6 +13,14 @@
 # testing
 /coverage
 
+# backfill acceptance test (§13.24) — a throwaway, clean-room-only scratch DB.
+# Never the production database; safe to delete and re-create at any time.
+/.scratch
+
+# Session 21: full production DB dumps taken before the operational backfill.
+# Contains real faculty PII (email addresses) — never committed.
+/backups
+
 # next.js
 /.next/
 /out/
