@@ -998,6 +998,14 @@ per-person exception list to maintain.
 > Tayek's case was noticed, unless this is resolved organizationally or a future session adds an
 > explicit second ingestion source.
 
+> ### 📌 Decision: ucf-card.org is out of scope as a data source — Tayek's row is a documented, one-off exception, not a precedent
+>
+> **`healthprofessions.ucf.edu`'s `/wp-json/wp/v2/person` is the sole roster source, by deliberate decision.** ucf-card.org (or any other unit's own site) will not be synced, integrated, or polled as a second roster source. This is final — not a gap left for a future session to close, and the tracked item above documents the shape of the gap without proposing to close it this way.
+>
+> **This creates one standing exception, and only one.** Kaileigh Tayek's `faculty` row (Session 21/22) was not justified by any directory match — she is confirmed absent from the WordPress directory (404 on her expected profile page, absent from a full 228-record scan, under any name search or department filter). Her row exists because her CHPS employment and her authorship on a real, published paper were independently verified by hand. Removing her row would reopen the CARD zero-unit case Session 21 spent real effort diagnosing, for a real author whose paper would otherwise silently derive zero units and vanish from the roundup — so it stays.
+>
+> **This is not a precedent.** No other non-directory person gets added to `faculty` on the strength of "someone found them on an external site." Tayek's row required independently verifying both her employment *and* her authorship by hand, with explicit sign-off, precisely because the directory could not do that verification for her. Any future case with the same shape needs the same two-part independent verification and the same explicit sign-off — not an assumption that the Tayek precedent already covers it.
+
 ---
 
 ## 10. AI abstraction layer (required, not optional)
