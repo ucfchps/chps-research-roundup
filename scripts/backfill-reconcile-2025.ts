@@ -43,12 +43,14 @@ const ROLE_SET_BY = "manual:backfill-2025";
 const LINK_NAME_OVERRIDES: Record<string, string> = {
   "Starling-Smith, J. M.": "Renziehausen, J.",
   "Dawson, N.": "Loughran, N.D.",
-  // Session 20 used Crossref's byline spelling ("Gurnurkar") for the printed
-  // citation on the Brazendale paper; the roster's own historical spelling
-  // (now inserted as a departed faculty row, Session 21) is "Gurnukar" —
-  // same person, two spellings, neither wrong so much as two different
-  // sources of truth (publisher byline vs. institutional record).
-  "Gurnurkar, S.": "Gurnukar, S.",
+  // Gurnurkar, S. (production faculty id=133) no longer needs an override here.
+  // Session 21 inserted her production row misspelled ("Gurnukar") and
+  // mischaracterized her as having left UCF; both were wrong and have since
+  // been corrected in production. She moved from CHPS to the UCF College of
+  // Medicine — still UCF-employed, just no longer CHPS faculty. `active = 0`
+  // reflects "no longer CHPS," not "left UCF." Production's display_name is
+  // now "Gurnurkar, S.", matching the fixture's spelling directly, so
+  // matchAuthorNameToFaculty links her with no lookup-name substitution.
   // Xiayu Summer Chen (production faculty id=8, School of Social Work) — the
   // directory and sync-roster both did their job; her WordPress profile's
   // profile_F_name field is simply "Summer" with no second initial captured
