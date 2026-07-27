@@ -17,7 +17,7 @@ function NavIcon({ children }: { children: ReactNode }) {
   );
 }
 
-type ActiveTab = "publications" | "archive" | "needs-metadata";
+type ActiveTab = "publications" | "archive" | "needs-metadata" | "pending-submissions";
 
 const NAV_ITEMS: Array<{ key: ActiveTab; href: string; label: string; icon: ReactNode }> = [
   {
@@ -53,10 +53,9 @@ const NAV_ITEMS: Array<{ key: ActiveTab; href: string; label: string; icon: Reac
       </>
     ),
   },
-];
-
-const FUTURE_NAV_ITEMS: Array<{ label: string; icon: ReactNode }> = [
   {
+    key: "pending-submissions",
+    href: "/admin/pending-submissions",
     label: "Pending submissions",
     icon: (
       <>
@@ -65,6 +64,9 @@ const FUTURE_NAV_ITEMS: Array<{ label: string; icon: ReactNode }> = [
       </>
     ),
   },
+];
+
+const FUTURE_NAV_ITEMS: Array<{ label: string; icon: ReactNode }> = [
   {
     label: "Review campaigns",
     icon: (
