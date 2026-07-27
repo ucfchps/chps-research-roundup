@@ -67,9 +67,23 @@ describe("getAccessToken", () => {
   });
 
   it("throws GmailUnavailableError on a 500 after exhausting retries", async () => {
+    // Fake timers: no retry-after header here, so lib/http.ts::fetchWithRetry
+    // falls through to real exponential backoff (500*2^attempt, x3 waits,
+    // ~3.5-5.25s with jitter) — that range already exceeds Vitest's 5000ms
+    // default on unlucky jitter alone, with zero contention required. This
+    // was the actual cause of an intermittent "Test timed out in 5000ms"
+    // failure previously misattributed to tests/backfill-seed.test.ts's
+    // unrelated (and separately fixed) flake. vi.runAllTimersAsync() walks
+    // the real retry loop's chained setTimeout calls without waiting in
+    // real time — same assertions, near-instant and no longer jitter-prone.
+    vi.useFakeTimers();
     vi.mocked(fetch).mockResolvedValue(new Response("err", { status: 500 }));
 
-    await expect(getAccessToken()).rejects.toBeInstanceOf(GmailUnavailableError);
+    const assertion = expect(getAccessToken()).rejects.toBeInstanceOf(GmailUnavailableError);
+    await vi.runAllTimersAsync();
+    await assertion;
+
+    vi.useRealTimers();
   });
 });
 

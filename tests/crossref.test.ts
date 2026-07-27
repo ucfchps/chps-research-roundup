@@ -345,9 +345,19 @@ describe("resolveByTitle — distinguishing 'not found' from 'Crossref is down'"
   });
 
   it("throws CrossrefUnavailableError on a 500 (never returns null)", async () => {
+    // Fake timers — no retry-after header, so fetchWithRetry's real
+    // exponential backoff (~3.5-5.25s across 3 waits) runs for real
+    // otherwise, close enough to Vitest's 5000ms default to occasionally
+    // time out on jitter alone. See tests/gmail.test.ts's identical fix for
+    // the full mechanism.
+    vi.useFakeTimers();
     vi.mocked(fetch).mockResolvedValue(new Response("server error", { status: 500 }));
 
-    await expect(resolveByTitle("Anything")).rejects.toBeInstanceOf(CrossrefUnavailableError);
+    const assertion = expect(resolveByTitle("Anything")).rejects.toBeInstanceOf(CrossrefUnavailableError);
+    await vi.runAllTimersAsync();
+    await assertion;
+
+    vi.useRealTimers();
   });
 
   it("throws CrossrefUnavailableError on a 429 past the retry budget (never returns null)", async () => {
@@ -393,9 +403,16 @@ describe("resolveByDoi", () => {
   });
 
   it("throws CrossrefUnavailableError on a 500", async () => {
+    // Fake timers — same real-backoff mechanism as resolveByTitle's own 500
+    // test above; see tests/gmail.test.ts for the full write-up.
+    vi.useFakeTimers();
     vi.mocked(fetch).mockResolvedValue(new Response("server error", { status: 500 }));
 
-    await expect(resolveByDoi("10.5555/whatever")).rejects.toBeInstanceOf(CrossrefUnavailableError);
+    const assertion = expect(resolveByDoi("10.5555/whatever")).rejects.toBeInstanceOf(CrossrefUnavailableError);
+    await vi.runAllTimersAsync();
+    await assertion;
+
+    vi.useRealTimers();
   });
 
   it("normalizes DOI casing/prefix so both forms resolve to the same result", async () => {

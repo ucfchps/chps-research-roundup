@@ -556,28 +556,38 @@ describe("runIngestCrossref — integration", () => {
     expect(authors.rows).toEqual([{ faculty_id: facultyId, role: "unknown", role_set_by: "ingest:unconfirmed_name_match" }]);
   });
 
-  it(
-    "a CrossrefUnavailableError from one faculty member's query doesn't abort the loop — the run continues and reports the rest normally",
-    async () => {
-      await seedFaculty("1", "Zraick, R.I.", "Richard I. Zraick");
-      await seedFaculty("2", "Second, A.", "Alice Second");
+  it("a CrossrefUnavailableError from one faculty member's query doesn't abort the loop — the run continues and reports the rest normally", async () => {
+    // Fake timers, not a longer timeout. This used to carry an explicit
+    // 15000ms override with a comment naming the exact cause (fetchWithRetry's
+    // real ~3.5-5s backoff on Richard's 500) — a correct diagnosis at the
+    // time, but a band-aid: it hid the real-time cost instead of removing
+    // it, and did nothing for the same cost surfacing elsewhere (it did,
+    // intermittently, in tests/gmail.test.ts and tests/crossref.test.ts,
+    // misattributed each time to an unrelated flake). Same structural fix
+    // as those: vi.runAllTimersAsync() walks the retry loop without
+    // spending real wall-clock time, so the default timeout is enough.
+    vi.useFakeTimers();
+    await seedFaculty("1", "Zraick, R.I.", "Richard I. Zraick");
+    await seedFaculty("2", "Second, A.", "Alice Second");
 
-      stubFetch({
-        "Richard I. Zraick": () => new Response("server error", { status: 500 }),
-        "Alice Second": () => searchResponse([crossrefItem({ doi: "10.1234/alice-paper", title: "Alice's Paper", authors: [{ given: "Alice", family: "Second" }] })]),
-      });
+    stubFetch({
+      "Richard I. Zraick": () => new Response("server error", { status: 500 }),
+      "Alice Second": () => searchResponse([crossrefItem({ doi: "10.1234/alice-paper", title: "Alice's Paper", authors: [{ given: "Alice", family: "Second" }] })]),
+    });
 
-      const summary = await runIngestCrossref(client, { dryRun: false, facultyWpId: null });
+    const summaryPromise = runIngestCrossref(client, { dryRun: false, facultyWpId: null });
+    await vi.runAllTimersAsync();
+    const summary = await summaryPromise;
 
-      expect(summary.facultySwept).toBe(2);
-      expect(summary.skippedFaculty).toEqual([{ wpId: "1", displayName: "Zraick, R.I.", error: expect.any(String) }]);
-      // Alice's candidate still got processed normally despite Richard's outage.
-      expect(summary.candidatesSeen).toBe(1);
-      expect(summary.insertedNew).toBe(1);
+    expect(summary.facultySwept).toBe(2);
+    expect(summary.skippedFaculty).toEqual([{ wpId: "1", displayName: "Zraick, R.I.", error: expect.any(String) }]);
+    // Alice's candidate still got processed normally despite Richard's outage.
+    expect(summary.candidatesSeen).toBe(1);
+    expect(summary.insertedNew).toBe(1);
 
-      const pubs = await client.execute("SELECT doi FROM publications");
-      expect(pubs.rows).toEqual([{ doi: "10.1234/alice-paper" }]);
-    },
-    15000 // the 500 exhausts fetchWithRetry's real backoff budget (~3.5-5s), same cost as tests/crossref.test.ts's own retry-exhaustion tests
-  );
+    const pubs = await client.execute("SELECT doi FROM publications");
+    expect(pubs.rows).toEqual([{ doi: "10.1234/alice-paper" }]);
+
+    vi.useRealTimers();
+  });
 });
