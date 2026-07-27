@@ -601,6 +601,14 @@ NOT roundup units — ignore, never guess a mapping for these:
 > alias mechanism (so a name-form correction like this one applies to live ingestion, not just
 > one backfill script) or a WordPress data fix (adding "Xiayu" to her directory profile). No
 > implementation decision has been made between these two.
+>
+> **Chen backfill link (2026-07-27):** Chen's 5 backfilled 2025 publications (#2060, #2061,
+> #2062, #2544, #2549) were linked to her faculty row (id=8) via the `LINK_NAME_OVERRIDES`
+> name-form alias in `scripts/backfill-reconcile-2025.ts` (committed `27ae20c`). This was a
+> production data write against remote Turso, not a code change — no corresponding file
+> commit. All 5 now derive `["School of Social Work"]` and are eligible for a future roundup.
+> The durable question — how Chen's future papers get linked, since WordPress doesn't capture
+> her first name in a queryable field — remains open.
 
 ---
 
