@@ -3,7 +3,7 @@ import { client } from "@/lib/db";
 import { requireAdminSession } from "../session";
 import { listRoundups } from "@/lib/roundup-finalize";
 import { Sidebar } from "../Sidebar";
-import { ArchivePanel } from "./ArchivePanel";
+import { ArchivePanel, type UnstampBanner } from "./ArchivePanel";
 import { archivo, inter, jetbrainsMono } from "../fonts";
 
 export const metadata: Metadata = {
@@ -12,11 +12,25 @@ export const metadata: Metadata = {
 
 // §8c Tab 5: read-only by default — listRoundups is a SELECT, nothing here
 // writes. The only write on this whole route is the explicit, confirmed
-// un-stamp action inside ArchivePanel (Session 24).
-export default async function ArchivePage() {
+// un-stamp action (unstamp-actions.ts).
+//
+// The success banner is derived from ?reversed=&count=&label= rather than
+// client state: unstampAction redirects here on success instead of
+// returning state, specifically so the confirmation doesn't depend on a
+// client component surviving its own reversal — see unstamp-actions.ts for
+// the failure mode that forced this.
+export default async function ArchivePage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
   await requireAdminSession();
 
+  const sp = await searchParams;
   const roundups = await listRoundups(client);
+
+  const reversedId = typeof sp.reversed === "string" ? Number(sp.reversed) : NaN;
+  const reversedCount = typeof sp.count === "string" ? Number(sp.count) : NaN;
+  const banner: UnstampBanner | null =
+    Number.isFinite(reversedId) && Number.isFinite(reversedCount)
+      ? { roundupId: reversedId, count: reversedCount, label: typeof sp.label === "string" ? sp.label : null }
+      : null;
 
   return (
     <div className={`flex min-h-screen ${inter.variable} ${archivo.variable} ${jetbrainsMono.variable}`} style={{ fontFamily: "var(--font-inter)" }}>
@@ -31,7 +45,7 @@ export default async function ArchivePage() {
           Publications tab.
         </p>
 
-        <ArchivePanel roundups={roundups} />
+        <ArchivePanel roundups={roundups} banner={banner} />
       </main>
     </div>
   );

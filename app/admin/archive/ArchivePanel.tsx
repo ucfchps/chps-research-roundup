@@ -6,16 +6,22 @@
 // same friction as finalize (FinalizePanel.tsx) — a confirm step with the
 // live dry-run result on screen and a type-the-label-back gate — because it
 // reverses the one irreversible action in the system.
-import { useActionState, useEffect, useState, useTransition } from "react";
+import { useActionState, useState, useTransition } from "react";
 import type { RoundupListEntry, UnstampSummary } from "@/lib/roundup-finalize";
 import { dryRunUnstampAction, unstampAction } from "./unstamp-actions";
 import { initialUnstampFormState } from "./unstamp-shared";
+
+export interface UnstampBanner {
+  roundupId: number;
+  count: number;
+  label: string | null;
+}
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
 }
 
-function EditionCard({ roundup, onUnstamped }: { roundup: RoundupListEntry; onUnstamped: (summary: UnstampSummary) => void }) {
+function EditionCard({ roundup }: { roundup: RoundupListEntry }) {
   const [viewing, setViewing] = useState(false);
   const [tab, setTab] = useState<"preview" | "source">("preview");
   const [copied, setCopied] = useState(false);
@@ -25,12 +31,10 @@ function EditionCard({ roundup, onUnstamped }: { roundup: RoundupListEntry; onUn
   const [dryRunPending, startDryRun] = useTransition();
   const [confirmText, setConfirmText] = useState("");
 
+  // On success this redirects to /admin/archive?reversed=... instead of
+  // returning state — see unstamp-actions.ts. `state` here only ever
+  // carries a validation error; there's no success branch to read.
   const [state, formAction, pending] = useActionState(unstampAction, initialUnstampFormState);
-
-  useEffect(() => {
-    if (state.success && !state.success.noop) onUnstamped(state.success);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.success]);
 
   function handleCopy() {
     navigator.clipboard.writeText(roundup.html);
@@ -204,22 +208,20 @@ function EditionCard({ roundup, onUnstamped }: { roundup: RoundupListEntry; onUn
   );
 }
 
-export function ArchivePanel({ roundups }: { roundups: RoundupListEntry[] }) {
-  const [justUnstamped, setJustUnstamped] = useState<UnstampSummary | null>(null);
-
+export function ArchivePanel({ roundups, banner }: { roundups: RoundupListEntry[]; banner: UnstampBanner | null }) {
   return (
     <div className="flex flex-col gap-4">
-      {justUnstamped && (
+      {banner && (
         <div className="border border-[#F5E2A3] bg-[#FFF8E1] text-[#7A5D00] text-sm px-3.5 py-2.5 rounded-lg">
-          Reversed roundup #{justUnstamped.roundupId} (&quot;{justUnstamped.label}&quot;) — {justUnstamped.publicationIds.length} publication
-          {justUnstamped.publicationIds.length === 1 ? "" : "s"} re-opened.
+          Reversed roundup #{banner.roundupId}
+          {banner.label ? ` ("${banner.label}")` : ""} — {banner.count} publication{banner.count === 1 ? "" : "s"} re-opened.
         </div>
       )}
 
       {roundups.length === 0 && <p className="text-[#9A9A9A] text-sm px-1">No roundups have been finalized yet.</p>}
 
       {roundups.map((r) => (
-        <EditionCard key={r.id} roundup={r} onUnstamped={setJustUnstamped} />
+        <EditionCard key={r.id} roundup={r} />
       ))}
     </div>
   );

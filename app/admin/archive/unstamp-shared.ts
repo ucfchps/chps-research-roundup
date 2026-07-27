@@ -3,14 +3,17 @@
 // functions — this can't live there. Unit-testable without a DB; the actual
 // reversal is covered by tests/roundup-finalize.test.ts against
 // lib/roundup-finalize.ts::unstampRoundup.
-import type { UnstampSummary } from "@/lib/roundup-finalize";
-
+//
+// No `success` field here — on a real reversal, unstampAction redirects to
+// /admin/archive?reversed=... instead of returning state. The success
+// banner is rendered server-side from that search param (page.tsx), not
+// from client state owned by the EditionCard the reversal itself unmounts.
+// See app/admin/archive/unstamp-actions.ts for why.
 export interface UnstampFormState {
   error: string | null;
-  success: UnstampSummary | null;
 }
 
-export const initialUnstampFormState: UnstampFormState = { error: null, success: null };
+export const initialUnstampFormState: UnstampFormState = { error: null };
 
 export type ParsedUnstampForm = { roundupId: number } | { error: string };
 

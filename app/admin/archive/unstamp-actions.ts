@@ -4,6 +4,20 @@
 // Both call lib/roundup-finalize.ts::unstampRoundup — the same function
 // scripts/unstamp-roundup.ts calls — never a second reversal implementation.
 // Same auth-gated-glue shape as app/admin/publications/finalize-actions.ts.
+//
+// ★ On a real reversal, unstampAction redirects to
+// /admin/archive?reversed=<id>&count=<n>&label=<label> instead of returning
+// success state to useActionState. A prior version returned {success} and
+// had the client's EditionCard lift it to the parent via a useEffect — but
+// the same revalidatePath that refreshes the roundups list also unmounts
+// that exact card (its edition is now gone from the list) in the same
+// client transition, so the effect never got a committed render to fire
+// from and the confirmation banner silently never appeared, even though
+// the reversal itself was correct. Encoding the result in the redirect URL
+// sidesteps the unmounting-child entirely — page.tsx reads it server-side
+// on the fresh navigation and renders the banner itself, not client state
+// owned by a component the action just deleted the reason to exist for.
+import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { client } from "@/lib/db";
 import { requireAdminSession } from "../session";
@@ -22,14 +36,26 @@ export async function unstampAction(_prev: UnstampFormState, formData: FormData)
   await requireAdminSession();
 
   const parsed = parseUnstampFormData(formData);
-  if ("error" in parsed) return { error: parsed.error, success: null };
+  if ("error" in parsed) return { error: parsed.error };
 
+  let summary: UnstampSummary;
   try {
-    const summary = await unstampRoundup(client, parsed.roundupId, { dryRun: false });
-    revalidatePath("/admin/archive");
-    revalidatePath("/admin/publications");
-    return { error: null, success: summary };
+    summary = await unstampRoundup(client, parsed.roundupId, { dryRun: false });
   } catch (err) {
-    return { error: (err as Error).message, success: null };
+    return { error: (err as Error).message };
   }
+
+  // A race (someone else reversed it between this form's dry-run preview
+  // and this submit) — nothing to report, just go back to the current list.
+  if (summary.noop) {
+    redirect("/admin/archive");
+  }
+
+  revalidatePath("/admin/publications"); // Tab 4's eligibility list should reflect the re-opened publications
+  const params = new URLSearchParams({
+    reversed: String(summary.roundupId),
+    count: String(summary.publicationIds.length),
+    label: summary.label ?? "",
+  });
+  redirect(`/admin/archive?${params.toString()}`);
 }
