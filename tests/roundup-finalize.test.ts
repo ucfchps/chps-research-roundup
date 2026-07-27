@@ -12,7 +12,7 @@ import path from "node:path";
 import { createClient, type Client } from "@libsql/client";
 import { runMigrations } from "../db/migrate";
 import { queryPublications } from "../lib/publications";
-import { finalizeRoundup, unstampRoundup } from "../lib/roundup-finalize";
+import { finalizeRoundup, unstampRoundup, listRoundups } from "../lib/roundup-finalize";
 
 describe("finalizeRoundup / unstampRoundup", () => {
   let dbDir: string;
@@ -245,8 +245,86 @@ describe("finalizeRoundup / unstampRoundup", () => {
       expect(row.roundup_id).toBe(roundupId);
     });
 
-    it("throws for a roundup id that doesn't exist", async () => {
-      await expect(unstampRoundup(client, 999999, { dryRun: false })).rejects.toThrow();
+    it("a nonexistent roundup id is a clean no-op, not a throw (Session 24, Tab 5)", async () => {
+      const summary = await unstampRoundup(client, 999999, { dryRun: false });
+      expect(summary).toEqual({ roundupId: 999999, label: null, publicationIds: [], dryRun: false, noop: true });
+    });
+
+    it("un-stamping the same roundup twice — the second call is a clean no-op, first call's reversal stands", async () => {
+      const facultyId = await seedFaculty("Stock, M.", "Department of Health Sciences");
+      const pub = await seedPublication({ title: "Some Paper", dateAdded: "2026-01-01" });
+      await seedAuthor(pub, facultyId, "Stock, M.", "chps_faculty", 0);
+      const { roundupId } = await finalizeRoundup(client, { ...BASE_PARAMS, publicationIds: [pub] });
+
+      const first = await unstampRoundup(client, roundupId, { dryRun: false });
+      expect(first.noop).toBe(false);
+      expect(first.publicationIds).toEqual([pub]);
+
+      const second = await unstampRoundup(client, roundupId, { dryRun: false });
+      expect(second).toEqual({ roundupId, label: null, publicationIds: [], dryRun: false, noop: true });
+
+      // The first call's reversal isn't undone by the second, no-op call.
+      const row = (await client.execute({ sql: "SELECT roundup_id FROM publications WHERE id = ?", args: [pub] })).rows[0] as unknown as {
+        roundup_id: number | null;
+      };
+      expect(row.roundup_id).toBeNull();
+    });
+
+    it("un-stamping edition A leaves every publication stamped to edition B untouched (isolation)", async () => {
+      const facultyId = await seedFaculty("Stock, M.", "Department of Health Sciences");
+      const a = await seedPublication({ title: "Edition A Paper", dateAdded: "2026-01-01" });
+      await seedAuthor(a, facultyId, "Stock, M.", "chps_faculty", 0);
+      const b = await seedPublication({ title: "Edition B Paper", dateAdded: "2026-01-01" });
+      await seedAuthor(b, facultyId, "Stock, M.", "chps_faculty", 0);
+
+      const editionA = await finalizeRoundup(client, { ...BASE_PARAMS, label: "Edition A", publicationIds: [a] });
+      const editionB = await finalizeRoundup(client, { ...BASE_PARAMS, label: "Edition B", publicationIds: [b] });
+
+      await unstampRoundup(client, editionA.roundupId, { dryRun: false });
+
+      const bRow = (await client.execute({ sql: "SELECT roundup_id FROM publications WHERE id = ?", args: [b] })).rows[0] as unknown as {
+        roundup_id: number | null;
+      };
+      expect(bRow.roundup_id).toBe(editionB.roundupId);
+      const roundupsCount = (await client.execute("SELECT COUNT(*) as c FROM roundups")).rows[0] as unknown as { c: number };
+      expect(roundupsCount.c).toBe(1); // only edition A's row was removed
+    });
+  });
+
+  describe("listRoundups — the archive's read side (Session 24, Tab 5)", () => {
+    it("returns editions newest-first", async () => {
+      const facultyId = await seedFaculty("Stock, M.", "Department of Health Sciences");
+      const a = await seedPublication({ title: "Paper A", dateAdded: "2026-01-01" });
+      await seedAuthor(a, facultyId, "Stock, M.", "chps_faculty", 0);
+      const b = await seedPublication({ title: "Paper B", dateAdded: "2026-01-01" });
+      await seedAuthor(b, facultyId, "Stock, M.", "chps_faculty", 0);
+
+      await finalizeRoundup(client, { ...BASE_PARAMS, label: "Older Edition", publicationIds: [a] });
+      await new Promise((r) => setTimeout(r, 5)); // ensure a distinct generated_at
+      const newer = await finalizeRoundup(client, { ...BASE_PARAMS, label: "Newer Edition", publicationIds: [b] });
+
+      const list = await listRoundups(client);
+      expect(list.map((r) => r.label)).toEqual(["Newer Edition", "Older Edition"]);
+      expect(list[0].id).toBe(newer.roundupId);
+    });
+
+    it("reports the live stamped count separately from the stored pub_count when a publication is edited (not un-stamped) after finalize", async () => {
+      const facultyId = await seedFaculty("Stock, M.", "Department of Health Sciences");
+      const a = await seedPublication({ title: "Paper A", dateAdded: "2026-01-01" });
+      await seedAuthor(a, facultyId, "Stock, M.", "chps_faculty", 0);
+      const b = await seedPublication({ title: "Paper B", dateAdded: "2026-01-01" });
+      await seedAuthor(b, facultyId, "Stock, M.", "chps_faculty", 0);
+
+      const { roundupId } = await finalizeRoundup(client, { ...BASE_PARAMS, publicationIds: [a, b] });
+      // Simulate a later edit that detaches one publication from the edition
+      // without going through unstampRoundup — pub_count stays what it was
+      // at finalize time (2); the live count should reflect reality (1).
+      await client.execute({ sql: "UPDATE publications SET roundup_id = NULL WHERE id = ?", args: [a] });
+
+      const list = await listRoundups(client);
+      const entry = list.find((r) => r.id === roundupId)!;
+      expect(entry.pub_count).toBe(2);
+      expect(entry.live_stamped_count).toBe(1);
     });
   });
 });

@@ -9,6 +9,7 @@
 import type { Client } from "@libsql/client";
 import { queryPublications } from "./publications";
 import { buildExportHtml } from "./roundup-export";
+import type { Roundup } from "./types";
 
 export interface FinalizeParams {
   label: string;
@@ -89,22 +90,31 @@ export async function finalizeRoundup(client: Client, params: FinalizeParams): P
 
 export interface UnstampSummary {
   roundupId: number;
-  label: string;
+  label: string | null;
   publicationIds: number[];
   dryRun: boolean;
+  // True when there was nothing to reverse — a nonexistent id, or an id
+  // already reversed by an earlier call (the roundups row is gone either
+  // way, so the two cases are indistinguishable and handled identically).
+  // Both the CLI and Tab 5's un-stamp UI must be safe to call twice; this is
+  // the one shared idempotency boundary, not a per-caller check.
+  noop: boolean;
 }
 
-// The CLI-only safety net (scripts/unstamp-roundup.ts) until Tab 5's proper
-// archive/un-stamp screen exists. Fully reverses a finalize: clears
-// roundup_id on every publication tied to this roundup, then deletes the
-// roundups row itself (not just marked reversed) — a clean full reversal
-// mirrors what a re-run of finalize would produce, with no orphaned row left
-// for a future finalize to collide with.
+// The one implementation behind two entry points: the CLI safety net
+// (scripts/unstamp-roundup.ts) and Tab 5's archive/un-stamp screen
+// (app/admin/archive). Fully reverses a finalize: clears roundup_id on
+// every publication tied to this roundup, then deletes the roundups row
+// itself (not just marked reversed) — a clean full reversal mirrors what a
+// re-run of finalize would produce, with no orphaned row left for a future
+// finalize to collide with.
 export async function unstampRoundup(client: Client, roundupId: number, opts: { dryRun: boolean }): Promise<UnstampSummary> {
   const roundupRow = (await client.execute({ sql: "SELECT label FROM roundups WHERE id = ?", args: [roundupId] })).rows[0] as unknown as
     | { label: string }
     | undefined;
-  if (!roundupRow) throw new Error(`No roundup found with id ${roundupId}`);
+  if (!roundupRow) {
+    return { roundupId, label: null, publicationIds: [], dryRun: opts.dryRun, noop: true };
+  }
 
   const pubRows = (await client.execute({ sql: "SELECT id FROM publications WHERE roundup_id = ?", args: [roundupId] })).rows as unknown as Array<{
     id: number;
@@ -116,5 +126,34 @@ export async function unstampRoundup(client: Client, roundupId: number, opts: { 
     await client.execute({ sql: "DELETE FROM roundups WHERE id = ?", args: [roundupId] });
   }
 
-  return { roundupId, label: roundupRow.label, publicationIds, dryRun: opts.dryRun };
+  return { roundupId, label: roundupRow.label, publicationIds, dryRun: opts.dryRun, noop: false };
+}
+
+export interface RoundupListEntry extends Roundup {
+  // A fresh COUNT alongside the historical pub_count (§6b) — a publication
+  // tied to an edition can still be edited after the fact, so the two can
+  // legitimately drift. Tab 5 shows both; drift is informational, not an
+  // error (§15.11 — never let a real state go unsurfaced, never treat it as
+  // a fault either).
+  live_stamped_count: number;
+}
+
+// Tab 5 (§8c) — the read side of the archive. One query, newest edition
+// first. Nothing here writes; the archive's only write is the explicit,
+// confirmed unstampRoundup call above.
+export async function listRoundups(client: Client): Promise<RoundupListEntry[]> {
+  const rows = (
+    await client.execute(
+      `SELECT r.id, r.label, r.generated_at, r.generated_by, r.pub_count, r.html, COUNT(p.id) AS live_stamped_count
+       FROM roundups r
+       LEFT JOIN publications p ON p.roundup_id = r.id
+       GROUP BY r.id
+       ORDER BY r.generated_at DESC`
+    )
+  ).rows as unknown as RoundupListEntry[];
+  // Spread into genuinely plain objects — this crosses a Server -> Client
+  // Component boundary (app/admin/archive/ArchivePanel.tsx), which requires
+  // plain objects; the libSQL driver's row implementation isn't guaranteed
+  // to satisfy that on every transport. Same fix as lib/publications.ts.
+  return rows.map((r) => ({ ...r }));
 }

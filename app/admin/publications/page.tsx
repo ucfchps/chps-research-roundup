@@ -7,7 +7,7 @@ import { getFacultyWithOutstandingReview, type OutstandingReviewer } from "@/lib
 import { UNITS, type PublicationStatus, type Unit } from "@/lib/types";
 import { ExportPanel } from "./ExportPanel";
 import { FinalizePanel } from "./FinalizePanel";
-import { Sidebar } from "./Sidebar";
+import { Sidebar } from "../Sidebar";
 import { FilterChip } from "./FilterChip";
 import { archivo, inter, jetbrainsMono } from "../fonts";
 
@@ -109,7 +109,7 @@ export default async function PublicationsPage({
 
   return (
     <div className={`flex min-h-screen ${inter.variable} ${archivo.variable} ${jetbrainsMono.variable}`} style={{ fontFamily: "var(--font-inter)" }}>
-      <Sidebar />
+      <Sidebar active="publications" />
       <main className="flex-1 px-10 py-8 max-w-4xl">
         <p className="text-2xl font-semibold mb-1" style={{ fontFamily: "var(--font-archivo)" }}>
           Publications

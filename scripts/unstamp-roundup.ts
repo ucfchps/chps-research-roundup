@@ -1,11 +1,13 @@
-// Session 19 (§8c Tab 4): a manual, CLI-only safety net for the one
-// irreversible write in this system (lib/roundup-finalize.ts::finalizeRoundup).
-// Not a substitute for Tab 5's eventual proper archive/un-stamp screen — just
-// insurance until that exists, same posture as every other admin capability
-// that shipped as a script before its UI (sync-roster, campaign-status,
-// settings-email). Clears roundup_id on every publication tied to this
-// roundup and DELETES the roundups row itself (a full reversal, not a
-// "marked reversed" soft-delete — see lib/roundup-finalize.ts::unstampRoundup).
+// Session 19 (§8c Tab 4), still current after Session 24's Tab 5 archive UI
+// shipped: a CLI entry point for reversing the one irreversible write in this
+// system (lib/roundup-finalize.ts::finalizeRoundup). Tab 5 (app/admin/archive)
+// now offers the same reversal through a guarded UI — both call
+// lib/roundup-finalize.ts::unstampRoundup, the one implementation, so this
+// script and the UI can never drift on the inverse of the double-post
+// guarantee. Clears roundup_id on every publication tied to this roundup and
+// DELETES the roundups row itself (a full reversal, not a "marked reversed"
+// soft-delete). Idempotent: a nonexistent or already-reversed id is a clean
+// no-op, not an error.
 //
 // Run with:
 //   npm run roundup:unstamp -- --roundup-id <id> --dry-run
@@ -38,6 +40,11 @@ async function main() {
   const client = createClient({ url, authToken });
 
   const summary = await unstampRoundup(client, roundupId, { dryRun });
+
+  if (summary.noop) {
+    console.log(`No roundup found with id ${summary.roundupId} — nothing to do.`);
+    return;
+  }
 
   console.log(`Roundup #${summary.roundupId} ("${summary.label}") — ${summary.publicationIds.length} publication(s): ${summary.publicationIds.join(", ") || "(none)"}`);
   if (dryRun) {

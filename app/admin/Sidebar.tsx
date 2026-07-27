@@ -1,10 +1,12 @@
-// Visual-only (Session 18.2). A static, non-animated echo of the login
-// page's flowing-paths motif (docs/reference/login-redesign-floating-paths.html)
-// — this page is for repeated, focused scanning, not a landing moment, so no
-// animation here. The other nav items are real future admin sections
-// (build-order items 16–20) that don't exist yet — rendered as plain,
-// non-interactive elements rather than dead links, so they don't create
-// broken tab stops or 404s for a keyboard user probing the sidebar.
+// Visual-only (Session 18.2), now shared by every real admin tab (moved out
+// of app/admin/publications/ in Session 24 when Tab 5 became the second real
+// tab) — a static, non-animated echo of the login page's flowing-paths motif
+// (docs/reference/login-redesign-floating-paths.html); this page is for
+// repeated, focused scanning, not a landing moment, so no animation here.
+// The remaining nav items are real future admin sections (build-order items
+// 17–19) that don't exist yet — rendered as plain, non-interactive elements
+// rather than dead links, so they don't create broken tab stops or 404s for
+// a keyboard user probing the sidebar.
 import type { ReactNode } from "react";
 
 function NavIcon({ children }: { children: ReactNode }) {
@@ -14,6 +16,33 @@ function NavIcon({ children }: { children: ReactNode }) {
     </svg>
   );
 }
+
+type ActiveTab = "publications" | "archive";
+
+const NAV_ITEMS: Array<{ key: ActiveTab; href: string; label: string; icon: ReactNode }> = [
+  {
+    key: "publications",
+    href: "/admin/publications",
+    label: "Publications",
+    icon: (
+      <>
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+      </>
+    ),
+  },
+  {
+    key: "archive",
+    href: "/admin/archive",
+    label: "Archive",
+    icon: (
+      <>
+        <rect x="2" y="3" width="20" height="5" rx="1" />
+        <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8M10 12h4" />
+      </>
+    ),
+  },
+];
 
 const FUTURE_NAV_ITEMS: Array<{ label: string; icon: ReactNode }> = [
   {
@@ -43,18 +72,9 @@ const FUTURE_NAV_ITEMS: Array<{ label: string; icon: ReactNode }> = [
       </>
     ),
   },
-  {
-    label: "Archive",
-    icon: (
-      <>
-        <rect x="2" y="3" width="20" height="5" rx="1" />
-        <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8M10 12h4" />
-      </>
-    ),
-  },
 ];
 
-export function Sidebar() {
+export function Sidebar({ active }: { active: ActiveTab }) {
   return (
     <aside className="w-60 bg-[#0A0A0A] px-5 py-6 shrink-0 relative overflow-hidden">
       <svg className="absolute inset-0 w-full h-full opacity-[0.05]" viewBox="0 0 240 800" preserveAspectRatio="xMidYMid slice" aria-hidden="true">
@@ -71,13 +91,18 @@ export function Sidebar() {
       </div>
 
       <nav className="relative z-10 space-y-0.5 text-sm">
-        <a href="/admin/publications" className="flex items-center gap-2.5 px-3 py-2 rounded-md bg-white/10 text-white">
-          <NavIcon>
-            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
-            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
-          </NavIcon>
-          Publications
-        </a>
+        {NAV_ITEMS.map((item) => (
+          <a
+            key={item.key}
+            href={item.href}
+            className={`flex items-center gap-2.5 px-3 py-2 rounded-md transition-colors ${
+              item.key === active ? "bg-white/10 text-white" : "text-[#6B6B6B] hover:bg-white/5 hover:text-white"
+            }`}
+          >
+            <NavIcon>{item.icon}</NavIcon>
+            {item.label}
+          </a>
+        ))}
         {FUTURE_NAV_ITEMS.map((item) => (
           <div key={item.label} className="flex items-center gap-2.5 px-3 py-2 rounded-md text-[#6B6B6B]" aria-disabled="true">
             <NavIcon>{item.icon}</NavIcon>
