@@ -20,6 +20,15 @@
      this in, so it lives here in @theme's --animate-* convention, generating
      an `animate-flow-path` utility paired with the @keyframes below. */
   --animate-flow-path: flow-path 16s linear infinite;
+  /* Session 25: the roundup-content typography accent, ported verbatim from
+     the original prototype's #preview CSS (docs/reference/
+     chps_research_roundup_generator.html — --accent / --accent-dark). NOT
+     the same thing as --color-ucf-gold above: ucf-gold (#ffc904) is a bright
+     chrome/button accent for the admin UI itself; this is a muted amber
+     calibrated to read as ink on a page, used only inside .roundup-preview
+     below (h2 rule, link color) — never the admin chrome. */
+  --color-roundup-accent: #a5730f;
+  --color-roundup-accent-dark: #7a5509;
 }
 
 @keyframes flow-path {
@@ -39,4 +48,57 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+}
+
+/* Session 25: restores the roundup post's own typography inside the
+   generator's and archive's HTML preview panes (ExportPanel.tsx,
+   ArchivePanel.tsx — both inject the exact stored/generated HTML verbatim
+   via dangerouslySetInnerHTML). Tailwind v4's Preflight resets h1/h2 to
+   inherit size+weight, ul to list-style:none, and a to color/decoration:
+   inherit — flattening plain semantic markup identically in both places.
+   Ported from the original prototype's #preview block (docs/reference/
+   chps_research_roundup_generator.html), the one deliberate exception to
+   "the reference files aren't a visual reference" (§8c Tab 5 note) — this
+   narrow case is porting the roundup CONTENT's established look, not the
+   app UI around it. Scoped to this one class only, so it can never leak
+   into admin chrome (sidebar, buttons, cards) the way an unscoped `h2 {}`
+   rule would. Styles rendering only — lib/roundup-export.ts's stored/
+   generated HTML stays plain, unstyled semantic markup, exactly what
+   WordPress's own theme expects to receive; Copy HTML / Download .html read
+   that original string directly, never this rendered DOM. */
+.roundup-preview {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 14px;
+  line-height: 1.65;
+  color: #24231f;
+}
+.roundup-preview h1 {
+  font-size: 24px;
+  font-weight: bold;
+  margin: 0 0 6px;
+}
+.roundup-preview h2 {
+  font-size: 17px;
+  font-weight: bold;
+  margin: 28px 0 12px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--color-roundup-accent);
+  color: var(--color-roundup-accent-dark);
+}
+.roundup-preview p {
+  margin: 0 0 14px;
+  font-size: 14px;
+}
+.roundup-preview ul {
+  list-style: disc;
+  margin: 0 0 14px;
+  padding-left: 1.4em;
+  font-size: 13px;
+}
+.roundup-preview li {
+  margin: 0 0 4px;
+}
+.roundup-preview a {
+  color: var(--color-roundup-accent-dark);
+  text-decoration: underline;
 }

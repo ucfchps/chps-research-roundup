@@ -92,7 +92,9 @@ export function ExportPanel({ results }: { results: PublicationWithUnits[] }) {
           <button
             type="button"
             onClick={() => setTab("preview")}
-            className="border border-[#D8D8D8] text-sm px-3.5 py-1.5 rounded-md hover:border-[#B8B8B8] transition-colors"
+            className={`text-sm px-3.5 py-1.5 rounded-md border transition-colors ${
+              tab === "preview" ? "bg-[#0A0A0A] border-[#0A0A0A] text-ucf-gold font-medium" : "border-[#D8D8D8] text-[#5B5B5B] hover:border-[#B8B8B8]"
+            }`}
             aria-pressed={tab === "preview"}
           >
             Preview
@@ -100,7 +102,9 @@ export function ExportPanel({ results }: { results: PublicationWithUnits[] }) {
           <button
             type="button"
             onClick={() => setTab("source")}
-            className="border border-[#D8D8D8] text-sm px-3.5 py-1.5 rounded-md hover:border-[#B8B8B8] transition-colors"
+            className={`text-sm px-3.5 py-1.5 rounded-md border transition-colors ${
+              tab === "source" ? "bg-[#0A0A0A] border-[#0A0A0A] text-ucf-gold font-medium" : "border-[#D8D8D8] text-[#5B5B5B] hover:border-[#B8B8B8]"
+            }`}
             aria-pressed={tab === "source"}
           >
             HTML source
@@ -134,11 +138,7 @@ export function ExportPanel({ results }: { results: PublicationWithUnits[] }) {
 
         {html &&
           (tab === "preview" ? (
-            <div
-              className="border border-[#E5E5E5] rounded-md p-6 max-w-2xl"
-              style={{ fontFamily: "Georgia, serif" }}
-              dangerouslySetInnerHTML={{ __html: html }}
-            />
+            <div className="roundup-preview border border-[#E5E5E5] rounded-md p-6 max-w-2xl" dangerouslySetInnerHTML={{ __html: html }} />
           ) : (
             <pre
               className="border border-[#E5E5E5] rounded-md p-4 bg-[#FAFAFA] text-xs overflow-x-auto whitespace-pre-wrap"

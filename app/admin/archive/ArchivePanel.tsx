@@ -108,7 +108,9 @@ function EditionCard({ roundup }: { roundup: RoundupListEntry }) {
               type="button"
               onClick={() => setTab("preview")}
               aria-pressed={tab === "preview"}
-              className="border border-[#D8D8D8] text-sm px-3.5 py-1.5 rounded-md hover:border-[#B8B8B8] transition-colors"
+              className={`text-sm px-3.5 py-1.5 rounded-md border transition-colors ${
+                tab === "preview" ? "bg-[#0A0A0A] border-[#0A0A0A] text-ucf-gold font-medium" : "border-[#D8D8D8] text-[#5B5B5B] hover:border-[#B8B8B8]"
+              }`}
             >
               Preview
             </button>
@@ -116,7 +118,9 @@ function EditionCard({ roundup }: { roundup: RoundupListEntry }) {
               type="button"
               onClick={() => setTab("source")}
               aria-pressed={tab === "source"}
-              className="border border-[#D8D8D8] text-sm px-3.5 py-1.5 rounded-md hover:border-[#B8B8B8] transition-colors"
+              className={`text-sm px-3.5 py-1.5 rounded-md border transition-colors ${
+                tab === "source" ? "bg-[#0A0A0A] border-[#0A0A0A] text-ucf-gold font-medium" : "border-[#D8D8D8] text-[#5B5B5B] hover:border-[#B8B8B8]"
+              }`}
             >
               HTML source
             </button>
@@ -137,11 +141,7 @@ function EditionCard({ roundup }: { roundup: RoundupListEntry }) {
           </div>
 
           {tab === "preview" ? (
-            <div
-              className="border border-[#E5E5E5] rounded-md p-6 max-w-2xl"
-              style={{ fontFamily: "Georgia, serif" }}
-              dangerouslySetInnerHTML={{ __html: roundup.html }}
-            />
+            <div className="roundup-preview border border-[#E5E5E5] rounded-md p-6 max-w-2xl" dangerouslySetInnerHTML={{ __html: roundup.html }} />
           ) : (
             <pre
               className="border border-[#E5E5E5] rounded-md p-4 bg-[#FAFAFA] text-xs overflow-x-auto whitespace-pre-wrap"
