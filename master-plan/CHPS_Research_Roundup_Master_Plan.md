@@ -584,6 +584,23 @@ NOT roundup units — ignore, never guess a mapping for these:
 > Until then, any pre-flight check before finalizing an edition should keep surfacing these
 > five by name (see `scripts/backfill-verify-production-2025.ts`'s §8c Tab 4 pre-flight
 > warning) rather than letting them disappear from view.
+>
+> **Update: identity confirmed.** This is Xiayu Summer Chen, Assistant Professor, School of
+> Social Work — present and active in the WordPress directory (`wp_id 23434`), already synced
+> into production `faculty` (`id 8`). The directory and `sync-roster` both did their job; the
+> non-link was purely a name-form mismatch. Her directory profile's `profile_F_name` field is
+> `"Summer"` only — `"Xiayu"` is captured nowhere queryable, only in prose inside her biography
+> field — so `faculty.display_name` derives to `"Chen, S."`, one initial short of the byline
+> form `"Chen, X.S."` these five papers use. `scripts/backfill-reconcile-2025.ts`'s
+> `LINK_NAME_OVERRIDES` now maps `"Chen, X. S." → "Chen, S."`, which closes these five
+> publications. **That override is backfill-scoped only** — it does not touch the live
+> ingestion path (`lib/scholar-ingest.ts::matchAuthorNameToFaculty`, called by
+> `buildAuthorInputs` from `ingest-crossref`/`ingest-scholar`/`ingest-pubmed-orcid`), so any
+> future Chen paper published under the "Xiayu Summer Chen" byline will hit this identical
+> mismatch again. **Not yet scoped, tracked here as a separate follow-up:** either a durable
+> alias mechanism (so a name-form correction like this one applies to live ingestion, not just
+> one backfill script) or a WordPress data fix (adding "Xiayu" to her directory profile). No
+> implementation decision has been made between these two.
 
 ---
 

@@ -49,6 +49,18 @@ const LINK_NAME_OVERRIDES: Record<string, string> = {
   // same person, two spellings, neither wrong so much as two different
   // sources of truth (publisher byline vs. institutional record).
   "Gurnurkar, S.": "Gurnukar, S.",
+  // Xiayu Summer Chen (production faculty id=8, School of Social Work) — the
+  // directory and sync-roster both did their job; her WordPress profile's
+  // profile_F_name field is simply "Summer" with no second initial captured
+  // anywhere queryable ("Xiayu" appears only in prose inside her biography
+  // field). matchAuthorNameToFaculty is comparing correctly; the data it's
+  // comparing against is incomplete at the source. This override closes the
+  // gap for this backfill's 5 publications only — it does NOT fix future
+  // ingestion of any new Chen paper, which will hit this identical mismatch
+  // again. See master plan §6 ROLES, "Open follow-up (Session 21): Chen,
+  // X.S." — a durable alias mechanism and/or a WordPress data fix are still
+  // open, tracked separately.
+  "Chen, X. S.": "Chen, S.",
 };
 
 function resolveFacultyLink(authorName: string, facultyRows: Faculty[]): Faculty | null {
