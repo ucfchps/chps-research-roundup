@@ -327,7 +327,18 @@ CREATE TABLE publications (
                                           -- resolution failed (gray lit). Incomplete citation.
                                           -- MUST NOT appear in a generated roundup. See §5a.8.
   source            TEXT NOT NULL,        -- 'scholar' | 'crossref' | 'pubmed' | 'orcid' | 'manual'
-  first_seen_at     TEXT NOT NULL,        -- when we first detected it (drives the merge buffer)
+  first_seen_at     TEXT NOT NULL,        -- when we first detected it (drives the merge buffer).
+                                          -- ★ Reset to now() on promotion OUT of needs_metadata
+                                          -- (manual completion, Tab 2, or the automatic DOI-match
+                                          -- path in lib/matching.ts::promoteFromNeedsMetadata) —
+                                          -- the ONE exception to "never touch first_seen_at."
+                                          -- A needs_metadata stub can sit for weeks; without the
+                                          -- reset it would already be past MERGE_BUFFER_HOURS the
+                                          -- moment it becomes mergeable, skipping the buffer
+                                          -- window entirely instead of getting the same fresh
+                                          -- window a brand-new insert gets. Every other merge
+                                          -- path (ordinary ingest merges into an already-mergeable
+                                          -- record) still preserves it untouched.
   date_added        TEXT NOT NULL,        -- ★ "the day we collected this." Drives edition
                                           -- eligibility (§6b). DEFINED AS:
                                           --   · ingested  → date(first_seen_at)
