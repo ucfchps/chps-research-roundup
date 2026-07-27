@@ -65,7 +65,10 @@ const LINK_NAME_OVERRIDES: Record<string, string> = {
   "Chen, X. S.": "Chen, S.",
 };
 
-function resolveFacultyLink(authorName: string, facultyRows: Faculty[]): Faculty | null {
+// Exported so roster-verify-2025.ts checks fixture faculty against production
+// with the exact same tolerant matching (initials, diacritics, name overrides)
+// that this script and live ingestion use — not a second, driftable copy of it.
+export function resolveFacultyLink(authorName: string, facultyRows: Faculty[]): Faculty | null {
   const lookupName = LINK_NAME_OVERRIDES[authorName] ?? authorName;
   return matchAuthorNameToFaculty(lookupName, facultyRows);
 }

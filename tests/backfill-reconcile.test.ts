@@ -8,8 +8,33 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { createClient, type Client } from "@libsql/client";
 import { runMigrations } from "../db/migrate";
-import { runReconcile } from "../scripts/backfill-reconcile-2025";
+import { runReconcile, resolveFacultyLink } from "../scripts/backfill-reconcile-2025";
 import type { GroundTruthFixture } from "../lib/backfill-seed";
+import type { Faculty } from "../lib/types";
+
+function faculty(overrides: Partial<Faculty>): Faculty {
+  return {
+    id: 1, wp_id: "1", slug: "x", display_name: "Doe, J.", full_name: "Jane Doe", email: "j@x.com",
+    unit: "Department of Health Sciences", research_profile_url: null, scholar_user_id: "ABC123AAAAJ",
+    orcid: null, classification: "Faculty", active: 1, last_alert_seen_at: null, last_synced_at: null,
+    ...overrides,
+  };
+}
+
+// roster-verify-2025.ts uses this same function (not a raw exact-string DB
+// query) so a fixture name with an extra initial or a diacritic the
+// directory doesn't capture still resolves as found, not missing.
+describe("resolveFacultyLink — tolerant matching roster-verify-2025.ts relies on", () => {
+  it("matches a fixture name with an extra initial the directory doesn't capture", () => {
+    const roster = [faculty({ id: 38, display_name: "Awan, S." })];
+    expect(resolveFacultyLink("Awan, S.N.", roster)?.id).toBe(38);
+  });
+
+  it("matches a fixture name with a diacritic the directory's plain-ASCII spelling drops", () => {
+    const roster = [faculty({ id: 83, display_name: "Lopez Castillo, H." })];
+    expect(resolveFacultyLink("López Castillo, H.", roster)?.id).toBe(83);
+  });
+});
 
 describe("runReconcile — Task A", () => {
   let dbDir: string;
