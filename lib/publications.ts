@@ -9,11 +9,22 @@ import type { Faculty, Publication, PublicationAuthor, PublicationStatus, Unit }
 
 export interface PublicationFilters {
   facultyQuery?: string;
+  // §8a public portal: "title OR any author name," one search box — distinct
+  // from facultyQuery above (author-name-only, Tab 4's search) because the
+  // public search box has no separate title field to bind to.
+  searchQuery?: string;
   units?: Unit[];
   dateAddedFrom?: string;
   dateAddedTo?: string;
   status?: PublicationStatus[];
   excludeAlreadyPosted?: boolean;
+  // §8a: the public portal's visibility scope — only publications that have
+  // actually appeared in a finalized roundup (roundup_id IS NOT NULL).
+  // Orthogonal to excludeAlreadyPosted (which adds the opposite condition,
+  // roundup_id IS NULL, for Tab 4's "what's eligible for the next edition"
+  // view) — never both true at once in practice, but each is independent so
+  // neither caller's existing behavior is disturbed by the other's need.
+  postedOnly?: boolean;
 }
 
 export interface PublicationWithUnits {
@@ -36,6 +47,17 @@ export async function queryPublications(client: Client, filters: PublicationFilt
   const args: InValue[] = [...status];
 
   if (excludeAlreadyPosted) conditions.push("p.roundup_id IS NULL");
+  if (filters.postedOnly) conditions.push("p.roundup_id IS NOT NULL");
+
+  if (filters.searchQuery) {
+    conditions.push(`(p.title LIKE ? OR EXISTS (
+      SELECT 1 FROM publication_authors pa4
+      LEFT JOIN faculty f4 ON f4.id = pa4.faculty_id
+      WHERE pa4.publication_id = p.id AND (pa4.name LIKE ? OR f4.display_name LIKE ?)
+    ))`);
+    const likeQuery = `%${filters.searchQuery}%`;
+    args.push(likeQuery, likeQuery, likeQuery);
+  }
 
   if (filters.dateAddedFrom) {
     conditions.push("p.date_added >= ?");

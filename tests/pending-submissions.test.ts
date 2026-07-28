@@ -11,6 +11,7 @@ import { createClient, type Client } from "@libsql/client";
 import { runMigrations } from "../db/migrate";
 import { addMissingPublication } from "../lib/review-actions";
 import { approvePendingSubmission, rejectPendingSubmission, checkForStaleMatch, listPendingSubmissions } from "../lib/pending-submissions";
+import { submitPublication } from "../lib/portal";
 
 describe("pending submissions — approve/reject", () => {
   let dbDir: string;
@@ -299,5 +300,175 @@ describe("pending submissions — approve/reject", () => {
 
     const result = await rejectPendingSubmission(client, subId, "Second Reviewer");
     expect(result).toEqual({ outcome: "not_pending", currentStatus: "approved" });
+  });
+
+  describe("create path (no match) + an anonymous (faculty_id NULL) portal submission", () => {
+    it("★ never stamps role_set_by as the literal string 'faculty:null' for an unlinked portal author — every author gets comms:{reviewedBy}, since there's no self-attesting submitter", async () => {
+      const outcome = await submitPublication(client, "Anonymous Submitter", {
+        title: "Anonymous Portal Paper With Unlinked Authors",
+        doi: null,
+        url: "https://example.com/anon-create",
+        authors: [
+          { name: "Unlinked One, U.", role: "chps_faculty" },
+          { name: "Unlinked Two, U.", role: "grad_student" },
+        ],
+      });
+      if (outcome.outcome !== "submitted") throw new Error(`Expected a fresh submission, got ${outcome.outcome}`);
+
+      const result = await approvePendingSubmission(client, outcome.pendingSubmissionId, {
+        ...BASE_APPROVE,
+        title: "Anonymous Portal Paper With Unlinked Authors",
+        authors: [
+          { name: "Unlinked One, U.", facultyId: null, role: "chps_faculty" },
+          { name: "Unlinked Two, U.", facultyId: null, role: "grad_student" },
+        ],
+      });
+
+      expect(result.outcome).toBe("created");
+      const pubId = result.outcome === "created" ? result.publicationId : -1;
+      const authors = (await client.execute({ sql: "SELECT name, faculty_id, role_set_by FROM publication_authors WHERE publication_id = ?", args: [pubId] }))
+        .rows as unknown as Array<{ name: string; faculty_id: number | null; role_set_by: string }>;
+
+      expect(authors).toHaveLength(2);
+      for (const a of authors) {
+        expect(a.role_set_by).toBe("comms:COMMS Reviewer");
+        expect(a.role_set_by).not.toContain("null");
+      }
+    });
+
+    it("a reviewer-linked author on a portal submission still gets comms: provenance, not faculty: (no self-attesting submitter exists to earn that)", async () => {
+      const facultyId = await seedFaculty("Resolved, R.", "Department of Health Sciences");
+      const outcome = await submitPublication(client, "Anonymous Submitter", {
+        title: "Portal Paper Where Reviewer Resolves One Author",
+        doi: null,
+        url: "https://example.com/anon-resolved",
+        authors: [{ name: "Resolved, R.", role: "chps_faculty" }],
+      });
+      if (outcome.outcome !== "submitted") throw new Error(`Expected a fresh submission, got ${outcome.outcome}`);
+
+      const result = await approvePendingSubmission(client, outcome.pendingSubmissionId, {
+        ...BASE_APPROVE,
+        title: "Portal Paper Where Reviewer Resolves One Author",
+        authors: [{ name: "Resolved, R.", facultyId, role: "chps_faculty" }], // reviewer matched them via the datalist
+      });
+
+      expect(result.outcome).toBe("created");
+      const pubId = result.outcome === "created" ? result.publicationId : -1;
+      const author = (await client.execute({ sql: "SELECT role_set_by FROM publication_authors WHERE publication_id = ?", args: [pubId] })).rows[0] as unknown as {
+        role_set_by: string;
+      };
+      expect(author.role_set_by).toBe("comms:COMMS Reviewer");
+    });
+  });
+
+  describe("MATCH branch + a portal submission's payload.authors (the gap the §8a public-portal session found and closed)", () => {
+    async function seedPortalSubmission(title: string, doi: string | null, authors: Array<{ name: string; role: "chps_faculty" | "grad_student" | "undergrad_student" | "external" }>): Promise<number> {
+      const outcome = await submitPublication(client, "Anonymous Submitter", { title, doi, url: "https://example.com/portal-paper", authors });
+      if (outcome.outcome !== "submitted") throw new Error(`Expected a fresh submission, got ${outcome.outcome}`);
+      return outcome.pendingSubmissionId;
+    }
+
+    it("before the fix's shape: a portal submission (faculty_id NULL) matching an existing publication used to link nobody — confirm the fix links every reported author instead", async () => {
+      const subId = await seedPortalSubmission("Paper That Gets Independently Ingested", "10.1/portal-raced", [
+        { name: "Stock, M.", role: "chps_faculty" },
+        { name: "Doe, J.", role: "grad_student" },
+      ]);
+
+      // Simulate routine ingestion discovering the same paper (by DOI) after the portal submission but before review.
+      const now = new Date().toISOString();
+      const racedResult = await client.execute({
+        sql: `INSERT INTO publications (doi, title, title_normalized, url, status, source, first_seen_at, date_added, created_at)
+              VALUES ('10.1/portal-raced', 'Paper That Gets Independently Ingested', 'paper that gets independently ingested', 'https://example.com/raced', 'published', 'crossref', ?, ?, ?)`,
+        args: [now, now.slice(0, 10), now],
+      });
+      const racedPubId = Number(racedResult.lastInsertRowid);
+
+      const result = await approvePendingSubmission(client, subId, {
+        ...BASE_APPROVE,
+        doi: "10.1/portal-raced",
+        title: "Paper That Gets Independently Ingested",
+        authors: [
+          { name: "Stock, M.", facultyId: null, role: "chps_faculty" },
+          { name: "Doe, J.", facultyId: null, role: "grad_student" },
+        ],
+      });
+
+      expect(result).toEqual({ outcome: "linked_existing", publicationId: racedPubId });
+
+      const authors = (await client.execute({ sql: "SELECT name, faculty_id, role, role_set_by FROM publication_authors WHERE publication_id = ?", args: [racedPubId] }))
+        .rows as unknown as Array<{ name: string; faculty_id: number | null; role: string; role_set_by: string }>;
+      expect(authors.map((a) => a.name).sort()).toEqual(["Doe, J.", "Stock, M."]);
+      expect(authors.every((a) => a.role_set_by === "comms:COMMS Reviewer")).toBe(true);
+    });
+
+    it("dedups against an author already linked on the matched publication (by faculty_id when the reviewer resolved one, by name otherwise)", async () => {
+      const facultyId = await seedFaculty("Stock, M.", "Department of Health Sciences");
+      const subId = await seedPortalSubmission("Paper With One Author Already Linked", "10.1/portal-partial", [
+        { name: "Stock, M.", role: "chps_faculty" },
+        { name: "New Co-Author, N.", role: "external" },
+      ]);
+
+      const now = new Date().toISOString();
+      const existingResult = await client.execute({
+        sql: `INSERT INTO publications (doi, title, title_normalized, url, status, source, first_seen_at, date_added, created_at)
+              VALUES ('10.1/portal-partial', 'Paper With One Author Already Linked', 'paper with one author already linked', 'https://example.com/partial', 'published', 'crossref', ?, ?, ?)`,
+        args: [now, now.slice(0, 10), now],
+      });
+      const existingPubId = Number(existingResult.lastInsertRowid);
+      // Already linked before this submission is reviewed (e.g. via ingestion's own author match).
+      await client.execute({
+        sql: `INSERT INTO publication_authors (publication_id, faculty_id, name, role, position) VALUES (?, ?, 'Stock, M.', 'chps_faculty', 0)`,
+        args: [existingPubId, facultyId],
+      });
+
+      const result = await approvePendingSubmission(client, subId, {
+        ...BASE_APPROVE,
+        doi: "10.1/portal-partial",
+        title: "Paper With One Author Already Linked",
+        authors: [
+          { name: "Stock, M.", facultyId, role: "chps_faculty" }, // reviewer resolved this one via the datalist
+          { name: "New Co-Author, N.", facultyId: null, role: "external" },
+        ],
+      });
+
+      expect(result).toEqual({ outcome: "linked_existing", publicationId: existingPubId });
+
+      const authors = (await client.execute({ sql: "SELECT name FROM publication_authors WHERE publication_id = ?", args: [existingPubId] })).rows as unknown as Array<{
+        name: string;
+      }>;
+      // Not duplicated: still exactly one Stock, M. row, plus the genuinely new co-author.
+      expect(authors.map((a) => a.name).sort()).toEqual(["New Co-Author, N.", "Stock, M."]);
+    });
+
+    it("a review-page submission's MATCH branch is unaffected — payload has no authors, so this new linking block never fires", async () => {
+      // Same as the existing "staleness race" test above in spirit, just
+      // asserting explicitly that hasPortalAuthors gates correctly: a
+      // review-page submission (via addMissingPublication) never has
+      // payload.authors, so it must go on getting exactly the faculty_id-
+      // only auto-link behavior, unchanged.
+      const facultyId = await seedFaculty("Zhu, Y.", "School of Communication Sciences and Disorders");
+      const subId = await seedSubmission(facultyId, "Review-Page Paper Unaffected By The Portal Fix", { doi: "10.1/review-page-unaffected" });
+
+      const now = new Date().toISOString();
+      const racedResult = await client.execute({
+        sql: `INSERT INTO publications (doi, title, title_normalized, url, status, source, first_seen_at, date_added, created_at)
+              VALUES ('10.1/review-page-unaffected', 'Review-Page Paper Unaffected By The Portal Fix', 'review-page paper unaffected by the portal fix', 'https://example.com/unaffected', 'published', 'crossref', ?, ?, ?)`,
+        args: [now, now.slice(0, 10), now],
+      });
+      const racedPubId = Number(racedResult.lastInsertRowid);
+
+      await approvePendingSubmission(client, subId, {
+        ...BASE_APPROVE,
+        doi: "10.1/review-page-unaffected",
+        title: "Review-Page Paper Unaffected By The Portal Fix",
+        authors: [{ name: "Zhu, Y.", facultyId, role: "chps_faculty" }],
+      });
+
+      const authors = (await client.execute({ sql: "SELECT name FROM publication_authors WHERE publication_id = ?", args: [racedPubId] })).rows as unknown as Array<{
+        name: string;
+      }>;
+      expect(authors).toHaveLength(1); // only the submitter's own auto-link, exactly as before this session
+      expect(authors[0].name).toBe("Zhu, Y.");
+    });
   });
 });

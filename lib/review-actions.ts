@@ -6,7 +6,7 @@
 // message without leaking why.
 import type { Client, InValue } from "@libsql/client";
 import { findMatch, normalizeTitle, type MatchableExisting } from "./matching";
-import type { AuthorRole } from "./types";
+import type { AuthorRole, Unit } from "./types";
 
 const TAGGABLE_ROLES: readonly AuthorRole[] = ["chps_faculty", "grad_student", "undergrad_student", "external"];
 
@@ -145,6 +145,15 @@ export interface PublicationSubmission {
   volume?: string | null;
   issue?: string | null;
   pages?: string | null;
+  // §8a public portal only — the review page's AddPublicationForm never
+  // sets these (known, documented gap). Optional so every existing
+  // review-page-submitted payload (no authors, no unitHint) deserializes
+  // exactly as before.
+  authors?: Array<{ name: string; role: AuthorRole }>;
+  // Hint only, never the source of truth for a publication's actual units
+  // (§6a: units are derived from linked authors) — informational context
+  // for whoever reviews this submission, nothing reads it to set anything.
+  unitHint?: Unit | null;
 }
 
 export type AddPublicationOutcome =

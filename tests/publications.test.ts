@@ -135,6 +135,90 @@ describe("queryPublications", () => {
     });
   });
 
+  // §8a public portal: title-OR-author search, and the posted-only
+  // visibility scope confirmed for that route.
+  describe("searchQuery (§8a: title OR author name, one search box)", () => {
+    it("matches against publication title", async () => {
+      const facultyId = await seedFaculty("Stock, M.", "Department of Health Sciences");
+      const pub = await seedPublication({ title: "A Study of Beverage Patterns", dateAdded: "2026-01-01" });
+      await seedAuthor(pub, facultyId, "Stock, M.", "chps_faculty", 0);
+      const other = await seedPublication({ title: "Unrelated Paper", dateAdded: "2026-01-01" });
+      await seedAuthor(other, facultyId, "Stock, M.", "chps_faculty", 0);
+
+      const results = await queryPublications(client, { searchQuery: "Beverage" });
+
+      expect(results.map((r) => r.publication.title)).toEqual(["A Study of Beverage Patterns"]);
+    });
+
+    it("matches against linked faculty display_name", async () => {
+      const stockId = await seedFaculty("Stock, M.", "Department of Health Sciences");
+      const zhuId = await seedFaculty("Zhu, Y.", "School of Communication Sciences and Disorders");
+      const stockPub = await seedPublication({ title: "Stock Paper", dateAdded: "2026-01-01" });
+      await seedAuthor(stockPub, stockId, "Stock, M.", "chps_faculty", 0);
+      const zhuPub = await seedPublication({ title: "Zhu Paper", dateAdded: "2026-01-01" });
+      await seedAuthor(zhuPub, zhuId, "Zhu, Y.", "chps_faculty", 0);
+
+      const results = await queryPublications(client, { searchQuery: "Zhu" });
+
+      expect(results.map((r) => r.publication.title)).toEqual(["Zhu Paper"]);
+    });
+
+    it("matches against a raw (unlinked) author name", async () => {
+      const pub = await seedPublication({ title: "Unlinked Author Paper", dateAdded: "2026-01-01" });
+      await seedAuthor(pub, null, "Torralba, L.", "unknown", 0);
+
+      const results = await queryPublications(client, { searchQuery: "Torralba" });
+
+      expect(results.map((r) => r.publication.title)).toEqual(["Unlinked Author Paper"]);
+    });
+
+    it("does not match a title/author string outside the query", async () => {
+      const facultyId = await seedFaculty("Stock, M.", "Department of Health Sciences");
+      const pub = await seedPublication({ title: "Some Paper", dateAdded: "2026-01-01" });
+      await seedAuthor(pub, facultyId, "Stock, M.", "chps_faculty", 0);
+
+      const results = await queryPublications(client, { searchQuery: "Nonexistent Query String" });
+
+      expect(results).toEqual([]);
+    });
+  });
+
+  describe("postedOnly (§8a visibility scope: only publications that actually appeared in a finalized roundup)", () => {
+    it("excludes a published record whose roundup_id is still NULL (collected, not yet posted)", async () => {
+      const facultyId = await seedFaculty("Stock, M.", "Department of Health Sciences");
+      const queued = await seedPublication({ title: "Queued Paper", dateAdded: "2026-01-01" });
+      await seedAuthor(queued, facultyId, "Stock, M.", "chps_faculty", 0);
+
+      const results = await queryPublications(client, { postedOnly: true, excludeAlreadyPosted: false });
+
+      expect(results).toEqual([]);
+    });
+
+    it("includes a published record whose roundup_id is set (actually posted)", async () => {
+      const facultyId = await seedFaculty("Stock, M.", "Department of Health Sciences");
+      await client.execute(`INSERT INTO roundups (label, generated_at, pub_count, html) VALUES ('Spring 2026', datetime('now'), 1, '<html></html>')`);
+      const posted = await seedPublication({ title: "Posted Paper", dateAdded: "2026-01-01", roundupId: 1 });
+      await seedAuthor(posted, facultyId, "Stock, M.", "chps_faculty", 0);
+      const queued = await seedPublication({ title: "Queued Paper", dateAdded: "2026-01-01" });
+      await seedAuthor(queued, facultyId, "Stock, M.", "chps_faculty", 0);
+
+      const results = await queryPublications(client, { postedOnly: true, excludeAlreadyPosted: false });
+
+      expect(results.map((r) => r.publication.title)).toEqual(["Posted Paper"]);
+    });
+
+    it("never surfaces a non-published status even when postedOnly is set (status defaults to ['published'])", async () => {
+      const facultyId = await seedFaculty("Stock, M.", "Department of Health Sciences");
+      await client.execute(`INSERT INTO roundups (label, generated_at, pub_count, html) VALUES ('Spring 2026', datetime('now'), 1, '<html></html>')`);
+      const pendingButStamped = await seedPublication({ title: "Stamped Pending Paper", dateAdded: "2026-01-01", status: "pending_merge", roundupId: 1 });
+      await seedAuthor(pendingButStamped, facultyId, "Stock, M.", "chps_faculty", 0);
+
+      const results = await queryPublications(client, { postedOnly: true, excludeAlreadyPosted: false });
+
+      expect(results).toEqual([]);
+    });
+  });
+
   describe("unit filter", () => {
     it("filters to publications whose derived unit set intersects the selected units", async () => {
       const stockId = await seedFaculty("Stock, M.", "Department of Health Sciences");

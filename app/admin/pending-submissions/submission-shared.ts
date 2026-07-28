@@ -13,6 +13,27 @@ export const initialSubmissionFormState: SubmissionFormState = { error: null };
 
 const VALID_ROLES = new Set<AuthorRole>(["chps_faculty", "grad_student", "undergrad_student", "external"]);
 
+export interface DraftAuthorSeed {
+  name: string;
+  role: AuthorRole;
+  facultyId: number | null;
+}
+
+// The additive branch this session's §8a public-portal build needed: seed
+// the author editor from payload.authors when the submission actually has
+// one (a portal submission — see lib/pending-submissions.ts's header
+// comment), falling back to today's single-submitter-row seed when it
+// doesn't (every review-page submission, unchanged). A portal author's
+// facultyId always starts null — anonymous submitters can't link a roster
+// entry themselves, the reviewer resolves it via the same datalist any row
+// uses, same as typing a new name into an empty row today.
+export function seedDraftAuthors(payload: { authors?: Array<{ name: string; role: AuthorRole }> }, fallback: DraftAuthorSeed): DraftAuthorSeed[] {
+  if (payload.authors && payload.authors.length > 0) {
+    return payload.authors.map((a) => ({ name: a.name, role: a.role, facultyId: null }));
+  }
+  return [fallback];
+}
+
 export type ParsedApproveForm = { submissionId: number; params: ApproveParams } | { error: string };
 
 export function parseApproveFormData(formData: FormData): ParsedApproveForm {

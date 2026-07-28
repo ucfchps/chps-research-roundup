@@ -1,19 +1,20 @@
 "use client";
 
-// §8c Tab 1 (Session 26): the queue list and per-submission review form.
-// Author editor + live preview reuse lib/citation.ts directly, same
-// convention Session 25's Needs Metadata tab established. The author editor
-// starts pre-populated with exactly one row — the submitter, from the
-// known pending_submissions.faculty_id — because the real submission
-// payload never carries an author list (confirmed via Session 26 recon);
-// anything beyond that row is the reviewer adding co-authors they know
-// about, not something being deserialized from the payload.
+// §8c Tab 1 (Session 26; extended for the §8a public-portal session): the
+// queue list and per-submission review form. Author editor + live preview
+// reuse lib/citation.ts directly, same convention Session 25's Needs
+// Metadata tab established. The author editor seeds from payload.authors
+// when a submission actually has one (a portal submission) — otherwise it
+// falls back to exactly one row, the submitter, from the known
+// pending_submissions.faculty_id (every review-page submission, whose
+// payload never carries an author list). See submission-shared.ts::
+// seedDraftAuthors for the branch itself.
 import { useActionState, useMemo, useState } from "react";
 import { formatCitation } from "@/lib/citation";
 import type { PendingSubmissionRecord } from "@/lib/pending-submissions";
 import type { AuthorRole, Faculty, Publication, PublicationAuthor } from "@/lib/types";
 import { approveSubmissionAction, rejectSubmissionAction } from "./submission-actions";
-import { initialSubmissionFormState } from "./submission-shared";
+import { initialSubmissionFormState, seedDraftAuthors, type DraftAuthorSeed } from "./submission-shared";
 
 export interface SubmissionBanner {
   submissionId: number;
@@ -29,11 +30,7 @@ const ROLE_OPTIONS: Array<{ value: AuthorRole; label: string }> = [
   { value: "external", label: "Not CHPS" },
 ];
 
-interface DraftAuthor {
-  name: string;
-  role: AuthorRole;
-  facultyId: number | null;
-}
+type DraftAuthor = DraftAuthorSeed;
 
 interface SubmissionWithStaleCheck extends PendingSubmissionRecord {
   staleMatch: { publicationId: number; finalized: boolean } | null;
@@ -44,7 +41,9 @@ function SubmissionCard({ record, facultyOptions, facultyById }: { record: Submi
   const [expanded, setExpanded] = useState(false);
 
   const submitterName = record.facultyId !== null ? (facultyById[record.facultyId]?.display_name ?? record.submittedBy) : record.submittedBy;
-  const [draftAuthors, setDraftAuthors] = useState<DraftAuthor[]>([{ name: submitterName, role: "chps_faculty", facultyId: record.facultyId }]);
+  const [draftAuthors, setDraftAuthors] = useState<DraftAuthor[]>(
+    seedDraftAuthors(payload, { name: submitterName, role: "chps_faculty", facultyId: record.facultyId })
+  );
 
   const [title, setTitle] = useState(payload.title);
   const [doi, setDoi] = useState(payload.doi ?? "");
@@ -208,7 +207,11 @@ function SubmissionCard({ record, facultyOptions, facultyById }: { record: Submi
             <button type="button" onClick={addAuthorRow} className="mt-2 border border-[#D8D8D8] text-sm px-3 py-1.5 rounded-md hover:border-[#B8B8B8] transition-colors">
               + Add author
             </button>
-            <p className="text-[11px] text-[#9A9A9A] mt-1">Pre-filled with the submitter (the only author the submission form captured) — add any co-authors you know about.</p>
+            <p className="text-[11px] text-[#9A9A9A] mt-1">
+              {payload.authors && payload.authors.length > 0
+                ? "Pre-filled from the author list the submitter reported — link each to a roster entry if you recognize them, or adjust as needed."
+                : "Pre-filled with the submitter (the only author the submission form captured) — add any co-authors you know about."}
+            </p>
           </div>
 
           <div className="flex flex-col gap-3 max-w-xl">

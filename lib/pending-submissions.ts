@@ -1,12 +1,18 @@
-// §8c Tab 1: the admin side of a faculty self-submission (lib/review-actions.ts::
-// addMissingPublication's "no match" outcome, §8b). The payload never carries
-// an author list (confirmed via Session 26 recon — the review page's
-// AddPublicationForm collects title/doi/url/journal/volume/issue/pages only)
-// — the one author the system actually knows is the submitter, via
-// pending_submissions.faculty_id. The review form seeds its author editor
-// from that single known row; anything beyond it is the reviewer adding
-// co-authors they know about, same trust level Session 25 gave a COMMS
-// completion (role_set_by: "comms:{user}").
+// §8c Tab 1: the admin side of a faculty self-submission
+// (lib/review-actions.ts::addMissingPublication's "no match" outcome, §8b)
+// AND, since the §8a public portal session, an anonymous submission
+// (lib/portal.ts::submitPublication). The two payload shapes differ: a
+// review-page payload never carries an author list (the review page's
+// AddPublicationForm collects title/doi/url/journal/volume/issue/pages
+// only — a known, documented gap) — the one author the system actually
+// knows is the submitter, via pending_submissions.faculty_id. A portal
+// payload DOES carry a real author list (payload.authors) and a NULL
+// faculty_id — the submitter is anonymous, so every author needs a human
+// reviewer to confirm/link them, none pre-trusted. The review form
+// (app/admin/pending-submissions/SubmissionsPanel.tsx) seeds its author
+// editor from whichever shape is actually present; anything the reviewer
+// adds beyond that is COMMS-entered, same trust level Session 25 gave a
+// COMMS completion (role_set_by: "comms:{user}").
 import type { Client } from "@libsql/client";
 import { findMatch, normalizeTitle, type MatchableExisting } from "./matching";
 import type { PublicationSubmission } from "./review-actions";
@@ -93,12 +99,20 @@ export type RejectResult = { outcome: "rejected" } | { outcome: "not_pending"; c
 // lib/review-actions.ts, which this session doesn't touch).
 export async function approvePendingSubmission(client: Client, submissionId: number, params: ApproveParams): Promise<ApproveResult> {
   const submission = (
-    await client.execute({ sql: "SELECT faculty_id, status FROM pending_submissions WHERE id = ?", args: [submissionId] })
-  ).rows[0] as unknown as { faculty_id: number | null; status: SubmissionStatus } | undefined;
+    await client.execute({ sql: "SELECT faculty_id, status, payload FROM pending_submissions WHERE id = ?", args: [submissionId] })
+  ).rows[0] as unknown as { faculty_id: number | null; status: SubmissionStatus; payload: string } | undefined;
   if (!submission) throw new Error(`No pending submission found with id ${submissionId}`);
   if (submission.status !== "pending") {
     return { outcome: "not_pending", currentStatus: submission.status };
   }
+  // Gate on the ORIGINAL submission's payload, not params.authors — the
+  // review form always submits at least one draft author row (the
+  // submitter) regardless of source, so params.authors is never empty
+  // either way. payload.authors is what actually distinguishes "this came
+  // from the portal with a real author list" from "this is a review-page
+  // submission whose only known author is faculty_id."
+  const originalPayload = JSON.parse(submission.payload) as PublicationSubmission;
+  const hasPortalAuthors = (originalPayload.authors?.length ?? 0) > 0;
 
   const now = new Date().toISOString();
   const existing = (await client.execute("SELECT id, doi, title_normalized FROM publications")).rows as unknown as MatchableExisting[];
@@ -135,6 +149,45 @@ export async function approvePendingSubmission(client: Client, submissionId: num
           sql: `INSERT INTO publication_authors (publication_id, faculty_id, name, role, role_set_by, role_set_at, position) VALUES (?, ?, ?, 'chps_faculty', ?, ?, ?)`,
           args: [match.publicationId, submission.faculty_id, faculty.display_name, `faculty:${submission.faculty_id}`, now, maxPosition.maxPos + 1],
         });
+      }
+    }
+
+    // ★ The gap this session's recon found: a portal submission (no known
+    // faculty_id, so the block above never fires) that turns out to match
+    // an existing publication used to link nobody — the exact co-author
+    // list the submitter reported was silently discarded, no error, no
+    // signal. Link params.authors (the reviewer-approved/edited list, same
+    // source the fresh-insert path below already uses) onto the matched
+    // publication instead, deduped against what's already there — by
+    // faculty_id where the reviewer resolved one via the datalist, by exact
+    // name otherwise. Review-page submissions never trip this: their
+    // payload has no authors, so hasPortalAuthors is false and this block
+    // is a no-op, leaving that path exactly as it works today.
+    if (hasPortalAuthors && params.authors.length > 0) {
+      const existingAuthorRows = (
+        await client.execute({ sql: "SELECT faculty_id, name FROM publication_authors WHERE publication_id = ?", args: [match.publicationId] })
+      ).rows as unknown as Array<{ faculty_id: number | null; name: string }>;
+      const linkedFacultyIds = new Set(existingAuthorRows.filter((a) => a.faculty_id !== null).map((a) => a.faculty_id));
+      const linkedNames = new Set(existingAuthorRows.map((a) => a.name));
+
+      let nextPosition = (
+        await client.execute({ sql: "SELECT COALESCE(MAX(position), -1) as maxPos FROM publication_authors WHERE publication_id = ?", args: [match.publicationId] })
+      ).rows[0] as unknown as { maxPos: number };
+      let position = nextPosition.maxPos + 1;
+
+      for (const a of params.authors) {
+        const alreadyPresent = a.facultyId !== null ? linkedFacultyIds.has(a.facultyId) : linkedNames.has(a.name);
+        if (alreadyPresent) continue;
+
+        // Unlinked (facultyId null) or COMMS-resolved via the datalist —
+        // either way this is a reviewer confirming an anonymous submitter's
+        // report, same trust level the fresh-insert path below gives a
+        // non-submitter author.
+        await client.execute({
+          sql: `INSERT INTO publication_authors (publication_id, faculty_id, name, role, role_set_by, role_set_at, position) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+          args: [match.publicationId, a.facultyId, a.name, a.role, `comms:${params.reviewedBy}`, now, position],
+        });
+        position++;
       }
     }
 
@@ -178,8 +231,15 @@ export async function approvePendingSubmission(client: Client, submissionId: num
       // The submitter's own row is self-attested (they submitted it) — same
       // "faculty:{id}" provenance addMissingPublication already uses.
       // Anything the reviewer added beyond that is COMMS-entered, Session
-      // 25's "comms:{user}" convention.
-      const roleSetBy = a.facultyId === submission.faculty_id ? `faculty:${submission.faculty_id}` : `comms:${params.reviewedBy}`;
+      // 25's "comms:{user}" convention. ★ The a.facultyId !== null guard
+      // matters for a portal submission specifically: submission.faculty_id
+      // is NULL (anonymous), and an author the reviewer never linked to a
+      // roster entry also has facultyId NULL — without this guard,
+      // `null === null` was true, stamping every unlinked portal author
+      // with the nonsensical role_set_by "faculty:null" instead of
+      // "comms:{reviewedBy}". Found via Playwright against a real portal
+      // submission, not by inspection.
+      const roleSetBy = a.facultyId !== null && a.facultyId === submission.faculty_id ? `faculty:${submission.faculty_id}` : `comms:${params.reviewedBy}`;
       await tx.execute({
         sql: `INSERT INTO publication_authors (publication_id, faculty_id, name, role, role_set_by, role_set_at, position) VALUES (?, ?, ?, ?, ?, ?, ?)`,
         args: [publicationId, a.facultyId, a.name, a.role, roleSetBy, now, i],
