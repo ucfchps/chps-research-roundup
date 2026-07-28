@@ -573,7 +573,7 @@ NOT roundup units — ignore, never guess a mapping for these:
 > Revisit if COMMS says staff shouldn't render bold, or if another unit turns out to have
 > the same shape (a unit whose only "CHPS person" on a paper is staff, not faculty).
 
-> ### ⚠️ Open follow-up (Session 21): Chen, X.S.'s identity is unresolved — 5 real papers are excluded from the 2025 edition
+> ### ⚠️ Open follow-up: Chen's future-paper linking mechanism (identity resolved; linking mechanism undecided)
 > Five 2025 publications (`development-and-validation-of-equations-to-estim`,
 > `a-social-engagement-technology-based-randomized`, `the-digital-displacement-on-everyday-activities`,
 > `the-use-of-portable-a-mode-ultrasound-in-appendi`, `loneliness-among-older-caregivers-in-the-califor`)
@@ -761,6 +761,13 @@ Apply in order; stop at first confident answer:
   - Submits to `pending_submissions` with status `pending`. **Never writes directly to `publications`.**
   - Confirmation message on success.
 
+> **Known gap: the live review-page submission form (`AddPublicationForm.tsx`) collects no
+> author list at all** — only title/doi/url/journal/volume/issue/pages. This §8a spec's
+> eventual public-portal submission form calls for repeatable co-author rows (name + role); the
+> *current* form falls short of that spec. Whoever builds the public portal should either
+> extend `AddPublicationForm` to match, or ensure the new portal form implements author capture
+> that the existing one doesn't.
+
 ### 8b. ★ The personal review page — where faculty verify their own work
 
 **Route:** `/review/{slug}/{token}` — e.g. `/review/matt-stock/f8Kd9Lm2QpX7vNzR4hT1sYbW`
@@ -926,6 +933,14 @@ Track `opened_at` and `completed_at` so COMMS can see who has and hasn't respond
 **Tab 5 — Roundup archive**
 - Lists past `roundups` rows with their stored HTML.
 - Allows un-stamping an edition (clearing `roundup_id` on its publications) if something needs to be pulled back and regenerated. Rare, but the alternative is hand-editing the database.
+
+> **Open decision — archived roundup HTML is read-only (default chosen, not
+> COMMS-confirmed).** Tab 5 renders each edition's stored `html` verbatim with no in-place
+> editing (commit `833578f`). The only supported correction path is *un-stamp → fix underlying
+> records → regenerate → re-finalize*. This is the concrete governing case for the
+> Gurnukar/Gurnurkar spelling already shipped in roundup #1's archived HTML. **Needs a COMMS
+> call:** confirm corrections should go through regenerate-and-re-finalize, or decide archived
+> HTML should be directly correctable instead.
 
 **Note (corrected):** Two early prototypes were built as Claude.ai conversation artifacts on July 11, 2025 (before this repository existed) and have since been copied into `docs/reference/chps_publications_portal.html` and `docs/reference/chps_research_roundup_generator.html`. They're useful for **interaction flow and data shape only** — the search/submit/admin-review/generate sequence, the JSON record shape (`unit`, `dateAdded`, `authors: [{name, role}]`, etc.), and the citation-formatting logic they encode. **They are explicitly not a visual reference.** They were quick functional sketches, not design work, and the intended final UI is a professional, polished interface — treat their plain CSS-variable styling as disposable. The password check in the portal file and the artifact-based storage in both are placeholders only, superseded entirely by the real Turso-backed auth (Session 17) and database (Sessions 1–16) already built.
 

@@ -355,6 +355,15 @@ before this conversation started.
   exists, or a direct email today) — but should not be worked with the same urgency as the 6
   conflicting-affiliation rows in §6. Treat as normal-priority backlog, not a suspected error.
 
+### Chen, X.S. (faculty_id = 8) — known instance, not yet counted anywhere
+
+**Known instance, not yet counted anywhere: `faculty_id=8` (Chen) carries ~371
+`publication_authors` rows with `role_set_by='ingest:unconfirmed_name_match'`** from
+`ingest-crossref` matching on the surname "Chen" with no ORCID cross-check (found 2026-07-27,
+during the Chen backfill-link session). Roles stay `unknown`, so these don't silently
+misattribute — but they're an unusually stark, large-scale illustration of the documented
+no-ORCID-cross-check risk above. Not acted on; flagged so it doesn't get rediscovered as if new.
+
 ---
 
 ## 6. ★ Cross-source sweep: the real number, not an extrapolation from one case
