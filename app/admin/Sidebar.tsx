@@ -3,10 +3,7 @@
 // tab) — a static, non-animated echo of the login page's flowing-paths motif
 // (docs/reference/login-redesign-floating-paths.html); this page is for
 // repeated, focused scanning, not a landing moment, so no animation here.
-// The remaining nav items are real future admin sections (build-order items
-// 17–19) that don't exist yet — rendered as plain, non-interactive elements
-// rather than dead links, so they don't create broken tab stops or 404s for
-// a keyboard user probing the sidebar.
+// All five §8c tabs are real now (Review campaigns was the last).
 import type { ReactNode } from "react";
 
 function NavIcon({ children }: { children: ReactNode }) {
@@ -17,7 +14,7 @@ function NavIcon({ children }: { children: ReactNode }) {
   );
 }
 
-type ActiveTab = "publications" | "archive" | "needs-metadata" | "pending-submissions";
+type ActiveTab = "publications" | "archive" | "needs-metadata" | "pending-submissions" | "review-campaigns";
 
 const NAV_ITEMS: Array<{ key: ActiveTab; href: string; label: string; icon: ReactNode }> = [
   {
@@ -64,10 +61,9 @@ const NAV_ITEMS: Array<{ key: ActiveTab; href: string; label: string; icon: Reac
       </>
     ),
   },
-];
-
-const FUTURE_NAV_ITEMS: Array<{ label: string; icon: ReactNode }> = [
   {
+    key: "review-campaigns",
+    href: "/admin/review-campaigns",
     label: "Review campaigns",
     icon: (
       <>
@@ -106,12 +102,6 @@ export function Sidebar({ active }: { active: ActiveTab }) {
             <NavIcon>{item.icon}</NavIcon>
             {item.label}
           </a>
-        ))}
-        {FUTURE_NAV_ITEMS.map((item) => (
-          <div key={item.label} className="flex items-center gap-2.5 px-3 py-2 rounded-md text-[#6B6B6B]" aria-disabled="true">
-            <NavIcon>{item.icon}</NavIcon>
-            {item.label}
-          </div>
         ))}
       </nav>
 

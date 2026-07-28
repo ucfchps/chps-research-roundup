@@ -66,6 +66,17 @@ export async function createReviewRequest(
   return { token, slug };
 }
 
+// The setter half of getReviewRequestByToken's `if (row.revoked) return null`
+// check above — that check already existed (the review page has always
+// honored a revoked token), only this write was missing. Idempotent by
+// construction: setting revoked=1 twice is the same as once.
+export async function revokeReviewRequest(client: Client, reviewRequestId: number): Promise<void> {
+  await client.execute({
+    sql: "UPDATE review_requests SET revoked = 1 WHERE id = ?",
+    args: [reviewRequestId],
+  });
+}
+
 export interface ReviewablePublication {
   id: number;
   doi: string | null;

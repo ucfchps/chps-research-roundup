@@ -10,8 +10,12 @@ import { createClient, type Client } from "@libsql/client";
 import { runMigrations } from "../db/migrate";
 import {
   buildCampaignPlan,
+  buildCampaignPreview,
   buildInvitationEmail,
   getCampaignStatus,
+  listCampaignCycles,
+  listCampaignRequests,
+  resolveMockSendMessageFn,
   getFacultyNeedingReview,
   runCampaign,
 } from "../lib/campaigns";
@@ -239,6 +243,90 @@ describe("campaigns", () => {
       );
 
       expect(body).not.toContain("0 co-author");
+    });
+  });
+
+  describe("buildCampaignPreview", () => {
+    it("partitions eligible faculty into willSend (with an email preview) vs skipped/excluded buckets, with a reason for each", async () => {
+      const willSendId = await seedFaculty({ displayName: "Will Send, W." });
+      const willSendPub = await seedPublication({ title: "Will Send Paper" });
+      await seedAuthor(willSendPub, willSendId, "Will Send, W.", "chps_faculty", 0);
+
+      const noEmailId = await seedFaculty({ displayName: "No Email, N.", email: null });
+      const noEmailPub = await seedPublication({ title: "No Email Paper" });
+      await seedAuthor(noEmailPub, noEmailId, "No Email, N.", "chps_faculty", 0);
+
+      const alreadyActiveId = await seedFaculty({ displayName: "Already Active, A." });
+      const alreadyActivePub = await seedPublication({ title: "Already Active Paper" });
+      await seedAuthor(alreadyActivePub, alreadyActiveId, "Already Active, A.", "chps_faculty", 0);
+      const now = new Date().toISOString();
+      await client.execute({
+        sql: `INSERT INTO review_requests (faculty_id, token_hash, slug, cycle_label, created_at, expires_at, revoked) VALUES (?, 'somehash', 'already-active-a', ?, ?, ?, 0)`,
+        args: [alreadyActiveId, "Fall 2026 review", now, new Date(Date.now() + 90 * 86400000).toISOString()],
+      });
+
+      await seedFaculty({ displayName: "Nothing To Review, N." }); // active, no eligible publication at all
+
+      const preview = await buildCampaignPreview(client, "Fall 2026 review", "https://example.com");
+
+      expect(preview.willSend.map((e) => e.displayName)).toEqual(["Will Send, W."]);
+      expect(preview.willSend[0].emailPreview.subject.length).toBeGreaterThan(0);
+      expect(preview.willSend[0].emailPreview.body).toContain("https://example.com/review/");
+
+      expect(preview.skippedNoEmail.map((e) => e.displayName)).toEqual(["No Email, N."]);
+      expect(preview.skippedAlreadyActive.map((e) => e.displayName)).toEqual(["Already Active, A."]);
+      expect(preview.excludedNothingToReview.map((e) => e.displayName)).toContain("Nothing To Review, N.");
+    });
+  });
+
+  describe("resolveMockSendMessageFn — the seam the admin send action defers to for its real/mock choice", () => {
+    const ORIGINAL_ENV = process.env.MOCK_GMAIL_SEND;
+
+    afterEach(() => {
+      if (ORIGINAL_ENV === undefined) delete process.env.MOCK_GMAIL_SEND;
+      else process.env.MOCK_GMAIL_SEND = ORIGINAL_ENV;
+    });
+
+    it("returns undefined when MOCK_GMAIL_SEND is unset — the production default — so runCampaign's own real sendMessage default engages untouched", () => {
+      delete process.env.MOCK_GMAIL_SEND;
+
+      expect(resolveMockSendMessageFn()).toBeUndefined();
+    });
+
+    it("returns undefined for any value other than exactly '1' — a misconfigured env fails toward sending for real, never toward silently mocking", () => {
+      process.env.MOCK_GMAIL_SEND = "true";
+      expect(resolveMockSendMessageFn()).toBeUndefined();
+
+      process.env.MOCK_GMAIL_SEND = "0";
+      expect(resolveMockSendMessageFn()).toBeUndefined();
+    });
+
+    it("returns a mock function only when MOCK_GMAIL_SEND is exactly '1', and that mock makes no network calls", async () => {
+      process.env.MOCK_GMAIL_SEND = "1";
+
+      const fn = resolveMockSendMessageFn();
+      expect(fn).toBeInstanceOf(Function);
+
+      await expect(fn!({ to: "a@b.com", from: "c@d.com", replyTo: "c@d.com", subject: "s", body: "b" })).resolves.toBeUndefined();
+    });
+  });
+
+  describe("listCampaignCycles / listCampaignRequests", () => {
+    it("lists distinct cycle labels and per-recipient rows with the id a revoke action needs", async () => {
+      const facultyId = await seedFaculty({ displayName: "Cycle Lister, C." });
+      const now = new Date().toISOString();
+      await client.execute({
+        sql: `INSERT INTO review_requests (faculty_id, token_hash, slug, cycle_label, created_at, expires_at, revoked) VALUES (?, 'somehash', 'cycle-lister-c', ?, ?, ?, 0)`,
+        args: [facultyId, "Fall 2026 review", now, new Date(Date.now() + 90 * 86400000).toISOString()],
+      });
+
+      const cycles = await listCampaignCycles(client);
+      expect(cycles).toContain("Fall 2026 review");
+
+      const requests = await listCampaignRequests(client, "Fall 2026 review");
+      expect(requests).toHaveLength(1);
+      expect(requests[0]).toMatchObject({ displayName: "Cycle Lister, C.", revoked: 0 });
+      expect(typeof requests[0].id).toBe("number");
     });
   });
 

@@ -17,6 +17,7 @@ import {
   markReviewComplete,
   markReviewRequestOpened,
   ownUnconfirmedRow,
+  revokeReviewRequest,
   unidentifiedCoAuthors,
   type ReviewablePublication,
 } from "../lib/review";
@@ -310,6 +311,40 @@ describe("getReviewRequestByToken / getReviewablePublications", () => {
 
       const mine = await getReviewRequestByToken(client, myToken);
       expect(mine?.completed_at).toBeNull();
+    });
+  });
+
+  describe("revokeReviewRequest", () => {
+    it("sets revoked=1, making the token immediately unusable via getReviewRequestByToken", async () => {
+      const facultyId = await seedFaculty("Zraick, R.I.");
+      const { token } = await seedReviewRequest(facultyId);
+      const reviewRequest = await getReviewRequestByToken(client, token);
+      expect(reviewRequest).not.toBeNull();
+
+      await revokeReviewRequest(client, reviewRequest!.id);
+
+      expect(await getReviewRequestByToken(client, token)).toBeNull();
+    });
+
+    it("is idempotent — a second call on an already-revoked row is a no-op, not an error", async () => {
+      const facultyId = await seedFaculty("Zraick, R.I.");
+      const { token } = await seedReviewRequest(facultyId, { revoked: 1 });
+      const row = (await client.execute({ sql: "SELECT id FROM review_requests WHERE token_hash = ?", args: [hashToken(token)] }))
+        .rows[0] as unknown as { id: number };
+
+      await expect(revokeReviewRequest(client, row.id)).resolves.not.toThrow();
+    });
+
+    it("does not touch a different reviewRequestId", async () => {
+      const facultyId = await seedFaculty("Zraick, R.I.");
+      const otherFacultyId = await seedFaculty("Stock, M.S.");
+      const { token: myToken } = await seedReviewRequest(facultyId);
+      const { token: otherToken } = await seedReviewRequest(otherFacultyId);
+      const otherReviewRequest = await getReviewRequestByToken(client, otherToken);
+
+      await revokeReviewRequest(client, otherReviewRequest!.id);
+
+      expect(await getReviewRequestByToken(client, myToken)).not.toBeNull();
     });
   });
 
