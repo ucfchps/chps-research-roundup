@@ -20,7 +20,10 @@ const USER_AGENT = `chps-research-roundup/1.0 (mailto:${CROSSREF_MAILTO})`;
 const CROSSREF_BASE = "https://api.crossref.org";
 const SEARCH_ROWS = 5;
 const AUTHOR_SEARCH_DEFAULT_ROWS = 20;
-const PREPRINT_TYPE = "posted-content";
+// Exported for the Phase 5 replay diagnostic (read-only script, not a
+// production caller) — pure visibility change, no behavior change. See
+// docs/phase5-surface-inventory.md.
+export const PREPRINT_TYPE = "posted-content";
 
 export class CrossrefUnavailableError extends Error {
   constructor(message: string, options?: { cause?: unknown }) {
@@ -129,7 +132,8 @@ function extractJournal(item: CrossrefApiItem): string | null {
 // Maps a raw Crossref work to our shape. Returns null when the record is
 // unusable (no title at all) — every field below is a real edge case seen in
 // the fixtures (see Session 6 prompt point 4).
-function mapItem(item: CrossrefApiItem): CrossrefResolution | null {
+// Exported for the Phase 5 replay diagnostic — see note on PREPRINT_TYPE above.
+export function mapItem(item: CrossrefApiItem): CrossrefResolution | null {
   const title = item.title?.[0];
   if (!title) return null;
 
@@ -165,7 +169,8 @@ function authorListHasSurname(item: CrossrefApiItem, surnameHint: string): boole
   return item.author.some((a) => normalizeForCompare(a.family ?? a.name ?? "").includes(target));
 }
 
-function passesAcceptanceGate(
+// Exported for the Phase 5 replay diagnostic — see note on PREPRINT_TYPE above.
+export function passesAcceptanceGate(
   item: CrossrefApiItem,
   resolution: CrossrefResolution,
   normalizedQueryTitle: string,
@@ -184,7 +189,8 @@ function passesAcceptanceGate(
 // existing callers/tests.
 export { isUcfAffiliation };
 
-function hasUcfAffiliation(item: CrossrefApiItem): boolean {
+// Exported for the Phase 5 replay diagnostic — see note on PREPRINT_TYPE above.
+export function hasUcfAffiliation(item: CrossrefApiItem): boolean {
   return item.author?.some((a) => a.affiliation?.some((aff) => isUcfAffiliation(aff.name))) ?? false;
 }
 
@@ -193,7 +199,8 @@ function authorSurnames(item: CrossrefApiItem): string[] {
   return item.author.map((a) => normalizeForCompare(a.family ?? a.name ?? ""));
 }
 
-function sameAuthorOrder(a: CrossrefApiItem, b: CrossrefApiItem): boolean {
+// Exported for the Phase 5 replay diagnostic — see note on PREPRINT_TYPE above.
+export function sameAuthorOrder(a: CrossrefApiItem, b: CrossrefApiItem): boolean {
   const sa = authorSurnames(a);
   const sb = authorSurnames(b);
   if (sa.length === 0 || sb.length === 0 || sa.length !== sb.length) return false;
@@ -206,7 +213,8 @@ function sameAuthorOrder(a: CrossrefApiItem, b: CrossrefApiItem): boolean {
 // later, fully-populated journal-article record fails it. Runs only AFTER
 // gate evaluation: it re-ranks among candidates sharing the accepted
 // preprint's author order, never loosening the gate itself.
-function preferPublishedOverPreprint(chosenItem: CrossrefApiItem, allItems: CrossrefApiItem[]): CrossrefResolution | null {
+// Exported for the Phase 5 replay diagnostic — see note on PREPRINT_TYPE above.
+export function preferPublishedOverPreprint(chosenItem: CrossrefApiItem, allItems: CrossrefApiItem[]): CrossrefResolution | null {
   const superseding = allItems.find(
     (other) => other.DOI !== chosenItem.DOI && (other.type ?? "other") !== PREPRINT_TYPE && sameAuthorOrder(chosenItem, other)
   );

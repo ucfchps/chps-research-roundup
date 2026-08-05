@@ -1,0 +1,2534 @@
+{
+  "status": "ok",
+  "message-type": "work-list",
+  "message-version": "1.0.0",
+  "message": {
+    "facets": {},
+    "total-results": 1423267,
+    "items": [
+      {
+        "indexed": {
+          "date-parts": [
+            [
+              2025,
+              8,
+              22
+            ]
+          ],
+          "date-time": "2025-08-22T00:41:14Z",
+          "timestamp": 1755823274317,
+          "version": "3.44.0"
+        },
+        "posted": {
+          "date-parts": [
+            [
+              2025,
+              7,
+              3
+            ]
+          ]
+        },
+        "group-title": "Public Health and Healthcare",
+        "reference-count": 0,
+        "publisher": "MDPI AG",
+        "license": [
+          {
+            "start": {
+              "date-parts": [
+                [
+                  2025,
+                  7,
+                  3
+                ]
+              ],
+              "date-time": "2025-07-03T00:00:00Z",
+              "timestamp": 1751500800000
+            },
+            "content-version": "unspecified",
+            "delay-in-days": 0,
+            "URL": "http://creativecommons.org/licenses/by/4.0"
+          }
+        ],
+        "content-domain": {
+          "domain": [],
+          "crossmark-restriction": false
+        },
+        "accepted": {
+          "date-parts": [
+            [
+              2025,
+              7,
+              1
+            ]
+          ]
+        },
+        "abstract": "<jats:p>Hispanic breast cancer survivors reported worse quality of life, and fatalism is considered one of the mediators for this disparity. This study aimed to identify the factors associated with fatalism within a diverse Hispanic population. Hispanic origin was self-reported, and the Multidimensional Fatalism Measure questionnaire, a validated tool that measures fatalism across multiple dimensions, was used to assess fatalism. A total of 390 women, consisting of 210 Puerto Ricans, 34 Colombians, 29 Dominicans, 25 Cubans, 24 Venezuelans, 22 Mexicans, and 46 individuals of other Hispanic backgrounds, completed fatalism. The mean fatalism score was 16.4 (95% CI= 15.8\u201317.0), characterized by a high internal locus of control and strong religious beliefs, along with moderate beliefs in luck and a low external locus of control. The higher fatalism scores were reported in Dominican, Mexican, and Venezuelan groups, while Colombians reported the lowest score. Multivariable analysis showed that Colombians (\u03b2= -4.0), individuals with higher household incomes (\u03b2= -2.3 for $20,000-$75,000, \u03b2= - 2.4 for \u2265 75,000), higher education levels (\u03b2= -1.9), and those using English more frequently at home (\u03b2= -2.0) reported lower fatalism compared to their reference group. To enhance the quality of life for these survivors, culturally tailored interventions should focus on improving perceived control and mitigating fatalism.</jats:p>",
+        "DOI": "10.20944/preprints202507.0230.v1",
+        "type": "posted-content",
+        "created": {
+          "date-parts": [
+            [
+              2025,
+              7,
+              7
+            ]
+          ],
+          "date-time": "2025-07-07T03:56:51Z",
+          "timestamp": 1751860611000
+        },
+        "source": "Crossref",
+        "is-referenced-by-count": 0,
+        "title": [
+          "Evaluating Fatalism Among Breast Cancer Survivors in a Heterogeneous Hispanic Population: A Cross-Sectional Study"
+        ],
+        "prefix": "10.20944",
+        "author": [
+          {
+            "given": "Liara",
+            "family": "Lopez Torralba",
+            "sequence": "first",
+            "affiliation": [],
+            "role": [
+              {
+                "role": "author",
+                "vocabulary": "crossref"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0009-0005-7857-587X",
+            "authenticated-orcid": false,
+            "given": "Brian",
+            "family": "Sukhu",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "role": "author",
+                "vocabulary": "crossref"
+              }
+            ]
+          },
+          {
+            "given": "Maria Eduarda",
+            "family": "de Azevedo Daruge",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "role": "author",
+                "vocabulary": "crossref"
+              }
+            ]
+          },
+          {
+            "given": "Victoria",
+            "family": "Loerzel",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "role": "author",
+                "vocabulary": "crossref"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0003-1732-5998",
+            "authenticated-orcid": false,
+            "given": "Eunkyung",
+            "family": "Lee",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "role": "author",
+                "vocabulary": "crossref"
+              }
+            ]
+          }
+        ],
+        "member": "1968",
+        "deposited": {
+          "date-parts": [
+            [
+              2025,
+              8,
+              21
+            ]
+          ],
+          "date-time": "2025-08-21T00:38:54Z",
+          "timestamp": 1755736734000
+        },
+        "score": 74.22011,
+        "resource": {
+          "primary": {
+            "URL": "https://www.preprints.org/manuscript/202507.0230/v1"
+          }
+        },
+        "issued": {
+          "date-parts": [
+            [
+              2025,
+              7,
+              3
+            ]
+          ]
+        },
+        "references-count": 0,
+        "URL": "https://doi.org/10.20944/preprints202507.0230.v1",
+        "relation": {
+          "is-preprint-of": [
+            {
+              "id-type": "doi",
+              "id": "10.3390/curroncol32080461",
+              "asserted-by": "subject"
+            }
+          ]
+        },
+        "published": {
+          "date-parts": [
+            [
+              2025,
+              7,
+              3
+            ]
+          ]
+        },
+        "subtype": "preprint"
+      },
+      {
+        "indexed": {
+          "date-parts": [
+            [
+              2026,
+              4,
+              22
+            ]
+          ],
+          "date-time": "2026-04-22T13:40:54Z",
+          "timestamp": 1776865254041,
+          "version": "3.51.2"
+        },
+        "reference-count": 47,
+        "publisher": "MDPI AG",
+        "issue": "8",
+        "license": [
+          {
+            "start": {
+              "date-parts": [
+                [
+                  2025,
+                  8,
+                  15
+                ]
+              ],
+              "date-time": "2025-08-15T00:00:00Z",
+              "timestamp": 1755216000000
+            },
+            "content-version": "vor",
+            "delay-in-days": 0,
+            "URL": "https://creativecommons.org/licenses/by/4.0/"
+          }
+        ],
+        "funder": [
+          {
+            "DOI": "10.13039/100014237",
+            "name": "Florida Breast Cancer Foundation",
+            "doi-asserted-by": "publisher",
+            "award": [
+              "SGA1057674"
+            ],
+            "award-info": [
+              {
+                "award-number": [
+                  "SGA1057674"
+                ]
+              }
+            ],
+            "id": [
+              {
+                "id": "10.13039/100014237",
+                "id-type": "DOI",
+                "asserted-by": "publisher"
+              }
+            ]
+          },
+          {
+            "DOI": "10.13039/100014237",
+            "name": "Florida Breast Cancer Foundation",
+            "doi-asserted-by": "publisher",
+            "award": [
+              "AWD00001663"
+            ],
+            "award-info": [
+              {
+                "award-number": [
+                  "AWD00001663"
+                ]
+              }
+            ],
+            "id": [
+              {
+                "id": "10.13039/100014237",
+                "id-type": "DOI",
+                "asserted-by": "publisher"
+              }
+            ]
+          },
+          {
+            "DOI": "10.13039/100007900",
+            "name": "University of Central Florida",
+            "doi-asserted-by": "publisher",
+            "award": [
+              "SGA1057674"
+            ],
+            "award-info": [
+              {
+                "award-number": [
+                  "SGA1057674"
+                ]
+              }
+            ],
+            "id": [
+              {
+                "id": "10.13039/100007900",
+                "id-type": "DOI",
+                "asserted-by": "publisher"
+              }
+            ]
+          },
+          {
+            "DOI": "10.13039/100007900",
+            "name": "University of Central Florida",
+            "doi-asserted-by": "publisher",
+            "award": [
+              "AWD00001663"
+            ],
+            "award-info": [
+              {
+                "award-number": [
+                  "AWD00001663"
+                ]
+              }
+            ],
+            "id": [
+              {
+                "id": "10.13039/100007900",
+                "id-type": "DOI",
+                "asserted-by": "publisher"
+              }
+            ]
+          }
+        ],
+        "content-domain": {
+          "domain": [],
+          "crossmark-restriction": false
+        },
+        "short-container-title": [
+          "Current Oncology"
+        ],
+        "abstract": "<jats:p>Hispanic breast cancer survivors reported worse quality of life, and fatalism is considered one of the mediators for this disparity. This study aimed to identify the factors associated with fatalism within a diverse Hispanic population. Hispanic origin was self-reported, and the Multidimensional Fatalism Measure questionnaire, a validated tool that measures fatalism across multiple dimensions, was used to assess fatalism. A total of 390 women, consisting of 210 Puerto Ricans, 34 Colombians, 29 Dominicans, 25 Cubans, 24 Venezuelans, 22 Mexicans, and 46 individuals of other Hispanic backgrounds, completed the fatalism assessment. The mean fatalism score was 16.4 (95% CI = 15.8\u201317.0), characterized by a high internal locus of control and strong religious beliefs, along with moderate beliefs in luck and a low external locus of control. The higher fatalism scores were reported in Dominican, Mexican, and Venezuelan groups, while Colombians reported the lowest score. Multivariable analysis showed that Colombians (\u03b2 = \u22124.0), individuals with higher household incomes (\u03b2 = \u22122.3 for USD 20,000\u2013USD 75,000, \u03b2 = \u22122.4 for \u226575,000), higher education levels (\u03b2 = \u22121.9), and those using English more frequently at home (\u03b2 = \u22122.0) reported lower fatalism compared to their reference group. To enhance the quality of life for these survivors, culturally tailored interventions should focus on improving perceived control and mitigating fatalism.</jats:p>",
+        "DOI": "10.3390/curroncol32080461",
+        "type": "journal-article",
+        "created": {
+          "date-parts": [
+            [
+              2025,
+              8,
+              15
+            ]
+          ],
+          "date-time": "2025-08-15T14:24:28Z",
+          "timestamp": 1755267868000
+        },
+        "page": "461",
+        "update-policy": "https://doi.org/10.3390/mdpi_crossmark_policy",
+        "source": "Crossref",
+        "is-referenced-by-count": 1,
+        "title": [
+          "Evaluating Fatalism Among Breast Cancer Survivors in a Heterogeneous Hispanic Population: A Cross-Sectional Study"
+        ],
+        "prefix": "10.3390",
+        "volume": "32",
+        "author": [
+          {
+            "given": "Liara",
+            "family": "Lopez Torralba",
+            "sequence": "first",
+            "affiliation": [
+              {
+                "name": "Burnett School of Biomedical Sciences, College of Medicine, University of Central Florida, Orlando, FL 32816, USA"
+              }
+            ],
+            "role": [
+              {
+                "role": "author",
+                "vocabulary": "crossref"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0009-0005-7857-587X",
+            "authenticated-orcid": false,
+            "given": "Brian",
+            "family": "Sukhu",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Department of Health Sciences, College of Health Professions and Sciences, University of Central Florida, Orlando, FL 32816, USA"
+              }
+            ],
+            "role": [
+              {
+                "role": "author",
+                "vocabulary": "crossref"
+              }
+            ]
+          },
+          {
+            "given": "Maria Eduarda",
+            "family": "de Azevedo Daruge",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Department of Health Sciences, College of Health Professions and Sciences, University of Central Florida, Orlando, FL 32816, USA"
+              }
+            ],
+            "role": [
+              {
+                "role": "author",
+                "vocabulary": "crossref"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0003-3607-9657",
+            "authenticated-orcid": false,
+            "given": "Jongik",
+            "family": "Chung",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Department of Statistics and Data Science, College of Sciences, University of Central Florida, Orlando, FL 32816, USA"
+              }
+            ],
+            "role": [
+              {
+                "role": "author",
+                "vocabulary": "crossref"
+              }
+            ]
+          },
+          {
+            "given": "Victoria",
+            "family": "Loerzel",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Department of Nursing Practice, College of Nursing, University of Central Florida, Orlando, FL 32827, USA"
+              }
+            ],
+            "role": [
+              {
+                "role": "author",
+                "vocabulary": "crossref"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0003-1732-5998",
+            "authenticated-orcid": false,
+            "given": "Eunkyung",
+            "family": "Lee",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "Department of Health Sciences, College of Health Professions and Sciences, University of Central Florida, Orlando, FL 32816, USA"
+              }
+            ],
+            "role": [
+              {
+                "role": "author",
+                "vocabulary": "crossref"
+              }
+            ]
+          }
+        ],
+        "member": "1968",
+        "published-online": {
+          "date-parts": [
+            [
+              2025,
+              8,
+              15
+            ]
+          ]
+        },
+        "reference": [
+          {
+            "key": "ref_1",
+            "unstructured": "American Cancer Society (2024). Cancer Facts Figures for Hispanic/Latino Population 2024\u20132026, American Cancer Society, Inc."
+          },
+          {
+            "key": "ref_2",
+            "first-page": "477",
+            "article-title": "Breast cancer statistics 2024",
+            "volume": "74",
+            "author": "Giaquinto",
+            "year": "2024",
+            "journal-title": "CA Cancer J. Clin."
+          },
+          {
+            "key": "ref_3",
+            "unstructured": "American Cancer Society (2024). Breast Cancer Facts Figures 2024\u20132025, American Cancer Society, Inc."
+          },
+          {
+            "key": "ref_4",
+            "doi-asserted-by": "crossref",
+            "first-page": "19",
+            "DOI": "10.1300/J077v24n03_02",
+            "article-title": "Understanding the breast cancer experience of Latina women",
+            "volume": "24",
+            "author": "Padilla",
+            "year": "2006",
+            "journal-title": "J. Psychosoc. Oncol."
+          },
+          {
+            "key": "ref_5",
+            "doi-asserted-by": "crossref",
+            "first-page": "1664",
+            "DOI": "10.1002/cncr.26478",
+            "article-title": "Return to work in low-income Latina and non-Latina white breast cancer survivors: A 3-year longitudinal study",
+            "volume": "118",
+            "author": "Blinder",
+            "year": "2012",
+            "journal-title": "Cancer"
+          },
+          {
+            "key": "ref_6",
+            "doi-asserted-by": "crossref",
+            "first-page": "250",
+            "DOI": "10.1188/05.ONF.250-256",
+            "article-title": "Post-treatment symptoms among ethnic minority breast cancer survivors",
+            "volume": "32",
+            "author": "Eversley",
+            "year": "2005",
+            "journal-title": "Oncol. Nurs. Forum"
+          },
+          {
+            "key": "ref_7",
+            "doi-asserted-by": "crossref",
+            "first-page": "595",
+            "DOI": "10.1080/07347332.2020.1844844",
+            "article-title": "Predictors of health-related quality of life among Hispanic and non-Hispanic White breast cancer survivors in New Jersey",
+            "volume": "39",
+            "author": "Almatkyzy",
+            "year": "2021",
+            "journal-title": "J. Psychosoc. Oncol."
+          },
+          {
+            "key": "ref_8",
+            "doi-asserted-by": "crossref",
+            "first-page": "193",
+            "DOI": "10.1007/s11764-007-0029-7",
+            "article-title": "Use of cancer support groups among Latina breast cancer survivors",
+            "volume": "1",
+            "author": "Ortiz",
+            "year": "2007",
+            "journal-title": "J. Cancer Surviv."
+          },
+          {
+            "key": "ref_9",
+            "doi-asserted-by": "crossref",
+            "first-page": "191",
+            "DOI": "10.1007/s11764-011-0171-0",
+            "article-title": "Quality of life among Latina breast cancer patients: A systematic review of the literature",
+            "volume": "5",
+            "author": "Yanez",
+            "year": "2011",
+            "journal-title": "J. Cancer Surviv."
+          },
+          {
+            "key": "ref_10",
+            "doi-asserted-by": "crossref",
+            "first-page": "749",
+            "DOI": "10.1002/pon.1006",
+            "article-title": "Quality of life among long-term survivors of breast cancer: Different types of antecedents predict different classes of outcomes",
+            "volume": "15",
+            "author": "Carver",
+            "year": "2006",
+            "journal-title": "Psychooncology"
+          },
+          {
+            "key": "ref_11",
+            "doi-asserted-by": "crossref",
+            "first-page": "552",
+            "DOI": "10.1037/a0028629",
+            "article-title": "Breast cancer treatment decision making among Latinas and non-Latina Whites: A communication model predicting decisional outcomes and quality of life",
+            "volume": "31",
+            "author": "Yanez",
+            "year": "2012",
+            "journal-title": "Health Psychol."
+          },
+          {
+            "key": "ref_12",
+            "doi-asserted-by": "crossref",
+            "first-page": "454",
+            "DOI": "10.1097/00002820-200312000-00005",
+            "article-title": "Cancer Fatalism: The State of Science",
+            "volume": "26",
+            "author": "Powe",
+            "year": "2003",
+            "journal-title": "Cancer Nurs."
+          },
+          {
+            "key": "ref_13",
+            "doi-asserted-by": "crossref",
+            "first-page": "724",
+            "DOI": "10.1007/s13187-011-0249-4",
+            "article-title": "Quality of life among immigrant Latina breast cancer survivors: Realities of culture and enhancing cancer care",
+            "volume": "26",
+            "author": "Kreling",
+            "year": "2011",
+            "journal-title": "J. Cancer Educ."
+          },
+          {
+            "key": "ref_14",
+            "doi-asserted-by": "crossref",
+            "first-page": "603",
+            "DOI": "10.1007/s10549-012-2291-2",
+            "article-title": "Through the lens of culture: Quality of life among Latina breast cancer survivors",
+            "volume": "136",
+            "author": "Graves",
+            "year": "2012",
+            "journal-title": "Breast Cancer Res. Treat."
+          },
+          {
+            "key": "ref_15",
+            "unstructured": "(2025, June 12). Merriam-Webster, s.v. \u201cFatalism (n)\u201d. Available online: https://www.merriam-webster.com/dictionary/fatalism."
+          },
+          {
+            "key": "ref_16",
+            "doi-asserted-by": "crossref",
+            "first-page": "633",
+            "DOI": "10.1177/1090198115580975",
+            "article-title": "Breast Cancer Screening Among Dominican Latinas: A Closer Look at Fatalism and Other Social and Cultural Factors",
+            "volume": "42",
+            "author": "Martins",
+            "year": "2015",
+            "journal-title": "Health Educ. Behav."
+          },
+          {
+            "key": "ref_17",
+            "doi-asserted-by": "crossref",
+            "first-page": "1",
+            "DOI": "10.1300/J077v24n04_01",
+            "article-title": "Perceptions of Cancer Fatalism and Cancer Knowledge",
+            "volume": "24",
+            "author": "Powe",
+            "year": "2006",
+            "journal-title": "J. Psychosoc. Oncol."
+          },
+          {
+            "key": "ref_18",
+            "doi-asserted-by": "crossref",
+            "first-page": "S103",
+            "DOI": "10.1111/j.1075-122X.2006.00204.x",
+            "article-title": "The Challenge of Early Breast Cancer Detection among Immigrant and Minority Women in Multicultural Societies",
+            "volume": "12",
+            "author": "Remennick",
+            "year": "2006",
+            "journal-title": "Breast J."
+          },
+          {
+            "key": "ref_19",
+            "doi-asserted-by": "crossref",
+            "first-page": "3211",
+            "DOI": "10.1007/s10943-020-01024-5",
+            "article-title": "Fatalism and Depressive Symptoms: Active and Passive Forms of Fatalism Differentially Predict Depression",
+            "volume": "59",
+            "author": "Shahid",
+            "year": "2020",
+            "journal-title": "J. Relig. Health"
+          },
+          {
+            "key": "ref_20",
+            "doi-asserted-by": "crossref",
+            "first-page": "597",
+            "DOI": "10.1038/bjc.2016.15",
+            "article-title": "Cancer fear and fatalism among ethnic minority women in the United Kingdom",
+            "volume": "114",
+            "author": "Vrinten",
+            "year": "2016",
+            "journal-title": "Br. J. Cancer"
+          },
+          {
+            "key": "ref_21",
+            "doi-asserted-by": "crossref",
+            "first-page": "323",
+            "DOI": "10.1002/pon.4030",
+            "article-title": "Fatalism, medical mistrust, and pretreatment health-related quality of life in ethnically diverse prostate cancer patients",
+            "volume": "26",
+            "author": "Bustillo",
+            "year": "2017",
+            "journal-title": "Psycho-Oncology"
+          },
+          {
+            "key": "ref_22",
+            "doi-asserted-by": "crossref",
+            "first-page": "705",
+            "DOI": "10.1007/s12529-022-10136-z",
+            "article-title": "Fatalism and Psychological Distress Among Chinese American Breast Cancer Survivors: Mediating Role of Perceived Self-control and Fear of Cancer Recurrence",
+            "volume": "30",
+            "author": "Tsai",
+            "year": "2023",
+            "journal-title": "Int. J. Behav. Med."
+          },
+          {
+            "key": "ref_23",
+            "doi-asserted-by": "crossref",
+            "first-page": "353",
+            "DOI": "10.1188/09.ONF.353-361",
+            "article-title": "Fatalism and Mammography in a Multicultural Population",
+            "volume": "36",
+            "author": "Friedman",
+            "year": "2009",
+            "journal-title": "Oncol. Nurs. Forum"
+          },
+          {
+            "key": "ref_24",
+            "first-page": "25",
+            "article-title": "Religious, Cultural, and Social Beliefs of Iranian Rural Women about Breast Cancer: A Qualitative Study",
+            "volume": "1",
+            "author": "Ghaderi",
+            "year": "2014",
+            "journal-title": "Arch. Breast Cancer"
+          },
+          {
+            "key": "ref_25",
+            "doi-asserted-by": "crossref",
+            "first-page": "62",
+            "DOI": "10.1007/s10943-008-9232-8",
+            "article-title": "Religiosity, Spirituality, and Cancer Fatalism Beliefs on Delay in Breast Cancer Diagnosis in African American Women",
+            "volume": "49",
+            "author": "Gullatte",
+            "year": "2010",
+            "journal-title": "J. Relig. Health"
+          },
+          {
+            "key": "ref_26",
+            "unstructured": "Florida Department of Health (2025, June 01). Procedure Guide for Studies That Utilize Patient Identifiable Data from the Florida Cancer Data System. Available online: https://fcds.med.miami.edu/downloads/datarequest/ProcedureGuide_Revised_March2016.pdf."
+          },
+          {
+            "key": "ref_27",
+            "doi-asserted-by": "crossref",
+            "unstructured": "Lee, E., Sukhu, B.D., de Azevedo Daruge, M.E., Chung, J., Hines, R.B., and Loerzel, V. (2025). Recruitment Feasibility of Hispanic Women in Breast Cancer Survivorship Research Using State Cancer Registry Procedures. J. Racial Ethn. Health Disparities, 1\u201310.",
+            "DOI": "10.1007/s40615-025-02578-4"
+          },
+          {
+            "key": "ref_28",
+            "doi-asserted-by": "crossref",
+            "first-page": "597",
+            "DOI": "10.1007/s12144-014-9272-z",
+            "article-title": "Simultaneous Development of a Multidimensional Fatalism Measure in English and Spanish",
+            "volume": "34",
+            "author": "Esparza",
+            "year": "2015",
+            "journal-title": "Curr. Psychol."
+          },
+          {
+            "key": "ref_29",
+            "doi-asserted-by": "crossref",
+            "first-page": "159",
+            "DOI": "10.1037/pas0001076",
+            "article-title": "Instruments measuring fatalism: A systematic review",
+            "volume": "34",
+            "author": "Valenti",
+            "year": "2022",
+            "journal-title": "Psychol. Assess."
+          },
+          {
+            "key": "ref_30",
+            "doi-asserted-by": "crossref",
+            "first-page": "697",
+            "DOI": "10.1016/j.ijintrel.2005.07.013",
+            "article-title": "Acculturation: Living successfully in two cultures",
+            "volume": "29",
+            "author": "Berry",
+            "year": "2005",
+            "journal-title": "Int. J. Intercult. Relat."
+          },
+          {
+            "key": "ref_31",
+            "first-page": "521",
+            "article-title": "The Interaction between Fatalism and Religious Attendance is Negatively Associated with Mental Health-Related Quality of Life in Hispanic/Latino Americans Low in Acculturation",
+            "volume": "22",
+            "author": "Wilson",
+            "year": "2020",
+            "journal-title": "N. Am. J. Psychol."
+          },
+          {
+            "key": "ref_32",
+            "unstructured": "U.S. Department of Health and Human Services (2025, June 01). Behavioral Risk Factor Surveillance System Survey Questionnaire, Available online: https://www.cdc.gov/brfss/questionnaires/index.htm."
+          },
+          {
+            "key": "ref_33",
+            "doi-asserted-by": "crossref",
+            "first-page": "1621",
+            "DOI": "10.2337/dc07-2182",
+            "article-title": "Association of Acculturation Levels and Prevalence of Diabetes in the Multi-Ethnic Study of Atherosclerosis (MESA)",
+            "volume": "31",
+            "author": "Kandula",
+            "year": "2008",
+            "journal-title": "Diabetes Care"
+          },
+          {
+            "key": "ref_34",
+            "doi-asserted-by": "crossref",
+            "first-page": "259",
+            "DOI": "10.1037/0278-6133.10.4.259",
+            "article-title": "Psychological side effects of breast cancer screening",
+            "volume": "10",
+            "author": "Lerman",
+            "year": "1991",
+            "journal-title": "Health Psychol."
+          },
+          {
+            "key": "ref_35",
+            "doi-asserted-by": "crossref",
+            "unstructured": "Brettschneider, C., Leicht, H., Bickel, H., Dahlhaus, A., Fuchs, A., Gensichen, J., Maier, W., Riedel-Heller, S., Schafer, I., and Schon, G. (2013). Relative impact of multimorbid chronic conditions on health-related quality of life--results from the MultiCare Cohort Study. PLoS ONE, 8.",
+            "DOI": "10.1371/journal.pone.0066742"
+          },
+          {
+            "key": "ref_36",
+            "unstructured": "Brand, J.P.L. (1999). Development, Implementation and Evaluation of Multiple Imputation Strategies for the Statistical Analysis of Incomplete Data Sets, Erasmus University."
+          },
+          {
+            "key": "ref_37",
+            "doi-asserted-by": "crossref",
+            "first-page": "292",
+            "DOI": "10.4278/0890-1171-14.5.292",
+            "article-title": "Hispanic women\u2019s breast and cervical cancer knowledge, attitudes, and screening behaviors",
+            "volume": "14",
+            "author": "Ramirez",
+            "year": "2000",
+            "journal-title": "Am. J. Health Promot."
+          },
+          {
+            "key": "ref_38",
+            "doi-asserted-by": "crossref",
+            "first-page": "929",
+            "DOI": "10.1007/s11205-014-0825-1",
+            "article-title": "Fatalism and Well-Being Across Hispanic Cultures: The Social Fatalism Scales (SFS)",
+            "volume": "124",
+            "author": "Blanco",
+            "year": "2015",
+            "journal-title": "Soc. Indic. Res."
+          },
+          {
+            "key": "ref_39",
+            "doi-asserted-by": "crossref",
+            "first-page": "57",
+            "DOI": "10.1300/J074v13n01_05",
+            "article-title": "Importance of Fatalism in Understanding Mammography Screening in Rural Elderly Women",
+            "volume": "13",
+            "author": "Mayo",
+            "year": "2001",
+            "journal-title": "J. Women Aging"
+          },
+          {
+            "key": "ref_40",
+            "doi-asserted-by": "crossref",
+            "first-page": "858",
+            "DOI": "10.1007/s10943-017-0430-0",
+            "article-title": "Predictors of Diabetes Fatalism Among Arabs: A Cross-Sectional Study of Lebanese Adults with Type 2 Diabetes",
+            "volume": "57",
+            "author": "Egede",
+            "year": "2018",
+            "journal-title": "J. Relig. Health"
+          },
+          {
+            "key": "ref_41",
+            "unstructured": "Cohn, D.V., Brown, A., and Lopez, M.H. (2021). Black and Hispanic Americans See Their Origins as Central to Who They Are, Less So for White Adults, Pew Research Center."
+          },
+          {
+            "key": "ref_42",
+            "doi-asserted-by": "crossref",
+            "first-page": "337",
+            "DOI": "10.1177/1090198103030003008",
+            "article-title": "Access and Attitudinal Factors Related to Breast and Cervical Cancer Rescreening: Why are Latinas Still Underscreened?",
+            "volume": "30",
+            "author": "Stewart",
+            "year": "2003",
+            "journal-title": "Health Educ. Behav."
+          },
+          {
+            "key": "ref_43",
+            "doi-asserted-by": "crossref",
+            "first-page": "1700",
+            "DOI": "10.1377/hlthaff.2022.00846",
+            "article-title": "Economic Well-Being And Health: The Role Of Income Support Programs In Promoting Health And Advancing Health Equity",
+            "volume": "41",
+            "author": "Finkelstein",
+            "year": "2022",
+            "journal-title": "Health Aff."
+          },
+          {
+            "key": "ref_44",
+            "doi-asserted-by": "crossref",
+            "first-page": "97",
+            "DOI": "10.7326/0003-4819-155-2-201107190-00005",
+            "article-title": "Low health literacy and health outcomes: An updated systematic review",
+            "volume": "155",
+            "author": "Berkman",
+            "year": "2011",
+            "journal-title": "Ann. Intern. Med."
+          },
+          {
+            "key": "ref_45",
+            "doi-asserted-by": "crossref",
+            "first-page": "37",
+            "DOI": "10.1300/J013v24n03_03",
+            "article-title": "Acculturation and cervical cancer: Knowledge, beliefs, and behaviors of Hispanic women",
+            "volume": "24",
+            "author": "Harmon",
+            "year": "1996",
+            "journal-title": "Women Health"
+          },
+          {
+            "key": "ref_46",
+            "doi-asserted-by": "crossref",
+            "first-page": "237",
+            "DOI": "10.1037/a0019330",
+            "article-title": "Rethinking the concept of acculturation: Implications for theory and research",
+            "volume": "65",
+            "author": "Schwartz",
+            "year": "2010",
+            "journal-title": "Am. Psychol."
+          },
+          {
+            "key": "ref_47",
+            "first-page": "575",
+            "article-title": "Are Health Fatalism and Styles of Coping with Stress Affected by Poverty? A Field Study",
+            "volume": "52",
+            "author": "Durmaz",
+            "year": "2023",
+            "journal-title": "Iran. J. Public Health"
+          }
+        ],
+        "container-title": [
+          "Current Oncology"
+        ],
+        "language": "en",
+        "link": [
+          {
+            "URL": "https://www.mdpi.com/1718-7729/32/8/461/pdf",
+            "content-type": "unspecified",
+            "content-version": "vor",
+            "intended-application": "similarity-checking"
+          }
+        ],
+        "deposited": {
+          "date-parts": [
+            [
+              2025,
+              10,
+              9
+            ]
+          ],
+          "date-time": "2025-10-09T18:28:40Z",
+          "timestamp": 1760034520000
+        },
+        "score": 69.366875,
+        "resource": {
+          "primary": {
+            "URL": "https://www.mdpi.com/1718-7729/32/8/461"
+          }
+        },
+        "issued": {
+          "date-parts": [
+            [
+              2025,
+              8,
+              15
+            ]
+          ]
+        },
+        "references-count": 47,
+        "journal-issue": {
+          "issue": "8",
+          "published-online": {
+            "date-parts": [
+              [
+                2025,
+                8
+              ]
+            ]
+          }
+        },
+        "alternative-id": [
+          "curroncol32080461"
+        ],
+        "URL": "https://doi.org/10.3390/curroncol32080461",
+        "ISSN": [
+          "1718-7729"
+        ],
+        "issn-type": [
+          {
+            "value": "1718-7729",
+            "type": "electronic"
+          }
+        ],
+        "published": {
+          "date-parts": [
+            [
+              2025,
+              8,
+              15
+            ]
+          ]
+        }
+      },
+      {
+        "indexed": {
+          "date-parts": [
+            [
+              2025,
+              9,
+              19
+            ]
+          ],
+          "date-time": "2025-09-19T11:36:54Z",
+          "timestamp": 1758281814672,
+          "version": "3.44.0"
+        },
+        "reference-count": 0,
+        "publisher": "American Association for Cancer Research (AACR)",
+        "issue": "9_Supplement",
+        "content-domain": {
+          "domain": [
+            "aacrjournals.org"
+          ],
+          "crossmark-restriction": true
+        },
+        "published-print": {
+          "date-parts": [
+            [
+              2025,
+              9,
+              18
+            ]
+          ]
+        },
+        "abstract": "<jats:title>Abstract</jats:title>\n               <jats:sec>\n                  <jats:title>Introduction:</jats:title>\n                  <jats:p>Although Hispanic women are less likely to be diagnosed with breast cancer and less likely to die from breast cancer compared to their non-Hispanic white counterparts, they face unique challenges regarding more aggressive forms of cancer diagnosis and worse quality of life. One of the contributing factors for lower quality of life among Hispanic cancer survivors could be fatalism, as this psychological barrier can often preclude proactive screening and adherence to treatment plans. Therefore, identifying sociodemographic and clinical factors associated with higher fatalism within a Hispanic population will help identify subgroups at risk for a worse prognosis.</jats:p>\n               </jats:sec>\n               <jats:sec>\n                  <jats:title>Methods:</jats:title>\n                  <jats:p>This study used data collected for the Hispanic Breast Cancer Study, which recruited Hispanic women (aged \u2265 20 years) with breast cancer from the areas in Central Florida by following the state-mandated patient recruitment procedures. Hispanic origin was self-reported, and the Multidimensional Fatalism Measure (MFM) questionnaire was used to assess general fatalism as well as four fatalism-related beliefs, including religious belief, belief in luck, internal and external loci of control. Each scale used a 5-point Likert-type scale, with higher scores indicating high belief in each scale. Multivariable linear regression analysis was conducted to identify independent factors for fatalism.</jats:p>\n               </jats:sec>\n               <jats:sec>\n                  <jats:title>Results:</jats:title>\n                  <jats:p>During September 2023 and December 2024, a total of 411 women were recruited, and 390 completed the MFM questionnaire. The sample consists of 210 Puerto Ricans, 34 Colombians, 29 Dominicans, 25 Cubans, 24 Venezuelans, 22 Mexicans, and 46 Other Hispanics. The mean age was 59.5 years, with 4.8 years since cancer diagnosis. The mean fatalism score was 16.4 (95% CI = 15.8 \u2013 17.0), which indicates moderate fatalism. The higher fatalism scores were reported in Dominican, Mexican, and Venezuelan groups (17.4, 17.8, and 17.4, respectively), while Colombians had the lowest score (13.3). Multivariable analysis showed that Colombians compared to Puerto Ricans (\u03b2= -4.0) breast cancer survivors with higher household income (\u03b2= -2.3 for $20,000-$75,000, \u03b2= - 2.4 for \u2265 75,000), higher levels of education (\u03b2 = -1.9), and more English than Spanish speaking (\u03b2= -2.0) reported lower fatalism compared to their respective reference group. In addition, the sample showed high internal locus of control but low external locus of control, both of which were positively correlated with fatalism.</jats:p>\n               </jats:sec>\n               <jats:sec>\n                  <jats:title>Conclusions:</jats:title>\n                  <jats:p>There was an intra-Hispanic disparity in fatalism among breast cancer survivors, with higher levels of household income, education, and fluency in English speaking being the significant predictors for lower fatalism. By understanding the factors associated with fatalism, healthcare professionals can tailor their treatment plans and build trust with their patients to facilitate adherence to the treatments and improve quality of life.</jats:p>\n               </jats:sec>\n               <jats:sec>\n                  <jats:title>Citation Format:</jats:title>\n                  <jats:p>Liara Lopez Torralba, Eunkyung Lee. Evaluating intra-Hispanic disparity in fatalism within a culturally diverse Hispanic population with breast cancer in central Florida: A cross-sectional study [abstract]. In: Proceedings of the 18th AACR Conference on the Science of Cancer Health Disparities; 2025 Sep 18-21; Baltimore, MD. Philadelphia (PA): AACR; Cancer Epidemiol Biomarkers Prev 2025;34(9 Suppl):Abstract nr A127.</jats:p>\n               </jats:sec>",
+        "DOI": "10.1158/1538-7755.disp25-a127",
+        "type": "journal-article",
+        "created": {
+          "date-parts": [
+            [
+              2025,
+              9,
+              18
+            ]
+          ],
+          "date-time": "2025-09-18T17:11:47Z",
+          "timestamp": 1758215507000
+        },
+        "page": "A127-A127",
+        "update-policy": "https://doi.org/10.1158/crossmark_policy",
+        "source": "Crossref",
+        "is-referenced-by-count": 0,
+        "title": [
+          "Abstract A127: Evaluating intra-Hispanic disparity in fatalism within a culturally diverse Hispanic population with breast cancer in central Florida: A cross-sectional study"
+        ],
+        "prefix": "10.1158",
+        "volume": "34",
+        "author": [
+          {
+            "given": "Liara Lopez",
+            "family": "Torralba",
+            "sequence": "first",
+            "affiliation": [
+              {
+                "name": "1University of Central Florida, Orlando, FL."
+              }
+            ],
+            "role": [
+              {
+                "role": "author",
+                "vocabulary": "crossref"
+              }
+            ]
+          },
+          {
+            "given": "Eunkyung",
+            "family": "Lee",
+            "sequence": "additional",
+            "affiliation": [
+              {
+                "name": "1University of Central Florida, Orlando, FL."
+              }
+            ],
+            "role": [
+              {
+                "role": "author",
+                "vocabulary": "crossref"
+              }
+            ]
+          }
+        ],
+        "member": "1086",
+        "container-title": [
+          "Cancer Epidemiology, Biomarkers &amp; Prevention"
+        ],
+        "language": "en",
+        "link": [
+          {
+            "URL": "https://aacrjournals.org/cebp/article/34/9_Supplement/A127/764784/Abstract-A127-Evaluating-intra-Hispanic-disparity",
+            "content-type": "application/pdf",
+            "content-version": "vor",
+            "intended-application": "syndication"
+          },
+          {
+            "URL": "https://aacrjournals.org/cebp/article/34/9_Supplement/A127/764784/Abstract-A127-Evaluating-intra-Hispanic-disparity",
+            "content-type": "unspecified",
+            "content-version": "vor",
+            "intended-application": "similarity-checking"
+          }
+        ],
+        "deposited": {
+          "date-parts": [
+            [
+              2025,
+              9,
+              18
+            ]
+          ],
+          "date-time": "2025-09-18T17:11:48Z",
+          "timestamp": 1758215508000
+        },
+        "score": 53.847805,
+        "resource": {
+          "primary": {
+            "URL": "https://aacrjournals.org/cebp/article/34/9_Supplement/A127/764784/Abstract-A127-Evaluating-intra-Hispanic-disparity"
+          }
+        },
+        "issued": {
+          "date-parts": [
+            [
+              2025,
+              9,
+              18
+            ]
+          ]
+        },
+        "references-count": 0,
+        "journal-issue": {
+          "issue": "9_Supplement",
+          "published-print": {
+            "date-parts": [
+              [
+                2025,
+                9,
+                18
+              ]
+            ]
+          }
+        },
+        "URL": "https://doi.org/10.1158/1538-7755.disp25-a127",
+        "ISSN": [
+          "1055-9965",
+          "1538-7755"
+        ],
+        "issn-type": [
+          {
+            "value": "1055-9965",
+            "type": "print"
+          },
+          {
+            "value": "1538-7755",
+            "type": "electronic"
+          }
+        ],
+        "published": {
+          "date-parts": [
+            [
+              2025,
+              9,
+              18
+            ]
+          ]
+        }
+      },
+      {
+        "indexed": {
+          "date-parts": [
+            [
+              2026,
+              7,
+              24
+            ]
+          ],
+          "date-time": "2026-07-24T07:34:17Z",
+          "timestamp": 1784878457632,
+          "version": "3.55.0"
+        },
+        "reference-count": 25,
+        "publisher": "Springer Science and Business Media LLC",
+        "issue": "3",
+        "license": [
+          {
+            "start": {
+              "date-parts": [
+                [
+                  2022,
+                  8,
+                  9
+                ]
+              ],
+              "date-time": "2022-08-09T00:00:00Z",
+              "timestamp": 1660003200000
+            },
+            "content-version": "tdm",
+            "delay-in-days": 0,
+            "URL": "https://creativecommons.org/licenses/by/4.0"
+          },
+          {
+            "start": {
+              "date-parts": [
+                [
+                  2022,
+                  8,
+                  9
+                ]
+              ],
+              "date-time": "2022-08-09T00:00:00Z",
+              "timestamp": 1660003200000
+            },
+            "content-version": "vor",
+            "delay-in-days": 0,
+            "URL": "https://creativecommons.org/licenses/by/4.0"
+          }
+        ],
+        "funder": [
+          {
+            "DOI": "10.13039/501100009752",
+            "name": "Futurum - Akademin f\u00f6r H\u00e4lsa och V\u00e5rd, Region J\u00f6nk\u00f6pings l\u00e4ns",
+            "doi-asserted-by": "publisher",
+            "award": [
+              "575361"
+            ],
+            "award-info": [
+              {
+                "award-number": [
+                  "575361"
+                ]
+              }
+            ],
+            "id": [
+              {
+                "id": "10.13039/501100009752",
+                "id-type": "DOI",
+                "asserted-by": "publisher"
+              }
+            ]
+          },
+          {
+            "DOI": "10.13039/100010805",
+            "name": "Forskningsr\u00e5det i Syd\u00f6stra Sverige",
+            "doi-asserted-by": "publisher",
+            "award": [
+              "932359"
+            ],
+            "award-info": [
+              {
+                "award-number": [
+                  "932359"
+                ]
+              }
+            ],
+            "id": [
+              {
+                "id": "10.13039/100010805",
+                "id-type": "DOI",
+                "asserted-by": "publisher"
+              }
+            ]
+          },
+          {
+            "DOI": "10.13039/501100002794",
+            "name": "Cancerfonden",
+            "doi-asserted-by": "publisher",
+            "award": [
+              "190224"
+            ],
+            "award-info": [
+              {
+                "award-number": [
+                  "190224"
+                ]
+              }
+            ],
+            "id": [
+              {
+                "id": "10.13039/501100002794",
+                "id-type": "DOI",
+                "asserted-by": "publisher"
+              }
+            ]
+          },
+          {
+            "DOI": "10.13039/501100003945",
+            "name": "Link\u00f6ping University",
+            "doi-asserted-by": "crossref",
+            "id": [
+              {
+                "id": "10.13039/501100003945",
+                "id-type": "DOI",
+                "asserted-by": "crossref"
+              }
+            ]
+          }
+        ],
+        "content-domain": {
+          "domain": [
+            "link.springer.com"
+          ],
+          "crossmark-restriction": false
+        },
+        "short-container-title": [
+          "Breast Cancer Res Treat"
+        ],
+        "published-print": {
+          "date-parts": [
+            [
+              2022,
+              10
+            ]
+          ]
+        },
+        "abstract": "<jats:title>Abstract</jats:title><jats:sec>\n                <jats:title>Background</jats:title>\n                <jats:p>We explored the impact of persistent sensory and motor taxane-induced peripheral neuropathy (TIPN) symptoms on health-related quality of life (HRQL) among early-stage breast cancer survivors (ESBCS).</jats:p>\n              </jats:sec><jats:sec>\n                <jats:title>Methods</jats:title>\n                <jats:p>A population-based cohort of 884 residual-free ESBCS received a postal questionnaire, including the EORTC chemotherapy-induced PN (CIPN20) and the EORTC QLQ-C30 instruments. Mean scores of QLQ-C30 scales among ESBCS with and without TIPN were calculated and adjusted for confounding factors (age, lifestyle factors, co-morbidities; linear regression analyses). Interpretation of QLQ-C30 results were based on guidelines.</jats:p>\n              </jats:sec><jats:sec>\n                <jats:title>Results</jats:title>\n                <jats:p>Response rate was 79%, and 646 survivors were included in the analysis. In median, 3.6 (1.5\u20137.3) years had elapsed post-taxane treatment. All TIPN symptoms had a significant impact on global QoL, which worsened with increased severity of TIPN. Between 29.5% and 93.3% of ESBCS with moderate-severe TIPN reported a clinical important impairment of functioning and personal finances, 64.3\u201385.7% reporting \u201cdifficulty walking because of foot drop,\u201d and 53.1\u201381.3% reporting \u201cproblems standing/walking because of difficulty feeling ground under feet\u201d had impaired functioning/finances. The difference in mean scores between affected and non-affected survivors was highest for \u201cnumbness in toes/feet\u201d and \u201cdifficulty walking because of foot drop.\u201d Moderate-severe \u201cdifficulty climbing stairs or\u00a0getting out of chair because of weakness of legs\u201d and \u201cproblems standing/walking because of difficulty feeling ground under feet\u201d were associated with the largest clinically important differences on all scales.</jats:p>\n              </jats:sec><jats:sec>\n                <jats:title>Conclusion</jats:title>\n                <jats:p>Persistent sensory and motor TIPN is associated with clinically relevant impairment of global QoL, functioning, and personal finances among ESBCS, which increased with level of TIPN severity.</jats:p>\n              </jats:sec>",
+        "DOI": "10.1007/s10549-022-06670-9",
+        "type": "journal-article",
+        "created": {
+          "date-parts": [
+            [
+              2022,
+              8,
+              9
+            ]
+          ],
+          "date-time": "2022-08-09T03:51:55Z",
+          "timestamp": 1660017115000
+        },
+        "page": "379-391",
+        "update-policy": "https://doi.org/10.1007/springer_crossmark_policy",
+        "source": "Crossref",
+        "is-referenced-by-count": 30,
+        "title": [
+          "Impact of persistent peripheral neuropathy on health-related quality of life among early-stage breast cancer survivors: a population-based cross-sectional study"
+        ],
+        "prefix": "10.1007",
+        "volume": "195",
+        "author": [
+          {
+            "ORCID": "https://orcid.org/0000-0002-7291-7227",
+            "authenticated-orcid": false,
+            "given": "Kristina",
+            "family": "Engvall",
+            "sequence": "first",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "Henrik",
+            "family": "Gr\u00e9en",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "Mats",
+            "family": "Fredrikson",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "Magnus",
+            "family": "Lagerlund",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "Freddi",
+            "family": "Lewin",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "ORCID": "https://orcid.org/0000-0001-7274-1770",
+            "authenticated-orcid": false,
+            "given": "Elisabeth",
+            "family": "\u00c5vall-Lundqvist",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          }
+        ],
+        "member": "297",
+        "published-online": {
+          "date-parts": [
+            [
+              2022,
+              8,
+              9
+            ]
+          ]
+        },
+        "reference": [
+          {
+            "key": "6670_CR1",
+            "doi-asserted-by": "publisher",
+            "first-page": "209",
+            "DOI": "10.3322/caac.21660",
+            "volume": "71",
+            "author": "H Sung",
+            "year": "2021",
+            "unstructured": "Sung H, Ferlay J, Siegel RL, Laversanne M, Soerjomataram I, Jemal A, Bray F (2021) Global Cancer Statistics 2020: GLOBOCAN estimates of incidence and mortality worldwide for 36 cancers in 185 countries. CA Cancer J Clin 71:209\u2013249. https://doi.org/10.3322/caac.21660",
+            "journal-title": "CA Cancer J Clin"
+          },
+          {
+            "key": "6670_CR2",
+            "doi-asserted-by": "publisher",
+            "first-page": "2077",
+            "DOI": "10.1007/s11136-018-1866-8",
+            "volume": "27",
+            "author": "ME Schmidt",
+            "year": "2018",
+            "unstructured": "Schmidt ME, Wiskemann J, Steindorf K (2018) Quality of life, problems, and needs of disease-free breast cancer survivors 5 years after diagnosis. Qual Life Res 27:2077\u20132086. https://doi.org/10.1007/s11136-018-1866-8",
+            "journal-title": "Qual Life Res"
+          },
+          {
+            "key": "6670_CR3",
+            "doi-asserted-by": "publisher",
+            "first-page": "110",
+            "DOI": "10.1016/j.breast.2021.06.012",
+            "volume": "59",
+            "author": "E Roine",
+            "year": "2021",
+            "unstructured": "Roine E, Sintonen H, Kellokumpu-Lehtinen PL, Penttinen H, Utriainen M, Vehmanen L, Huovinen R, Kautiainen H, Nikander R, Blomqvist C, Hakamies-Blomqvist L, Saarto T (2021) Long-term health-related quality of life of breast cancer survivors remains impaired compared to the age-matched general population especially in young women. Results from the prospective controlled BREX exercise study. Breast 59:110\u2013116. https://doi.org/10.1016/j.breast.2021.06.012",
+            "journal-title": "Breast"
+          },
+          {
+            "key": "6670_CR4",
+            "doi-asserted-by": "publisher",
+            "first-page": "1319",
+            "DOI": "10.1093/annonc/mdp322",
+            "volume": "20",
+            "author": "A Goldhirsch",
+            "year": "2009",
+            "unstructured": "Goldhirsch A, Ingle JN, Gelber RD, Coates AS, Th\u00fcrlimann B, Senn HJ (2009) Thresholds for therapies: highlights of the St Gallen international expert consensus on the primary therapy of early breast cancer 2009. Ann Oncol 20:1319\u20131329. https://doi.org/10.1093/annonc/mdp322",
+            "journal-title": "Ann Oncol"
+          },
+          {
+            "key": "6670_CR5",
+            "doi-asserted-by": "publisher",
+            "DOI": "10.1093/jnci/djx140",
+            "author": "DR Rivera",
+            "year": "2018",
+            "unstructured": "Rivera DR, Ganz PA, Weyrich MS, Bandos H, Melnikow J (2018) Chemotherapy-associated peripheral neuropathy in patients with early-stage breast cancer: a systematic review. J Natl Cancer Inst. https://doi.org/10.1093/jnci/djx140",
+            "journal-title": "J Natl Cancer Inst"
+          },
+          {
+            "key": "6670_CR6",
+            "doi-asserted-by": "publisher",
+            "DOI": "10.1093/jnci/djx162",
+            "author": "H Bandos",
+            "year": "2018",
+            "unstructured": "Bandos H, Melnikow J, Rivera DR, Swain SM, Sturtz K, Fehrenbacher L, Wade JL 3rd, Brufsky AM, Julian TB, Margolese RG, McCarron EC, Ganz PA (2018) Long-term peripheral neuropathy in breast cancer patients treated with adjuvant chemotherapy: NRG oncology/NSABP B-30. J Natl Cancer Inst. https://doi.org/10.1093/jnci/djx162",
+            "journal-title": "J Natl Cancer Inst"
+          },
+          {
+            "key": "6670_CR7",
+            "doi-asserted-by": "publisher",
+            "first-page": "570",
+            "DOI": "10.1200/jco.1993.11.3.570",
+            "volume": "11",
+            "author": "DF Cella",
+            "year": "1993",
+            "unstructured": "Cella DF, Tulsky DS, Gray G, Sarafian B, Linn E, Bonomi A, Silberman M, Yellen SB, Winicour P, Brannon J et al (1993) The functional assessment of cancer therapy scale: development and validation of the general measure. J Clin Oncol 11:570\u2013579. https://doi.org/10.1200/jco.1993.11.3.570",
+            "journal-title": "J Clin Oncol"
+          },
+          {
+            "key": "6670_CR8",
+            "doi-asserted-by": "publisher",
+            "first-page": "365",
+            "DOI": "10.1093/jnci/85.5.365",
+            "volume": "85",
+            "author": "NK Aaronson",
+            "year": "1993",
+            "unstructured": "Aaronson NK, Ahmedzai S, Bergman B, Bullinger M, Cull A, Duez NJ, Filiberti A, Flechtner H, Fleishman SB, de Haes JC et al (1993) The European Organization for Research and Treatment of Cancer QLQ-C30: a quality-of-life instrument for use in international clinical trials in oncology. J Natl Cancer Inst 85:365\u2013376. https://doi.org/10.1093/jnci/85.5.365",
+            "journal-title": "J Natl Cancer Inst"
+          },
+          {
+            "key": "6670_CR9",
+            "doi-asserted-by": "publisher",
+            "first-page": "139",
+            "DOI": "10.1200/jco.1998.16.1.139",
+            "volume": "16",
+            "author": "D Osoba",
+            "year": "1998",
+            "unstructured": "Osoba D, Rodrigues G, Myles J, Zee B, Pater J (1998) Interpreting the significance of changes in health-related quality-of-life scores. J Clin Oncol 16:139\u2013144. https://doi.org/10.1200/jco.1998.16.1.139",
+            "journal-title": "J Clin Oncol"
+          },
+          {
+            "key": "6670_CR10",
+            "doi-asserted-by": "publisher",
+            "first-page": "582",
+            "DOI": "10.1097/01.Mlr.0000062554.74615.4c",
+            "volume": "41",
+            "author": "GR Norman",
+            "year": "2003",
+            "unstructured": "Norman GR, Sloan JA, Wyrwich KW (2003) Interpretation of changes in health-related quality of life: the remarkable universality of half a standard deviation. Med Care 41:582\u2013592. https://doi.org/10.1097/01.Mlr.0000062554.74615.4c",
+            "journal-title": "Med Care"
+          },
+          {
+            "issue": "89",
+            "key": "6670_CR11",
+            "doi-asserted-by": "publisher",
+            "first-page": "96",
+            "DOI": "10.1200/jco.2010.28.0107",
+            "volume": "29",
+            "author": "K Cocks",
+            "year": "2011",
+            "unstructured": "Cocks K, King MT, Velikova G, Martyn St-James M, Fayers PM, Brown JM (2011) Evidence-based guidelines for determination of sample size and interpretation of the European Organisation for the research and treatment of cancer Quality of Life Questionnaire Core 30. J Clin Oncol 29(89):96. https://doi.org/10.1200/jco.2010.28.0107",
+            "journal-title": "J Clin Oncol"
+          },
+          {
+            "key": "6670_CR12",
+            "doi-asserted-by": "publisher",
+            "first-page": "1",
+            "DOI": "10.1016/j.jclinepi.2019.10.003",
+            "volume": "118",
+            "author": "JM Giesinger",
+            "year": "2020",
+            "unstructured": "Giesinger JM, Loth FLC, Aaronson NK, Arraras JI, Caocci G, Efficace F, Groenvold M, van Leeuwen M, Petersen MA, Ramage J, Tomaszewski KA, Young T, Holzner B (2020) Thresholds for clinical importance were established to improve interpretation of the EORTC QLQ-C30 in clinical practice and research. J Clin Epidemiol 118:1\u20138. https://doi.org/10.1016/j.jclinepi.2019.10.003",
+            "journal-title": "J Clin Epidemiol"
+          },
+          {
+            "key": "6670_CR13",
+            "doi-asserted-by": "publisher",
+            "DOI": "10.1038/s41416-021-01429-3",
+            "author": "K Engvall",
+            "year": "2021",
+            "unstructured": "Engvall K, Gr\u00e9en H, Fredriksson M, \u00c5vall-Lundqvist E (2021) Persistent neuropathy among early-stage breast cancer survivors in a population-based cohort. Br J Cancer. https://doi.org/10.1038/s41416-021-01429-3",
+            "journal-title": "Br J Cancer"
+          },
+          {
+            "key": "6670_CR14",
+            "doi-asserted-by": "publisher",
+            "first-page": "70",
+            "DOI": "10.1177/1403494815602830",
+            "volume": "44",
+            "author": "SJ Olsson",
+            "year": "2016",
+            "unstructured": "Olsson SJ, Ekblom \u00d6, Andersson E, B\u00f6rjesson M, Kallings LV (2016) Categorical answer modes provide superior validity to open answers when asking for level of physical activity: a cross-sectional study. Scand J Public Health 44:70\u201376. https://doi.org/10.1177/1403494815602830",
+            "journal-title": "Scand J Public Health"
+          },
+          {
+            "key": "6670_CR15",
+            "doi-asserted-by": "publisher",
+            "first-page": "1789",
+            "DOI": "10.1001/archinte.158.16.1789",
+            "volume": "158",
+            "author": "K Bush",
+            "year": "1998",
+            "unstructured": "Bush K, Kivlahan DR, McDonell MB, Fihn SD, Bradley KA (1998) The AUDIT alcohol consumption questions (AUDIT-C): an effective brief screening test for problem drinking. Ambulatory Care Quality Improvement Project (ACQUIP). Alcohol use disorders identification test. Arch Intern Med 158:1789\u20131795. https://doi.org/10.1001/archinte.158.16.1789",
+            "journal-title": "Arch Intern Med"
+          },
+          {
+            "key": "6670_CR16",
+            "volume-title": "The EORTC QLQ-C30 scoring manual",
+            "author": "PMAN Fayers",
+            "year": "2001",
+            "unstructured": "Fayers PMAN, Bjordal K, Gorenvold M, Curran D, Bottomley A (2001) The EORTC QLQ-C30 scoring manual. European Organisation for Research and Treatment of Cancer, Brussels"
+          },
+          {
+            "key": "6670_CR17",
+            "doi-asserted-by": "publisher",
+            "first-page": "292",
+            "DOI": "10.1016/j.ejca.2014.11.024",
+            "volume": "51",
+            "author": "L Eckhoff",
+            "year": "2015",
+            "unstructured": "Eckhoff L, Knoop A, Jensen MB, Ewertz M (2015) Persistence of docetaxel-induced neuropathy and impact on quality of life among breast cancer survivors. Eur J Cancer 51:292\u2013300. https://doi.org/10.1016/j.ejca.2014.11.024",
+            "journal-title": "Eur J Cancer"
+          },
+          {
+            "key": "6670_CR18",
+            "doi-asserted-by": "publisher",
+            "first-page": "432",
+            "DOI": "10.1016/s0140-6736(11)61625-5",
+            "volume": "379",
+            "author": "R Peto",
+            "year": "2012",
+            "unstructured": "Peto R, Davies C, Godwin J, Gray R, Pan HC, Clarke M, Cutter D, Darby S, McGale P, Taylor C, Wang YC, Bergh J, Di Leo A, Albain K, Swain S, Piccart M, Pritchard K (2012) Comparisons between different polychemotherapy regimens for early breast cancer: meta-analyses of long-term outcome among 100,000 women in 123 randomised trials. Lancet 379:432\u2013444. https://doi.org/10.1016/s0140-6736(11)61625-5",
+            "journal-title": "Lancet"
+          },
+          {
+            "key": "6670_CR19",
+            "doi-asserted-by": "publisher",
+            "DOI": "10.1002/14651858.CD004421.pub3",
+            "volume": "9",
+            "author": "ML Willson",
+            "year": "2019",
+            "unstructured": "Willson ML, Burke L, Ferguson T, Ghersi D, Nowak AK, Wilcken N (2019) Taxanes for adjuvant treatment of early breast cancer. Cochrane Database Syst Rev 9:Cd004421. https://doi.org/10.1002/14651858.CD004421.pub3",
+            "journal-title": "Cochrane Database Syst Rev"
+          },
+          {
+            "key": "6670_CR20",
+            "doi-asserted-by": "publisher",
+            "first-page": "1941",
+            "DOI": "10.1200/jco.2013.54.0914",
+            "volume": "32",
+            "author": "DL Hershman",
+            "year": "2014",
+            "unstructured": "Hershman DL, Lacchetti C, Dworkin RH, Lavoie Smith EM, Bleeker J, Cavaletti G, Chauhan C, Gavin P, Lavino A, Lustberg MB, Paice J, Schneider B, Smith ML, Smith T, Terstriep S, Wagner-Johnston N, Bak K, Loprinzi CL (2014) Prevention and management of chemotherapy-induced peripheral neuropathy in survivors of adult cancers: American Society of Clinical Oncology clinical practice guideline. J Clin Oncol 32:1941\u20131967. https://doi.org/10.1200/jco.2013.54.0914",
+            "journal-title": "J Clin Oncol"
+          },
+          {
+            "key": "6670_CR21",
+            "doi-asserted-by": "publisher",
+            "first-page": "3325",
+            "DOI": "10.1200/jco.20.01399",
+            "volume": "38",
+            "author": "CL Loprinzi",
+            "year": "2020",
+            "unstructured": "Loprinzi CL, Lacchetti C, Bleeker J, Cavaletti G, Chauhan C, Hertz DL, Kelley MR, Lavino A, Lustberg MB, Paice JA, Schneider BP, Lavoie Smith EM, Smith ML, Smith TJ, Wagner-Johnston N, Hershman DL (2020) Prevention and management of chemotherapy-induced peripheral neuropathy in survivors of adult cancers: ASCO guideline update. J Clin Oncol 38:3325\u20133348. https://doi.org/10.1200/jco.20.01399",
+            "journal-title": "J Clin Oncol"
+          },
+          {
+            "key": "6670_CR22",
+            "doi-asserted-by": "publisher",
+            "first-page": "1306",
+            "DOI": "10.1016/j.annonc.2020.07.003",
+            "volume": "31",
+            "author": "B Jordan",
+            "year": "2020",
+            "unstructured": "Jordan B, Margulies A, Cardoso F, Cavaletti G, Haugnes HS, Jahn P, Le Rhun E, Preusser M, Scott\u00e9 F, Taphoorn MJB, Jordan K (2020) Systemic anticancer therapy-induced peripheral and central neurotoxicity: ESMO-EONS-EANO Clinical Practice Guidelines for diagnosis, prevention, treatment and follow-up. Ann Oncol 31:1306\u20131319. https://doi.org/10.1016/j.annonc.2020.07.003",
+            "journal-title": "Ann Oncol"
+          },
+          {
+            "key": "6670_CR23",
+            "doi-asserted-by": "publisher",
+            "first-page": "293",
+            "DOI": "10.1007/s10549-021-06477-0",
+            "volume": "192",
+            "author": "A Coolbrandt",
+            "year": "2022",
+            "unstructured": "Coolbrandt A, Vancoille K, Dejaeger E, Peeters H, Laenen A, Neven P, Punie K, Wildiers H (2022) Preventing taxane-related peripheral neuropathy, pain and nail toxicity: a prospective self-controlled trial comparing hilotherapy with frozen gloves in early breast cancer. Breast Cancer Res Treat 192:293\u2013301. https://doi.org/10.1007/s10549-021-06477-0",
+            "journal-title": "Breast Cancer Res Treat"
+          },
+          {
+            "key": "6670_CR24",
+            "doi-asserted-by": "publisher",
+            "first-page": "1359",
+            "DOI": "10.1001/jama.2013.2813",
+            "volume": "309",
+            "author": "EM Smith",
+            "year": "2013",
+            "unstructured": "Smith EM, Pang H, Cirrincione C, Fleishman S, Paskett ED, Ahles T, Bressler LR, Fadul CE, Knox C, Le-Lindqwister N, Gilman PB, Shapiro CL (2013) Effect of duloxetine on pain, function, and quality of life among patients with chemotherapy-induced painful peripheral neuropathy: a randomized clinical trial. JAMA 309:1359\u20131367. https://doi.org/10.1001/jama.2013.2813",
+            "journal-title": "JAMA"
+          },
+          {
+            "key": "6670_CR25",
+            "doi-asserted-by": "publisher",
+            "DOI": "10.1007/s11764-021-00997-w",
+            "author": "MAL Tanay",
+            "year": "2021",
+            "unstructured": "Tanay MAL, Armes J, Moss-Morris R, Rafferty AM, Robert G (2021) A systematic review of behavioural and exercise interventions for the prevention and management of chemotherapy-induced peripheral neuropathy symptoms. J Cancer Surviv. https://doi.org/10.1007/s11764-021-00997-w",
+            "journal-title": "J Cancer Surviv"
+          }
+        ],
+        "container-title": [
+          "Breast Cancer Research and Treatment"
+        ],
+        "language": "en",
+        "link": [
+          {
+            "URL": "https://link.springer.com/content/pdf/10.1007/s10549-022-06670-9.pdf",
+            "content-type": "application/pdf",
+            "content-version": "vor",
+            "intended-application": "text-mining"
+          },
+          {
+            "URL": "https://link.springer.com/article/10.1007/s10549-022-06670-9/fulltext.html",
+            "content-type": "text/html",
+            "content-version": "vor",
+            "intended-application": "text-mining"
+          },
+          {
+            "URL": "https://link.springer.com/content/pdf/10.1007/s10549-022-06670-9.pdf",
+            "content-type": "application/pdf",
+            "content-version": "vor",
+            "intended-application": "similarity-checking"
+          }
+        ],
+        "deposited": {
+          "date-parts": [
+            [
+              2022,
+              9,
+              11
+            ]
+          ],
+          "date-time": "2022-09-11T16:05:04Z",
+          "timestamp": 1662912304000
+        },
+        "score": 39.38109,
+        "resource": {
+          "primary": {
+            "URL": "https://link.springer.com/10.1007/s10549-022-06670-9"
+          }
+        },
+        "issued": {
+          "date-parts": [
+            [
+              2022,
+              8,
+              9
+            ]
+          ]
+        },
+        "references-count": 25,
+        "journal-issue": {
+          "issue": "3",
+          "published-print": {
+            "date-parts": [
+              [
+                2022,
+                10
+              ]
+            ]
+          }
+        },
+        "alternative-id": [
+          "6670"
+        ],
+        "URL": "https://doi.org/10.1007/s10549-022-06670-9",
+        "ISSN": [
+          "0167-6806",
+          "1573-7217"
+        ],
+        "issn-type": [
+          {
+            "value": "0167-6806",
+            "type": "print"
+          },
+          {
+            "value": "1573-7217",
+            "type": "electronic"
+          }
+        ],
+        "published": {
+          "date-parts": [
+            [
+              2022,
+              8,
+              9
+            ]
+          ]
+        },
+        "assertion": [
+          {
+            "value": "28 March 2022",
+            "order": 1,
+            "name": "received",
+            "label": "Received",
+            "group": {
+              "name": "ArticleHistory",
+              "label": "Article History"
+            }
+          },
+          {
+            "value": "2 July 2022",
+            "order": 2,
+            "name": "accepted",
+            "label": "Accepted",
+            "group": {
+              "name": "ArticleHistory",
+              "label": "Article History"
+            }
+          },
+          {
+            "value": "9 August 2022",
+            "order": 3,
+            "name": "first_online",
+            "label": "First Online",
+            "group": {
+              "name": "ArticleHistory",
+              "label": "Article History"
+            }
+          },
+          {
+            "order": 1,
+            "name": "Ethics",
+            "group": {
+              "name": "EthicsHeading",
+              "label": "Declarations"
+            }
+          },
+          {
+            "value": "The authors have no relevant financial or non-financial interests to disclose.",
+            "order": 2,
+            "name": "Ethics",
+            "group": {
+              "name": "EthicsHeading",
+              "label": "Conflict of interest"
+            }
+          },
+          {
+            "value": "The Regional Ethics Committee in Link\u00f6ping approved the study (Ref. No. 2016/548-31). All women who participated in the study gave informed consent by returning the questionnaire. The study was performed in accordance with the Declaration of Helsinki.",
+            "order": 3,
+            "name": "Ethics",
+            "group": {
+              "name": "EthicsHeading",
+              "label": "Ethical approval"
+            }
+          },
+          {
+            "value": "Informed consent was obtained from all individual participants included in the study by the return of the postal questionnaire.",
+            "order": 4,
+            "name": "Ethics",
+            "group": {
+              "name": "EthicsHeading",
+              "label": "Consent to participate"
+            }
+          },
+          {
+            "value": "This study contained no individual person\u2019s data.",
+            "order": 5,
+            "name": "Ethics",
+            "group": {
+              "name": "EthicsHeading",
+              "label": "Consent for publication"
+            }
+          }
+        ]
+      },
+      {
+        "indexed": {
+          "date-parts": [
+            [
+              2026,
+              6,
+              9
+            ]
+          ],
+          "date-time": "2026-06-09T23:01:21Z",
+          "timestamp": 1781046081015,
+          "version": "3.54.1"
+        },
+        "reference-count": 34,
+        "publisher": "Springer Science and Business Media LLC",
+        "issue": "1",
+        "license": [
+          {
+            "start": {
+              "date-parts": [
+                [
+                  2021,
+                  5,
+                  31
+                ]
+              ],
+              "date-time": "2021-05-31T00:00:00Z",
+              "timestamp": 1622419200000
+            },
+            "content-version": "tdm",
+            "delay-in-days": 0,
+            "URL": "https://creativecommons.org/licenses/by/4.0"
+          },
+          {
+            "start": {
+              "date-parts": [
+                [
+                  2021,
+                  5,
+                  31
+                ]
+              ],
+              "date-time": "2021-05-31T00:00:00Z",
+              "timestamp": 1622419200000
+            },
+            "content-version": "vor",
+            "delay-in-days": 0,
+            "URL": "https://creativecommons.org/licenses/by/4.0"
+          }
+        ],
+        "content-domain": {
+          "domain": [
+            "link.springer.com"
+          ],
+          "crossmark-restriction": false
+        },
+        "short-container-title": [
+          "BMC Cancer"
+        ],
+        "published-print": {
+          "date-parts": [
+            [
+              2021,
+              12
+            ]
+          ]
+        },
+        "abstract": "<jats:title>Abstract</jats:title><jats:sec>\n                <jats:title>Background</jats:title>\n                <jats:p>Advances in the early detection of cancer and its treatment have resulted in an increasing number of people living with and beyond breast cancer. Multimorbidity is also becoming more common in this population as more people live longer with breast cancer and experience late effects of cancer treatment. Breast cancer survivors have heightened risk of depression, but to what extent multimorbidity affects the mental health of this population is less clear. This study aims to investigate the association between multimorbidity and depression among women living with and beyond breast cancer in the UK Biobank cohort.</jats:p>\n              </jats:sec><jats:sec>\n                <jats:title>Methods</jats:title>\n                <jats:p>Data from UK Biobank (recruitment during 2006 to 2010, aged 40\u201370\u2009years) were used to identify 8438 women with a previous diagnosis of breast cancer via linked cancer registries in England, Scotland and Wales. The lifetime number of chronic conditions was self-reported and multimorbidity defined as 0, 1, 2, 3, 4 or 5+. The Patient Health Questionnaire (PHQ-2) was used to define participants that were likely to have depression based on their symptom reporting at baseline. Logistic regression models were used to analyse the associations between multimorbidity and depression, accounting for a number of potential sociodemographic confounding variables (including age, ethnicity, socioeconomic deprivation, education level and marital status) and characteristics related to the cancer (number of years since diagnosis and recurrence/secondary cancer).</jats:p>\n              </jats:sec><jats:sec>\n                <jats:title>Results</jats:title>\n                <jats:p>Multimorbidity was common among breast cancer survivors, with 32.9% of women experiencing one and 30.1% experiencing two or more chronic health conditions. Hypertension (25.8%), painful conditions (18.3%), and asthma (11.6%) were the three most common co-morbid conditions. 5.3% of participants had current depression. A strong, dose-response relationship was found between multimorbidity and the likelihood of depression (OR\u2009=\u20092.09, 95% CI: 1.56\u20132.79 for two conditions and OR\u2009=\u20096.06, 95% CI: 3.63\u201310.14 for five or more conditions).</jats:p>\n              </jats:sec><jats:sec>\n                <jats:title>Conclusions</jats:title>\n                <jats:p>Multimorbidity and depression were strongly associated among female UK Biobank participants with a previous breast cancer diagnosis. This association became increasingly pronounced as the number of chronic comorbid conditions increased. As more people survive cancer for longer, increasing recognition and support for multimorbidity and its impact on mental health is needed.</jats:p>\n              </jats:sec>",
+        "DOI": "10.1186/s12885-021-08409-z",
+        "type": "journal-article",
+        "created": {
+          "date-parts": [
+            [
+              2021,
+              5,
+              31
+            ]
+          ],
+          "date-time": "2021-05-31T12:05:26Z",
+          "timestamp": 1622462726000
+        },
+        "update-policy": "https://doi.org/10.1007/springer_crossmark_policy",
+        "source": "Crossref",
+        "is-referenced-by-count": 28,
+        "title": [
+          "Associations between multimorbidity and depression among breast cancer survivors within the UK Biobank cohort: a cross-sectional study"
+        ],
+        "prefix": "10.1186",
+        "volume": "21",
+        "author": [
+          {
+            "given": "Murray",
+            "family": "Foster",
+            "sequence": "first",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          },
+          {
+            "given": "Claire L.",
+            "family": "Niedzwiedz",
+            "sequence": "additional",
+            "affiliation": [],
+            "role": [
+              {
+                "vocabulary": "crossref",
+                "role": "author"
+              }
+            ]
+          }
+        ],
+        "member": "297",
+        "published-online": {
+          "date-parts": [
+            [
+              2021,
+              5,
+              31
+            ]
+          ]
+        },
+        "reference": [
+          {
+            "issue": "6",
+            "key": "8409_CR1",
+            "doi-asserted-by": "publisher",
+            "first-page": "394",
+            "DOI": "10.3322/caac.21492",
+            "volume": "68",
+            "author": "F Bray",
+            "year": "2018",
+            "unstructured": "Bray F, Ferlay J, Soerjomataram I, Siegel RL, Torre LA, Jemal A. Global cancer statistics 2018: GLOBOCAN estimates of incidence and mortality worldwide for 36 cancers in 185 countries. CA Cancer J Clin. 2018;68(6):394\u2013424.",
+            "journal-title": "CA Cancer J Clin"
+          },
+          {
+            "key": "8409_CR2",
+            "unstructured": "Breast cancer statistics. https://www.cancerresearchuk.org/health-professional/cancer-statistics/statistics-by-cancer-type/breast-cancer. Accessed 25 Feb 2021."
+          },
+          {
+            "issue": "25",
+            "key": "8409_CR3",
+            "doi-asserted-by": "publisher",
+            "first-page": "2438",
+            "DOI": "10.1056/NEJMra1712502",
+            "volume": "379",
+            "author": "CL Shapiro",
+            "year": "2018",
+            "unstructured": "Shapiro CL. Cancer survivorship. N Engl J Med. 2018;379(25):2438\u201350. https://doi.org/10.1056/NEJMra1712502.",
+            "journal-title": "N Engl J Med"
+          },
+          {
+            "issue": "1",
+            "key": "8409_CR4",
+            "doi-asserted-by": "publisher",
+            "first-page": "943",
+            "DOI": "10.1186/s12885-019-6181-4",
+            "volume": "19",
+            "author": "CL Niedzwiedz",
+            "year": "2019",
+            "unstructured": "Niedzwiedz CL, Knifton L, Robb KA, Katikireddi SV, Smith DJ. Depression and anxiety among people living with and beyond cancer: a growing clinical and research priority. BMC Cancer. 2019;19(1):943. https://doi.org/10.1186/s12885-019-6181-4.",
+            "journal-title": "BMC Cancer"
+          },
+          {
+            "issue": "9836",
+            "key": "8409_CR5",
+            "doi-asserted-by": "publisher",
+            "first-page": "37",
+            "DOI": "10.1016/S0140-6736(12)60240-2",
+            "volume": "380",
+            "author": "K Barnett",
+            "year": "2012",
+            "unstructured": "Barnett K, Mercer SW, Norbury M, Watt G, Wyke S, Guthrie B. Epidemiology of multimorbidity and implications for health care, research, and medical education: a cross-sectional study. Lancet. 2012;380(9836):37\u201343. https://doi.org/10.1016/S0140-6736(12)60240-2.",
+            "journal-title": "Lancet"
+          },
+          {
+            "issue": "669",
+            "key": "8409_CR6",
+            "doi-asserted-by": "publisher",
+            "DOI": "10.3399/bjgp18X695465",
+            "volume": "68",
+            "author": "A Cassell",
+            "year": "2018",
+            "unstructured": "Cassell A, Edwards D, Harshfield A, Rhodes K, Brimicombe J, Payne R, et al. The epidemiology of multimorbidity in primary care: a retrospective cohort study. Br J Gen Pract. 2018;68(669):e245. https://doi.org/10.3399/bjgp18X695465.",
+            "journal-title": "Br J Gen Pract"
+          },
+          {
+            "issue": "4",
+            "key": "8409_CR7",
+            "first-page": "41",
+            "volume": "29",
+            "author": "AW Smith",
+            "year": "2008",
+            "unstructured": "Smith AW, Reeve BB, Bellizzi KM, Harlan LC, Klabunde CN, Amsellem M, et al. Cancer, comorbidities, and health-related quality of life of older adults. Health Care Financ Rev. 2008;29(4):41\u201356.",
+            "journal-title": "Health Care Financ Rev"
+          },
+          {
+            "issue": "4",
+            "key": "8409_CR8",
+            "doi-asserted-by": "publisher",
+            "first-page": "417",
+            "DOI": "10.1080/02841860701367878",
+            "volume": "46",
+            "author": "NM Aziz",
+            "year": "2007",
+            "unstructured": "Aziz NM. Cancer survivorship research: state of knowledge, challenges and opportunities. Acta Oncol. 2007;46(4):417\u201332. https://doi.org/10.1080/02841860701367878.",
+            "journal-title": "Acta Oncol"
+          },
+          {
+            "issue": "9",
+            "key": "8409_CR9",
+            "doi-asserted-by": "publisher",
+            "first-page": "931",
+            "DOI": "10.1007/s10552-019-01203-0",
+            "volume": "30",
+            "author": "HS Ng",
+            "year": "2019",
+            "unstructured": "Ng HS, Vitry A, Koczwara B, Roder D, McBride ML. Patterns of comorbidities in women with breast cancer: a Canadian population-based study. Cancer Causes Control. 2019;30(9):931\u201341. https://doi.org/10.1007/s10552-019-01203-0.",
+            "journal-title": "Cancer Causes Control"
+          },
+          {
+            "issue": "3",
+            "key": "8409_CR10",
+            "doi-asserted-by": "publisher",
+            "first-page": "213",
+            "DOI": "10.1097/SPC.0000000000000454",
+            "volume": "13",
+            "author": "DN Blane",
+            "year": "2019",
+            "unstructured": "Blane DN, Lewandowska M. Living with cancer and multimorbidity: the role of primary care. Curr Opin Support Palliative Care. 2019;13(3):213\u20139. https://doi.org/10.1097/SPC.0000000000000454.",
+            "journal-title": "Curr Opin Support Palliative Care"
+          },
+          {
+            "issue": "1",
+            "key": "8409_CR11",
+            "doi-asserted-by": "publisher",
+            "first-page": "100",
+            "DOI": "10.1016/j.maturitas.2015.04.010",
+            "volume": "82",
+            "author": "SW Maass",
+            "year": "2015",
+            "unstructured": "Maass SW, Roorda C, Berendsen AJ, Verhaak PF, de Bock GH. The prevalence of long-term symptoms of depression and anxiety after breast cancer treatment: a systematic review. Maturitas. 2015;82(1):100\u20138. https://doi.org/10.1016/j.maturitas.2015.04.010.",
+            "journal-title": "Maturitas"
+          },
+          {
+            "key": "8409_CR12",
+            "doi-asserted-by": "publisher",
+            "first-page": "36",
+            "DOI": "10.1016/j.jad.2017.06.009",
+            "volume": "221",
+            "author": "JR Read",
+            "year": "2017",
+            "unstructured": "Read JR, Sharpe L, Modini M, Dear BF. Multimorbidity and depression: a systematic review and meta-analysis. J Affect Disord. 2017;221:36\u201346. https://doi.org/10.1016/j.jad.2017.06.009.",
+            "journal-title": "J Affect Disord"
+          },
+          {
+            "issue": "12",
+            "key": "8409_CR13",
+            "doi-asserted-by": "publisher",
+            "first-page": "1311",
+            "DOI": "10.1093/jnci/djy177",
+            "volume": "110",
+            "author": "H Carreira",
+            "year": "2018",
+            "unstructured": "Carreira H, Williams R, M\u00fcller M, Harewood R, Stanway S, Bhaskaran K. Associations between breast Cancer survivorship and adverse mental health outcomes: a systematic review. JNCI. 2018;110(12):1311\u201327. https://doi.org/10.1093/jnci/djy177.",
+            "journal-title": "JNCI"
+          },
+          {
+            "issue": "5",
+            "key": "8409_CR14",
+            "doi-asserted-by": "publisher",
+            "first-page": "343",
+            "DOI": "10.1016/S2215-0366(14)70313-X",
+            "volume": "1",
+            "author": "J Walker",
+            "year": "2014",
+            "unstructured": "Walker J, Hansen CH, Martin P, Symeonides S, Ramessur R, Murray G, et al. Prevalence, associations, and adequacy of treatment of major depression in patients with cancer: a cross-sectional analysis of routinely collected clinical data. Lancet Psychiatry. 2014;1(5):343\u201350. https://doi.org/10.1016/S2215-0366(14)70313-X.",
+            "journal-title": "Lancet Psychiatry"
+          },
+          {
+            "issue": "1",
+            "key": "8409_CR15",
+            "doi-asserted-by": "publisher",
+            "DOI": "10.1371/journal.pmed.1003504",
+            "volume": "18",
+            "author": "H Carreira",
+            "year": "2021",
+            "unstructured": "Carreira H, Williams R, Funston G, Stanway S, Bhaskaran K. Associations between breast cancer survivorship and adverse mental health outcomes: a matched population-based cohort study in the United Kingdom. PLoS Med. 2021;18(1):e1003504. https://doi.org/10.1371/journal.pmed.1003504.",
+            "journal-title": "PLoS Med"
+          },
+          {
+            "issue": "1",
+            "key": "8409_CR16",
+            "doi-asserted-by": "publisher",
+            "first-page": "237",
+            "DOI": "10.1007/s10549-018-5059-5",
+            "volume": "174",
+            "author": "RJ Zoorob",
+            "year": "2019",
+            "unstructured": "Zoorob RJ, Salemi JL, Mejia de Grubb MC, Modak S, Levine RS. A nationwide study of breast cancer, depression, and multimorbidity among hospitalized women and men in the United States. Breast Cancer Res Treat. 2019;174(1):237\u201348. https://doi.org/10.1007/s10549-018-5059-5.",
+            "journal-title": "Breast Cancer Res Treat"
+          },
+          {
+            "issue": "3",
+            "key": "8409_CR17",
+            "doi-asserted-by": "publisher",
+            "DOI": "10.1371/journal.pmed.1001779",
+            "volume": "12",
+            "author": "C Sudlow",
+            "year": "2015",
+            "unstructured": "Sudlow C, Gallacher J, Allen N, Beral V, Burton P, Danesh J, et al. UK biobank: an open access resource for identifying the causes of a wide range of complex diseases of middle and old age. PLoS Med. 2015;12(3):e1001779. https://doi.org/10.1371/journal.pmed.1001779.",
+            "journal-title": "PLoS Med"
+          },
+          {
+            "issue": "11",
+            "key": "8409_CR18",
+            "doi-asserted-by": "publisher",
+            "first-page": "1284",
+            "DOI": "10.1097/01.MLR.0000093487.78664.3C",
+            "volume": "41",
+            "author": "K Kroenke",
+            "year": "2003",
+            "unstructured": "Kroenke K, Spitzer RL, Williams JB. The patient health Questionnaire-2: validity of a two-item depression screener. Med Care. 2003;41(11):1284\u201392. https://doi.org/10.1097/01.MLR.0000093487.78664.3C.",
+            "journal-title": "Med Care"
+          },
+          {
+            "issue": "22",
+            "key": "8409_CR19",
+            "doi-asserted-by": "publisher",
+            "first-page": "2290",
+            "DOI": "10.1001/jama.2020.6504",
+            "volume": "323",
+            "author": "B Levis",
+            "year": "2020",
+            "unstructured": "Levis B, Sun Y, He C, Wu Y, Krishnan A, Bhandari PM, et al. Accuracy of the PHQ-2 alone and in combination with the PHQ-9 for screening to detect major depression: systematic review and meta-analysis. JAMA. 2020;323(22):2290\u2013300. https://doi.org/10.1001/jama.2020.6504.",
+            "journal-title": "JAMA"
+          },
+          {
+            "issue": "1",
+            "key": "8409_CR20",
+            "doi-asserted-by": "publisher",
+            "first-page": "350",
+            "DOI": "10.1186/s12888-014-0350-4",
+            "volume": "14",
+            "author": "BI Nicholl",
+            "year": "2014",
+            "unstructured": "Nicholl BI, Mackay D, Cullen B, Martin DJ, Ul-Haq Z, Mair FS, et al. Chronic multisite pain in major depression and bipolar disorder: cross-sectional study of 149,611 participants in UK biobank. BMC Psychiatry. 2014;14(1):350. https://doi.org/10.1186/s12888-014-0350-4.",
+            "journal-title": "BMC Psychiatry"
+          },
+          {
+            "issue": "1",
+            "key": "8409_CR21",
+            "doi-asserted-by": "publisher",
+            "first-page": "74",
+            "DOI": "10.1186/s12916-019-1305-x",
+            "volume": "17",
+            "author": "BD Jani",
+            "year": "2019",
+            "unstructured": "Jani BD, Hanlon P, Nicholl BI, McQueenie R, Gallacher KI, Lee D, et al. Relationship between multimorbidity, demographic factors and mortality: findings from the UK biobank cohort. BMC Med. 2019;17(1):74. https://doi.org/10.1186/s12916-019-1305-x.",
+            "journal-title": "BMC Med"
+          },
+          {
+            "issue": "1",
+            "key": "8409_CR22",
+            "doi-asserted-by": "publisher",
+            "first-page": "160",
+            "DOI": "10.1186/s12916-020-01640-8",
+            "volume": "18",
+            "author": "CL Niedzwiedz",
+            "year": "2020",
+            "unstructured": "Niedzwiedz CL, O\u2019Donnell CA, Jani BD, Demou E, Ho FK, Celis-Morales C, et al. Ethnic and socioeconomic differences in SARS-CoV-2 infection: prospective cohort study using UK biobank. BMC Med. 2020;18(1):160. https://doi.org/10.1186/s12916-020-01640-8.",
+            "journal-title": "BMC Med"
+          },
+          {
+            "issue": "2",
+            "key": "8409_CR23",
+            "doi-asserted-by": "publisher",
+            "first-page": "125",
+            "DOI": "10.1017/S0047279400020341",
+            "volume": "16",
+            "author": "P Townsend",
+            "year": "1987",
+            "unstructured": "Townsend P. Deprivation. J Soc Policy. 1987;16(2):125\u201346. https://doi.org/10.1017/S0047279400020341.",
+            "journal-title": "J Soc Policy"
+          },
+          {
+            "issue": "1",
+            "key": "8409_CR24",
+            "doi-asserted-by": "publisher",
+            "first-page": "965",
+            "DOI": "10.1186/s12889-015-2240-1",
+            "volume": "15",
+            "author": "J-W Wang",
+            "year": "2015",
+            "unstructured": "Wang J-W, Sun L, Li J, Cong X-H, Chen X-F, Tang Z, et al. Comorbid chronic diseases and their associations with quality of life among gynecological cancer survivors. BMC Public Health. 2015;15(1):965. https://doi.org/10.1186/s12889-015-2240-1.",
+            "journal-title": "BMC Public Health"
+          },
+          {
+            "issue": "2",
+            "key": "8409_CR25",
+            "doi-asserted-by": "publisher",
+            "first-page": "585",
+            "DOI": "10.7314/APJCP.2015.16.2.585",
+            "volume": "16",
+            "author": "N Vardar-Yagli",
+            "year": "2015",
+            "unstructured": "Vardar-Yagli N, Sener G, Saglam M, Calik-Kutukcu E, Arikan H, Inal-Ince D, et al. Associations among physical activity, comorbidity, functional capacity, peripheral muscle strength and depression in breast cancer survivors. Asian Pac J Cancer Prev. 2015;16(2):585\u20139. https://doi.org/10.7314/APJCP.2015.16.2.585.",
+            "journal-title": "Asian Pac J Cancer Prev"
+          },
+          {
+            "issue": "6",
+            "key": "8409_CR26",
+            "doi-asserted-by": "publisher",
+            "first-page": "1269",
+            "DOI": "10.1002/pon.5078",
+            "volume": "28",
+            "author": "R Yan",
+            "year": "2019",
+            "unstructured": "Yan R, Xia J, Yang R, Lv B, Wu P, Chen W, et al. Association between anxiety, depression, and comorbid chronic diseases among cancer survivors. Psycho-Oncology. 2019;28(6):1269\u201377. https://doi.org/10.1002/pon.5078.",
+            "journal-title": "Psycho-Oncology"
+          },
+          {
+            "issue": "34",
+            "key": "8409_CR27",
+            "doi-asserted-by": "publisher",
+            "first-page": "3831",
+            "DOI": "10.1200/JCO.2013.54.0419",
+            "volume": "32",
+            "author": "NP Suppli",
+            "year": "2014",
+            "unstructured": "Suppli NP, Johansen C, Christensen J, Kessing LV, Kroman N, Dalton SO. Increased risk for depression after breast Cancer: a Nationwide population-based cohort study of associated factors in Denmark, 1998-2011. J Clin Oncol. 2014;32(34):3831\u20139. https://doi.org/10.1200/JCO.2013.54.0419.",
+            "journal-title": "J Clin Oncol"
+          },
+          {
+            "issue": "3",
+            "key": "8409_CR28",
+            "doi-asserted-by": "publisher",
+            "first-page": "877",
+            "DOI": "10.1007/s10549-011-1525-z",
+            "volume": "129",
+            "author": "AD Deshpande",
+            "year": "2011",
+            "unstructured": "Deshpande AD, Sefko JA, Jeffe DB, Schootman M. The association between chronic disease burden and quality of life among breast cancer survivors in Missouri. Breast Cancer Res Treat. 2011;129(3):877\u201386. https://doi.org/10.1007/s10549-011-1525-z.",
+            "journal-title": "Breast Cancer Res Treat"
+          },
+          {
+            "issue": "5",
+            "key": "8409_CR29",
+            "doi-asserted-by": "publisher",
+            "first-page": "727",
+            "DOI": "10.3109/0284186X.2014.998277",
+            "volume": "54",
+            "author": "D Schoormans",
+            "year": "2015",
+            "unstructured": "Schoormans D, Czene K, Hall P, Brandberg Y. The impact of co-morbidity on health-related quality of life in breast cancer survivors and controls. Acta Oncol. 2015;54(5):727\u201334. https://doi.org/10.3109/0284186X.2014.998277.",
+            "journal-title": "Acta Oncol"
+          },
+          {
+            "issue": "9",
+            "key": "8409_CR30",
+            "doi-asserted-by": "publisher",
+            "first-page": "1026",
+            "DOI": "10.1093/aje/kwx246",
+            "volume": "186",
+            "author": "A Fry",
+            "year": "2017",
+            "unstructured": "Fry A, Littlejohns TJ, Sudlow C, Doherty N, Adamska L, Sprosen T, et al. Comparison of sociodemographic and health-related characteristics of UK biobank participants with those of the general population. Am J Epidemiol. 2017;186(9):1026\u201334. https://doi.org/10.1093/aje/kwx246.",
+            "journal-title": "Am J Epidemiol"
+          },
+          {
+            "issue": "1",
+            "key": "8409_CR31",
+            "doi-asserted-by": "publisher",
+            "first-page": "73",
+            "DOI": "10.1016/j.jclinepi.2013.04.019",
+            "volume": "67",
+            "author": "I Wahl",
+            "year": "2014",
+            "unstructured": "Wahl I, L\u00f6we B, Bjorner JB, Fischer F, Langs G, Voderholzer U, et al. Standardization of depression measurement: a common metric was developed for 11 self-report depression measures. J Clin Epidemiol. 2014;67(1):73\u201386. https://doi.org/10.1016/j.jclinepi.2013.04.019.",
+            "journal-title": "J Clin Epidemiol"
+          },
+          {
+            "issue": "2",
+            "key": "8409_CR32",
+            "doi-asserted-by": "publisher",
+            "first-page": "205",
+            "DOI": "10.1016/j.ejcsup.2013.07.006",
+            "volume": "11",
+            "author": "S Dauchy",
+            "year": "2013",
+            "unstructured": "Dauchy S, Dolbeault S, Reich M. Depression in cancer patients. EJC Suppl. 2013;11(2):205\u201315. https://doi.org/10.1016/j.ejcsup.2013.07.006.",
+            "journal-title": "EJC Suppl"
+          },
+          {
+            "issue": "1",
+            "key": "8409_CR33",
+            "doi-asserted-by": "publisher",
+            "first-page": "38",
+            "DOI": "10.1186/s12888-019-2032-8",
+            "volume": "19",
+            "author": "K Kavalidou\u00aa",
+            "year": "2019",
+            "unstructured": "Kavalidou\u00aa K, Smith DJ, Der G, O\u2019Connor RC. The role of physical and mental multimorbidity in suicidal thoughts and behaviours in a Scottish population cohort study. BMC Psychiatry. 2019;19(1):38. https://doi.org/10.1186/s12888-019-2032-8.",
+            "journal-title": "BMC Psychiatry"
+          },
+          {
+            "issue": "29",
+            "key": "8409_CR34",
+            "doi-asserted-by": "publisher",
+            "first-page": "4731",
+            "DOI": "10.1200/JCO.2007.13.8941",
+            "volume": "26",
+            "author": "S Misono",
+            "year": "2008",
+            "unstructured": "Misono S, Weiss NS, Fann JR, Redman M, Yueh B. Incidence of suicide in persons with cancer. J Clin Oncol. 2008;26(29):4731\u20138. https://doi.org/10.1200/JCO.2007.13.8941.",
+            "journal-title": "J Clin Oncol"
+          }
+        ],
+        "container-title": [
+          "BMC Cancer"
+        ],
+        "language": "en",
+        "link": [
+          {
+            "URL": "https://link.springer.com/content/pdf/10.1186/s12885-021-08409-z.pdf",
+            "content-type": "application/pdf",
+            "content-version": "vor",
+            "intended-application": "text-mining"
+          },
+          {
+            "URL": "https://link.springer.com/article/10.1186/s12885-021-08409-z/fulltext.html",
+            "content-type": "text/html",
+            "content-version": "vor",
+            "intended-application": "text-mining"
+          },
+          {
+            "URL": "https://link.springer.com/content/pdf/10.1186/s12885-021-08409-z.pdf",
+            "content-type": "application/pdf",
+            "content-version": "vor",
+            "intended-application": "similarity-checking"
+          }
+        ],
+        "deposited": {
+          "date-parts": [
+            [
+              2021,
+              5,
+              31
+            ]
+          ],
+          "date-time": "2021-05-31T12:05:45Z",
+          "timestamp": 1622462745000
+        },
+        "score": 39.344353,
+        "resource": {
+          "primary": {
+            "URL": "https://bmccancer.biomedcentral.com/articles/10.1186/s12885-021-08409-z"
+          }
+        },
+        "issued": {
+          "date-parts": [
+            [
+              2021,
+              5,
+              31
+            ]
+          ]
+        },
+        "references-count": 34,
+        "journal-issue": {
+          "issue": "1",
+          "published-print": {
+            "date-parts": [
+              [
+                2021,
+                12
+              ]
+            ]
+          }
+        },
+        "alternative-id": [
+          "8409"
+        ],
+        "URL": "https://doi.org/10.1186/s12885-021-08409-z",
+        "ISSN": [
+          "1471-2407"
+        ],
+        "issn-type": [
+          {
+            "value": "1471-2407",
+            "type": "electronic"
+          }
+        ],
+        "published": {
+          "date-parts": [
+            [
+              2021,
+              5,
+              31
+            ]
+          ]
+        },
+        "assertion": [
+          {
+            "value": "26 February 2021",
+            "order": 1,
+            "name": "received",
+            "label": "Received",
+            "group": {
+              "name": "ArticleHistory",
+              "label": "Article History"
+            }
+          },
+          {
+            "value": "25 May 2021",
+            "order": 2,
+            "name": "accepted",
+            "label": "Accepted",
+            "group": {
+              "name": "ArticleHistory",
+              "label": "Article History"
+            }
+          },
+          {
+            "value": "31 May 2021",
+            "order": 3,
+            "name": "first_online",
+            "label": "First Online",
+            "group": {
+              "name": "ArticleHistory",
+              "label": "Article History"
+            }
+          },
+          {
+            "order": 1,
+            "name": "Ethics",
+            "group": {
+              "name": "EthicsHeading",
+              "label": "Declarations"
+            }
+          },
+          {
+            "value": "UK Biobank received ethical approval from the NHS National Research Ethics Service North West (16/NW/0274) and was performed in accordance with the Declaration of Helsinki. Informed consent was obtained for all Biobank participants.",
+            "order": 2,
+            "name": "Ethics",
+            "group": {
+              "name": "EthicsHeading",
+              "label": "Ethics approval and consent to participate"
+            }
+          },
+          {
+            "value": "Not applicable.",
+            "order": 3,
+            "name": "Ethics",
+            "group": {
+              "name": "EthicsHeading",
+              "label": "Consent for publication"
+            }
+          },
+          {
+            "value": "The authors declare that they have no competing interests.",
+            "order": 4,
+            "name": "Ethics",
+            "group": {
+              "name": "EthicsHeading",
+              "label": "Competing interests"
+            }
+          }
+        ],
+        "article-number": "650"
+      }
+    ],
+    "items-per-page": 5,
+    "query": {
+      "start-index": 0,
+      "search-terms": null
+    }
+  }
+}
