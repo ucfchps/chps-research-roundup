@@ -11,6 +11,12 @@ export default defineConfig({
       "@": path.resolve(__dirname, "."),
     },
   },
+  test: {
+    // Phase 5 hardening, Session 1: installs the network guard (tests/helpers/http.ts)
+    // globally before every test file — see that file's header comment for why it
+    // sits on global fetch rather than lib/http.ts's wrapper.
+    setupFiles: ["./tests/setup.ts"],
+  },
   // JSX transform for .tsx test files (tests/admin-login-page.test.tsx,
   // Session 17.1). This Vite version transforms via oxc, not esbuild — an
   // `esbuild.jsx` option here is silently ignored in favor of oxc's own
