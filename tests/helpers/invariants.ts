@@ -30,8 +30,13 @@ const ROW_COUNT_EXCLUDED_TABLES = new Set([
 // job's bookkeeping.
 const SETTINGS_KEYS_ALLOWED_TO_CHANGE = new Set([
   "admin_login_attempts", // login lockout bookkeeping (lib/admin-auth.ts) — unrelated to any ingestion job, but shares this table.
-  // Add a scheduled job's own "last run at" state key here, by exact name,
-  // if one is ever built — never a wildcard or a prefix match.
+  // Phase 5 Session 10 (docs/phase5-findings.md #3): ingest-pubmed-orcid's
+  // resume cursors and cycle-completion marker — legitimately change on
+  // every real run by design, exactly the "a scheduled job's own 'last run
+  // at' state key" case this comment already anticipated.
+  "orcid_sweep_cursor",
+  "pubmed_sweep_cursor",
+  "pubmed_sweep_cycle_completed_at",
 ]);
 
 function pairedRowsById(before: Snapshot, after: Snapshot, table: string): Array<[Record<string, unknown>, Record<string, unknown>]> {

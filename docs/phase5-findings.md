@@ -19,7 +19,7 @@ its own session.
 |---|---|---|---|---|---|
 | 1 | `sync-roster`, `release-buffer`, `refresh-metadata` have no GitHub Actions workflow — CLI-only in practice, contradicts §9's "Daily"/"Every 6h" claim; `release-buffer` specifically confirmed stalled (13+ days with nothing promoted) as a direct consequence | 0, 2 | **High** | Open | Add `.github/workflows/*.yml` for all three, matching the existing `ingest-*.yml` pattern (cron + `concurrency: group`), or explicitly document them as human-run and drop the "Daily" claim from §9 |
 | 2 | PubMed structurally cannot capture author affiliation — `PubmedRecordAuthor` has no such field at all; confirmed 0/4,027 real yield | 2 | Medium | Open | Capture affiliation via `efetch` (richer endpoint than `esummary`) instead of porting Crossref's exclusion-gate approach, which doesn't fit PubMed's boolean-field-match search semantics |
-| 3 | `ingest-pubmed-orcid` has never completed a scheduled run: 202/229 faculty never reached, 40/47 ORCID holders never checked — 13 consecutive CI timeouts at the 30-minute mark, every run restarting from roster position 1 with no resume state | 2 | **High** | Open | Either checkpoint progress (a `settings`-backed "last wp_id processed" key) so a timeout resumes instead of restarting, or split the sweep into smaller scheduled batches |
+| 3 | `ingest-pubmed-orcid` has never completed a scheduled run: 202/229 faculty never reached, 40/47 ORCID holders never checked — 13 consecutive CI timeouts at the 30-minute mark, every run restarting from roster position 1 with no resume state | 2 | **High** | **Fixed** (Session 10) | Two independent settings-backed cursors (`orcid_sweep_cursor`, `pubmed_sweep_cursor`), wp_id-keyed, position re-derived from the current roster every run; a ~25-minute wall-clock ceiling that stops starting new faculty and writes the cursor cleanly; `pubmed_sweep_cycle_completed_at` recorded + logged on a genuine full-roster cycle. See "Session 10 — the sweep fix" below for the diagnosis, the load-bearing `applyCandidate` cache fix, and measured before/after |
 | 4 | No disposal path for rejected/duplicate publications — `possible_duplicates` has a read side (flagging) but no write side (resolving); a reject action would additionally need to resolve the pair atomically to avoid the mutual-hold "deadlock" `getUnresolvedDuplicatePublicationIds` enforces by design | 2 | Medium | Open | Build the resolve/reject action; must clear both `possible_duplicates` rows in the same transaction the disposal itself commits in |
 | 5 | Ingester concurrency: two overlapping runs of the same job race on a shared read-then-write with no lock. A title-only (no-DOI) candidate produces silent duplicate rows; a DOI-bearing collision is caught by the `UNIQUE` constraint but throws **uncaught**, aborting the *entire remaining sweep* for every other candidate in that run — not just the colliding one | 3 | **High** | Open | `concurrency: { group: <job-name>, cancel-in-progress: false }` on each ingest workflow (already used by `ingest-crossref.yml`'s own job — just not consistently as a deliberate cross-run-race defense); worth pairing with a per-candidate try/catch so one collision doesn't drop unrelated candidates in the same run |
 | 6 | Multi-candidate Crossref resolution: when two non-preprint candidates are otherwise equally plausible (both or neither UCF-affiliated), the winner is decided by raw, unrecorded Crossref relevance order — confirmed position-sensitive (swapping input order flips the answer) | 3 | Medium | Open | At minimum, log which case this hit (candidate count + which one won) so a wrong pick is diagnosable after the fact — a counter/log line, not a resolution-order change |
@@ -158,3 +158,85 @@ table above:
   flagged, a `COALESCE`-wrapped one is not, and the sanctioned file is
   asserted to still actually contain its exception (not just be allow-listed
   by name). 64 files scanned, currently 0 violations.
+
+## Session 10 — the sweep fix (production code change, scoped and authorized)
+
+This is the one session in this pack authorized to change production code,
+narrowly: finding #3 above, and nothing else. Scope, per direct
+instruction: resumability and per-faculty budget in
+`scripts/ingest-pubmed-orcid.ts` only. Explicitly not touched: efetch/
+affiliation capture, the ingester concurrency race (#5), the disposal path
+(#4), scheduler restoration, and the identical `existingList`-per-candidate
+reload pattern in `ingest-crossref.ts`/`ingest-scholar.ts` (see follow-ups
+below).
+
+**Diagnosis, measured before designing anything:** 229 active faculty, 47
+with ORCID. Real production round-trip latency for the `existingList`-shaped
+query: 65–190ms (5 live samples). ORCID+Crossref cost for all 47 real
+holders, measured end to end: ~40s total — not the bottleneck, despite
+being the "expensive-looking" half. The actual dominant, previously
+invisible cost: `applyCandidate` reloaded the entire `publications` table
+(5,797 rows and growing) from scratch on *every single candidate*,
+unconditionally. `eutils.ncbi.nlm.nih.gov` was unreachable from this
+session's sandbox (DNS resolves, `curl`/`fetch` fail instantly) — PubMed's
+own network cost is reasoned from code (rate-limit floor ≈152s for 229×2
+calls) rather than measured live; disclosed here rather than assumed.
+
+**Fix, as approved:** independent `orcid_sweep_cursor` / `pubmed_sweep_cursor`
+settings keys, wp_id-keyed, position re-derived from the current roster each
+run (a stale cursor falls back to the start, same branch as no cursor — not
+a special case). The cursor advances unconditionally after each person's
+attempt, success or caught error alike, which is what makes "skipped
+forward, not retried indefinitely" true structurally. ORCID runs to
+completion for all 47 holders every invocation, independent of PubMed's
+cursor position. A per-sweep `ExistingListCache` (lifetime: one faculty
+member's one sweep) replaces the per-candidate reload — this is the
+load-bearing change. A ~25-minute wall-clock ceiling stops *starting* new
+faculty (no per-person cutoff) and writes the cursor cleanly on the way out.
+`pubmed_sweep_cycle_completed_at` + a log line record when a full PubMed
+cycle genuinely wraps.
+
+**Measured before/after** (requested explicitly, not inferred from a green
+suite): 100 synthetic PubMed candidates for one faculty member, local
+SQLite — `existingList` queries: old code 100 (by construction — one per
+candidate), new code measured at exactly 1. Local elapsed for the whole
+sweep: 222ms. Extrapolated to production's measured 65–190ms/query
+latency: old ≈ 7–19s spent on this one redundant query alone across 100
+candidates, vs. new ≈ 65–190ms total (one query). Confirms the diagnosis:
+the cache, not the cursor, is the dominant throughput win — the cursor
+fixes *never finishing*, the cache fixes *how slowly it doesn't finish*.
+
+**Tests:** `tests/idempotency/ingest-pubmed-orcid-resume.test.ts` (new, 10
+tests) — a wall-clock-ceiling stop resumes from the cursor, never position
+1; repeated ceiling-limited invocations eventually reach all 229 and record
+completion; a persistently-failing faculty member is skipped forward, not
+retried indefinitely; a genuinely unexpected (non-network) error is caught
+by an outer safety net and the cursor still advances past them; ORCID
+completes in one invocation regardless of where PubMed's own cursor is
+stalled; the cache returns identical results to the uncached path,
+including for a candidate inserted earlier in the same sweep; the shared
+`assertReRunInvariants` (`tests/helpers/invariants.ts`) holds across a
+genuinely resumed run. All 13 pre-existing `--faculty`-scoped tests in
+`tests/ingest-pubmed-orcid.test.ts` pass unchanged (that path bypasses the
+cursor entirely by design). Full suite: 1,027 passing (1,017 pre-existing +
+10 new), `tsc --noEmit` clean, `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN`
+unset. The job was not run against production this session — all
+production access was read-only, via a throwaway gitignored script, used
+only for the diagnosis numbers above.
+
+**Follow-ups logged, not fixed this session** (per explicit scope
+instruction):
+
+- **efetch/affiliation capture** for `ingest-pubmed-orcid` — separate
+  session.
+- **Ingester concurrency race (#5)** — separate mechanism (redundant reads,
+  not concurrent writers), separate session.
+- **Disposal path (#4)** — separate session.
+- **Scheduler restoration** — separate session.
+- **`ingest-crossref.ts` and `ingest-scholar.ts` have the identical
+  `existingList`-per-candidate reload anti-pattern** this session fixed in
+  `ingest-pubmed-orcid.ts`, confirmed via grep to be separate, independent
+  copies of `applyCandidate` (not shared code, so this session's fix has
+  zero effect on either). Same fix — a per-sweep `ExistingListCache` — would
+  apply directly; worth a follow-up session once either script's own
+  throughput becomes the bottleneck it already is here.
