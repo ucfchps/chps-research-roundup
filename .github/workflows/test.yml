@@ -1,0 +1,44 @@
+name: test
+
+# Phase 5 hardening (master plan §13 Phase 5, docs/phase5-surface-inventory.md
+# §7 open question 4 — "no structural backstop" for a future gap going
+# unnoticed). Runs on every push and pull request: typecheck, then the full
+# test suite. Deliberately carries NO secrets, NO database credentials, and
+# touches no real network — Session 1's global network guard
+# (tests/helpers/http.ts::installNetworkGuard, wired into every test via
+# tests/setup.ts) throws by name on any unmocked fetch, and every test that
+# needs a database creates its own temp-file SQLite via
+# tests/helpers/test-db.ts::createTestDb() (or, for the handful of files
+# that import lib/db.ts's singleton directly, sets TURSO_DATABASE_URL to a
+# local file: URL before that import ever runs) — never TURSO_DATABASE_URL/
+# TURSO_AUTH_TOKEN from the environment. Verified directly before adding this
+# file: the full suite (948 tests, this session) passes with both of those
+# unset. That's what makes running this on every PR — including one opened
+# from a fork, which never has access to repo secrets — safe by construction,
+# not by omission.
+on:
+  push:
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v5
+
+      - name: Set up Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      - name: Run tests
+        run: npm test

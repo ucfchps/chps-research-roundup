@@ -44,7 +44,7 @@ describe("assertReRunInvariants — proving the negative (it can fail, and names
     await db.client.execute({ sql: "UPDATE publication_authors SET role = 'chps_faculty' WHERE publication_id = ?", args: [pubId] });
     const after = await snapshotTables(db.client);
 
-    expect(() => assertReRunInvariants(before, after)).toThrow(/human-set.*role.*grad_student.*chps_faculty/s);
+    expect(() => assertReRunInvariants(before, after)).toThrow(/human-set.*role.*grad_student.*chps_faculty/);
     await db.teardown();
   });
 

@@ -161,7 +161,7 @@ describe("1. no-referrer on the review page", () => {
 
   it("source-level confirmation: the literal string Next's pipeline needs is present, unconditionally, not behind a flag or a conditional", () => {
     const source = readFileSync(path.join(__dirname, "..", "..", "app", "review", "[slug]", "[token]", "page.tsx"), "utf-8");
-    expect(source).toMatch(/export const metadata[^;]*referrer:\s*["']no-referrer["']/s);
+    expect(source).toMatch(/export const metadata[^;]*referrer:\s*["']no-referrer["']/);
   });
 });
 
