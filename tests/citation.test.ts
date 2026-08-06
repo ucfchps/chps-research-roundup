@@ -103,7 +103,7 @@ describe("formatCitation — fixture reconstructions", () => {
     expect(html).toBe(
       "<strong>Rovito, M.J.</strong>, <strong>Brazendale, K.</strong>, Gibson, S., Martinez, S.*, Fairman, C., Badolato, C., Lyon, T., Baird, B., Langan, J., & Leslie, M.K." +
         " (2025). " +
-        '<a href="https://journals.sagepub.com/doi/10.1177/17562872251322658">Physical Activity and Testicular Cancer Survivorship Health-Related Quality of Life: A Scoping Review</a>. ' +
+        '<a href="https://journals.sagepub.com/doi/10.1177/17562872251322658" rel="noopener noreferrer">Physical Activity and Testicular Cancer Survivorship Health-Related Quality of Life: A Scoping Review</a>. ' +
         "<em>Therapeutic Advances in Urology</em>, 17."
     );
     // No stray comma or empty parens with volume present but issue/pages absent.
@@ -135,7 +135,7 @@ describe("formatCitation — fixture reconstructions", () => {
     expect(html).toBe(
       "Lopez Torralba, L.*, Sukhu, B.**, de Azevedo Daruge, M. E.*, Chung, J., Loerzel, V., & <strong>Lee, E.</strong>" +
         " (2025). " +
-        '<a href="https://www.mdpi.com/1718-7729/32/8/461">Evaluating Fatalism Among Breast Cancer Survivors in a Heterogeneous Hispanic Population: A Cross-Sectional Study</a>. ' +
+        '<a href="https://www.mdpi.com/1718-7729/32/8/461" rel="noopener noreferrer">Evaluating Fatalism Among Breast Cancer Survivors in a Heterogeneous Hispanic Population: A Cross-Sectional Study</a>. ' +
         "<em>Current Oncology</em>, 32(8), 461."
     );
   });

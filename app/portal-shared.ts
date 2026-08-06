@@ -5,6 +5,7 @@
 import type { PublicationSubmission } from "@/lib/review-actions";
 import type { AuthorRole, Unit } from "@/lib/types";
 import { UNITS } from "@/lib/types";
+import { isAllowedCitationUrl } from "@/lib/citation";
 
 export interface PortalSubmitFormState {
   error: string | null;
@@ -37,6 +38,15 @@ export function parsePortalSubmitFormData(formData: FormData): ParsedPortalSubmi
 
   const url = String(formData.get("url") ?? "").trim();
   if (!url) return { kind: "invalid", error: "Link is required." };
+  // Phase 5 hardening (Session 7 finding): an unauthenticated submitter
+  // could otherwise put a javascript:/data: URL straight into
+  // pending_submissions, which lib/citation.ts::formatCitation would later
+  // render as a live href in the admin's own Tab 1 review view. Rejected
+  // here, at the earliest possible point, same allowlist formatCitation
+  // itself enforces at render time — belt and suspenders, not
+  // either/or (§15.1: nothing goes public unreviewed, but "unreviewed"
+  // includes a reviewer's own browser while they're doing the reviewing).
+  if (!isAllowedCitationUrl(url)) return { kind: "invalid", error: "Link must be a valid web address (http/https) or mailto link." };
 
   const doi = String(formData.get("doi") ?? "").trim() || null;
   const journal = String(formData.get("journal") ?? "").trim() || null;

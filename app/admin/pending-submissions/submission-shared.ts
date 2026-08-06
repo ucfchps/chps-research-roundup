@@ -4,6 +4,7 @@
 // tests/pending-submissions.test.ts against lib/pending-submissions.ts.
 import type { ApproveParams, ReviewAuthorInput } from "@/lib/pending-submissions";
 import type { AuthorRole } from "@/lib/types";
+import { isAllowedCitationUrl } from "@/lib/citation";
 
 export interface SubmissionFormState {
   error: string | null;
@@ -49,6 +50,12 @@ export function parseApproveFormData(formData: FormData): ParsedApproveForm {
 
   const url = String(formData.get("url") ?? "").trim();
   if (!url) return { error: "Link is required." };
+  // Phase 5 hardening (Session 7 finding): a reviewer could otherwise
+  // approve a submission whose URL a submitter never fixed (or edit one in
+  // themselves), landing it in publications.url and, later, the public
+  // roundup post. Same allowlist as app/portal-shared.ts and
+  // lib/citation.ts's own render-time check.
+  if (!isAllowedCitationUrl(url)) return { error: "Link must be a valid web address (http/https) or mailto link." };
 
   const doi = String(formData.get("doi") ?? "").trim() || null;
   const journal = String(formData.get("journal") ?? "").trim() || null;

@@ -193,7 +193,7 @@ describe("2. Outbound link attributes — rel must contain both noopener and nor
     }
   });
 
-  it("★ the citation formatter's OWN generated <a> tag — checked specifically, per the ask — carries NO rel attribute at all", () => {
+  it("★ FIXED (Phase 5 Session 8): the citation formatter's OWN generated <a> tag now carries rel=\"noopener noreferrer\"", () => {
     const pub = {
       id: 1,
       doi: "10.1/formatter-link",
@@ -223,21 +223,16 @@ describe("2. Outbound link attributes — rel must contain both noopener and nor
     const anchorMatch = html.match(/<a\b[^>]*>/);
     expect(anchorMatch).not.toBeNull();
 
-    // CURRENT BEHAVIOR: lib/citation.ts::formatCitation emits
-    // `<a href="${pub.url}">${title}</a>` with no rel attribute whatsoever —
-    // confirmed here, not assumed from reading the source. Not currently a
-    // live token-leak risk: app/review/[slug]/[token]/page.tsx never
-    // imports or calls formatCitation (confirmed by source grep — it only
-    // imports formatAuthorList from lib/citation.ts), so this HTML is never
-    // rendered on a token-bearing page today; it's used for the public
-    // roundup post export (lib/roundup-export.ts), whose URLs never carry a
-    // token. Flagged because item 2 asks to check the formatter's output
-    // specifically, and because "the citation formatter is the product"
-    // (§15.6) — if this function is ever reused on the review page (a
-    // plausible future refactor, since it's the shared citation-rendering
-    // logic), the missing rel would become a live gap at that point with no
-    // additional code change needed to introduce it.
-    expect(anchorMatch![0]).not.toMatch(/rel=/);
+    // This test originally documented a real gap: formatCitation emitted
+    // `<a href="${pub.url}">${title}</a>` with no rel attribute at all. Not
+    // a live token-leak risk at the time (app/review/[slug]/[token]/page.tsx
+    // never called formatCitation, only formatAuthorList), but flagged
+    // because "the citation formatter is the product" (§15.6) and any
+    // future reuse on a token-bearing page would inherit the gap for free.
+    // Fixed directly in Phase 5 Session 8 (lib/citation.ts) alongside the
+    // stored-XSS fix Session 7 found on the same line — same
+    // dangerous-attribute-interpolation root cause, same fix.
+    expect(anchorMatch![0]).toMatch(/rel="noopener noreferrer"/);
   });
 });
 

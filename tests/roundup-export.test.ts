@@ -88,7 +88,7 @@ describe("buildExportHtml", () => {
     const expectedCitationHtml =
       "<strong>Rovito, M.J.</strong>, <strong>Brazendale, K.</strong>, Gibson, S., Martinez, S.*, Fairman, C., Badolato, C., Lyon, T., Baird, B., Langan, J., & Leslie, M.K." +
       " (2025). " +
-      '<a href="https://journals.sagepub.com/doi/10.1177/17562872251322658">Physical Activity and Testicular Cancer Survivorship Health-Related Quality of Life: A Scoping Review</a>. ' +
+      '<a href="https://journals.sagepub.com/doi/10.1177/17562872251322658" rel="noopener noreferrer">Physical Activity and Testicular Cancer Survivorship Health-Related Quality of Life: A Scoping Review</a>. ' +
       "<em>Therapeutic Advances in Urology</em>, 17.";
 
     const html = buildExportHtml({

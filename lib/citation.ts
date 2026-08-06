@@ -7,6 +7,8 @@ import { UNITS, type Faculty, type Publication, type PublicationAuthor, type Uni
 
 // Idempotent on "&": a raw "&" becomes "&amp;", but an already-valid entity
 // (e.g. "&amp;" arriving pre-escaped from upstream data) is left alone.
+// Already covers double-quoted HTML attribute context (the " -> &quot; line)
+// — this is reused as-is for pub.url below, not a separate escaper.
 function escapeHtml(text: string): string {
   return text
     .replace(/&(?!(?:[a-zA-Z]+|#\d+|#x[0-9a-fA-F]+);)/g, "&amp;")
@@ -14,6 +16,28 @@ function escapeHtml(text: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;")
     .replace(/'/g, "&#39;");
+}
+
+// Phase 5 hardening: pub.url is the one field a citation carries that isn't
+// author-entered text with a fixed shape — it's a raw URL, and until now it
+// was interpolated into `<a href="...">` with no escaping and no scheme
+// check at all (found via an unauthenticated §8a portal submission, Session
+// 7). http/https/mailto is deliberately narrow: every legitimate citation
+// link this codebase produces (DOI resolvers, publisher sites, a mailto
+// contact) fits one of these three; javascript:/data:/vbscript:/anything
+// else is never a citation, only ever an attack shape. Exported so the two
+// parse sites that ever accept a submitted URL (app/portal-shared.ts,
+// app/admin/pending-submissions/submission-shared.ts) can reject a bad URL
+// before it ever reaches the database, using this exact allowlist rather
+// than a second, driftable copy of it.
+const ALLOWED_URL_SCHEMES = new Set(["http:", "https:", "mailto:"]);
+
+export function isAllowedCitationUrl(url: string): boolean {
+  try {
+    return ALLOWED_URL_SCHEMES.has(new URL(url).protocol);
+  } catch {
+    return false; // unparseable (relative, empty, malformed) — fail closed, same posture as everything else in this codebase (§15.8)
+  }
 }
 
 export function formatAuthor(author: PublicationAuthor): string {
@@ -49,7 +73,16 @@ export function formatCitation(pub: Publication, authors: PublicationAuthor[]): 
   const journal = pub.journal
     ? `<em>${escapeHtml(pub.journal)}</em>${volumeIssuePages ? `, ${volumeIssuePages}` : ""}.`
     : `${volumeIssuePages}.`;
-  return `${authorsStr} (${pub.year ?? ""}). <a href="${pub.url}">${title}</a>. ${journal}`;
+  // A URL failing the allowlist renders the bare title instead of a link —
+  // not a dead "#" href, not the raw/dangerous URL. This function has no
+  // way to signal "this record has a bad URL" to a caller other than the
+  // rendered HTML itself (it's pure text in, text out — no side channel),
+  // and the two write paths that can ever introduce one now reject it before
+  // it reaches the database anyway (app/portal-shared.ts,
+  // app/admin/pending-submissions/submission-shared.ts) — so reaching this
+  // branch in practice means bad legacy data, not a live attack in progress.
+  const titleHtml = isAllowedCitationUrl(pub.url) ? `<a href="${escapeHtml(pub.url)}" rel="noopener noreferrer">${title}</a>` : title;
+  return `${authorsStr} (${pub.year ?? ""}). ${titleHtml}. ${journal}`;
 }
 
 // units(publication) = DISTINCT(faculty.unit) over chps_faculty authors linked
