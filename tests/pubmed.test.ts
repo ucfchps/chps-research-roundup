@@ -5,7 +5,17 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildPubmedAuthorQuery, extractAffiliationsFromXml, getPubmedAffiliations, getPubmedRecords, parsePubmedYear, searchPubmedByAuthor } from "../lib/pubmed";
+import {
+  buildPubmedAuthorQuery,
+  extractAffiliationsFromXml,
+  formatPubmedDiagnostics,
+  getPubmedAffiliations,
+  getPubmedDiagnostics,
+  getPubmedRecords,
+  parsePubmedYear,
+  resetPubmedDiagnostics,
+  searchPubmedByAuthor,
+} from "../lib/pubmed";
 import sampleSummaries from "./fixtures/pubmed/sample-summaries.json";
 import { withFakeTimers } from "./helpers/fake-timers";
 
@@ -334,5 +344,96 @@ describe("getPubmedAffiliations — network layer", () => {
     // this exact failure mode has caused real flakes in this repo before).
     vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("network down")));
     await withFakeTimers(() => expect(getPubmedAffiliations(["1"])).rejects.toThrow(/PubMed efetch/));
+  });
+});
+
+// docs/phase5-findings.md (Session 13 diagnostic): a "successful after
+// retries" result was indistinguishable from "successful first try" before
+// this — these tests are what prove the fix actually distinguishes them.
+describe("PubMed request diagnostics — resetPubmedDiagnostics / getPubmedDiagnostics / formatPubmedDiagnostics", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("starts empty after a reset, before any call", () => {
+    resetPubmedDiagnostics();
+    const d = getPubmedDiagnostics();
+    expect(d.esearch.requests).toBe(0);
+    expect(d.esummary.requests).toBe(0);
+    expect(d.efetch.requests).toBe(0);
+  });
+
+  it("a single successful esearch call records exactly 1 request, 1 attempt, and its status code — not conflated with a retried call", async () => {
+    resetPubmedDiagnostics();
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(JSON.stringify({ esearchresult: { idlist: [] } }), { status: 200 })));
+
+    await searchPubmedByAuthor("Stock MS", "University of Central Florida");
+
+    const d = getPubmedDiagnostics();
+    expect(d.esearch.requests).toBe(1);
+    expect(d.esearch.attempts).toBe(1); // no retry — this is exactly what distinguishes it from the next test
+    expect(d.esearch.statusCounts).toEqual({ "200": 1 });
+    expect(d.esearch.backoffMs).toBe(0);
+  });
+
+  it("a 429-then-200 sequence records 2 attempts for 1 request, both status codes, and non-zero backoff time — this is the case a plain 'it succeeded' summary can't see", async () => {
+    resetPubmedDiagnostics();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("rate limited", { status: 429 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ esearchresult: { idlist: [] } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await withFakeTimers(() => searchPubmedByAuthor("Stock MS", "University of Central Florida"));
+
+    const d = getPubmedDiagnostics();
+    expect(d.esearch.requests).toBe(1); // one logical call from the caller's point of view
+    expect(d.esearch.attempts).toBe(2); // but it took two tries — this is the retry the old summary couldn't show
+    expect(d.esearch.statusCounts).toEqual({ "429": 1, "200": 1 });
+    expect(d.esearch.backoffMs).toBeGreaterThan(0); // real time was spent waiting between the two attempts
+  });
+
+  it("a request that throws every attempt (network error, never a status code) is tracked under an error: key, not silently dropped", async () => {
+    resetPubmedDiagnostics();
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("network down")));
+
+    await withFakeTimers(() => expect(searchPubmedByAuthor("Stock MS", "x")).rejects.toThrow());
+
+    const d = getPubmedDiagnostics();
+    expect(d.esearch.attempts).toBeGreaterThan(1); // fetchWithRetry's default max attempts
+    const errorKeys = Object.keys(d.esearch.statusCounts).filter((k) => k.startsWith("error:"));
+    expect(errorKeys.length).toBeGreaterThan(0);
+  });
+
+  it("resetPubmedDiagnostics() between two calls means the second snapshot reflects only the second call — the per-person isolation the distribution analysis depends on", async () => {
+    resetPubmedDiagnostics();
+    // A Response body can only be read once — a fresh instance per call,
+    // not mockResolvedValue's single shared instance, since this test calls
+    // searchPubmedByAuthor twice.
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockImplementation(async () => new Response(JSON.stringify({ esearchresult: { idlist: [] } }), { status: 200 }))
+    );
+    await searchPubmedByAuthor("Person A", "x");
+    expect(getPubmedDiagnostics().esearch.requests).toBe(1);
+
+    resetPubmedDiagnostics();
+    expect(getPubmedDiagnostics().esearch.requests).toBe(0); // NOT 1 — a running total would fail this
+    await searchPubmedByAuthor("Person B", "x");
+    expect(getPubmedDiagnostics().esearch.requests).toBe(1); // still 1, not 2
+  });
+
+  it("formatPubmedDiagnostics only includes call types that were actually used, and surfaces the retry count", async () => {
+    resetPubmedDiagnostics();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(new Response("rate limited", { status: 429 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ esearchresult: { idlist: [] } }), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await withFakeTimers(() => searchPubmedByAuthor("Stock MS", "x"));
+
+    const line = formatPubmedDiagnostics(getPubmedDiagnostics());
+    expect(line).toContain("esearch:");
+    expect(line).toContain("1 retried");
+    expect(line).not.toContain("esummary:"); // never called this test — must not appear as a false zero-entry
+    expect(line).not.toContain("efetch:");
   });
 });

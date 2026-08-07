@@ -17,7 +17,16 @@ import { config } from "dotenv";
 import path from "node:path";
 import { createClient, type Client } from "@libsql/client";
 import { getOrcidWorks, OrcidUnavailableError, type OrcidWork } from "../lib/orcid";
-import { buildPubmedAuthorQuery, getPubmedAffiliations, getPubmedRecords, PubmedUnavailableError, searchPubmedByAuthor } from "../lib/pubmed";
+import {
+  buildPubmedAuthorQuery,
+  formatPubmedDiagnostics,
+  getPubmedAffiliations,
+  getPubmedDiagnostics,
+  getPubmedRecords,
+  PubmedUnavailableError,
+  resetPubmedDiagnostics,
+  searchPubmedByAuthor,
+} from "../lib/pubmed";
 import {
   classifyAffiliationPlausibility,
   mergeAuthors,
@@ -410,6 +419,13 @@ async function sweepPubmed(client: Client, f: Faculty, roster: Faculty[], nowIso
     console.warn(`[pubmed-query-fallback] ${f.display_name} (wp_id ${f.wp_id ?? "?"}): full_name missing or unparseable — queried the sparser display_name instead. Verify/backfill full_name for this person.`);
   }
 
+  // docs/phase5-findings.md (Session 13 diagnostic): reset once per person
+  // so getPubmedDiagnostics() below reflects only THIS person's PubMed
+  // calls, not a running total — the whole point is a per-person
+  // distribution, not just a run-wide sum. wrapped in try/finally so the
+  // line logs unconditionally, including when this person is skipped.
+  resetPubmedDiagnostics();
+  const personStartedAt = Date.now();
   try {
     const pmids = await searchPubmedByAuthor(query.queryName, UCF_AFFILIATION_HINT);
     const records = await getPubmedRecords(pmids);
@@ -458,6 +474,16 @@ async function sweepPubmed(client: Client, f: Faculty, roster: Faculty[], nowIso
       return;
     }
     throw err;
+  } finally {
+    const totalMs = Date.now() - personStartedAt;
+    const d = getPubmedDiagnostics();
+    const accountedMs = (["esearch", "esummary", "efetch"] as const).reduce((sum, t) => sum + d[t].fetchMs + d[t].backoffMs + d[t].rateLimitWaitMs, 0);
+    // "Other" is deliberately a residual, not a separately-measured bucket —
+    // JSON/XML parsing, DB round trips inside applyCandidate, and any event-
+    // loop scheduling delay all land here. A large "other" would mean the
+    // bottleneck is OUR code, not NCBI; this run's whole point was ruling
+    // that out before proposing a fix.
+    console.log(`[pubmed-timing] ${f.display_name} (wp_id ${f.wp_id ?? "?"}): total=${totalMs}ms, other=${totalMs - accountedMs}ms — ${formatPubmedDiagnostics(d)}`);
   }
 }
 

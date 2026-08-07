@@ -3,7 +3,7 @@
 // untruncated metadata (full author list, DOI, full journal name) — it goes
 // directly into match/merge, no Crossref round-trip needed. Deterministic.
 // No AI, no DB.
-import { fetchWithRetry } from "./http";
+import { fetchWithRetry, type FetchAttemptInfo } from "./http";
 import { fromPubmedAuthorName, parseFullNameForPubmedQuery, toPubmedQueryName } from "./names";
 
 const EUTILS_BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils";
@@ -17,17 +17,95 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// docs/phase5-findings.md (Session 13): "successful after silent retries"
+// vs "successful first try" was indistinguishable from the outside — this
+// job needed ongoing visibility into where its own wall-clock actually
+// goes, not a one-off diagnostic script. Four buckets, matched to the four
+// candidate causes a slowdown here can have:
+//   - rateLimitWaitMs: our OWN deliberate self-throttle (rateLimit() below)
+//   - backoffMs: time slept between fetchWithRetry attempts (i.e. NCBI
+//     rejected or timed out and we're waiting before retrying)
+//   - fetchMs: each attempt's own wall-clock duration, timeout or not —
+//     high fetchMs with LOW attempt counts means NCBI is genuinely slow;
+//     high attempt counts with LOW per-attempt fetchMs means fast
+//     rejections (429s) are the driver
+//   - statusCounts: the actual status codes (or "error:<message>" for a
+//     thrown/timeout attempt) seen — this is what actually distinguishes a
+//     429 from a silent timeout-and-retry, which every prior run's summary
+//     collapsed into the same "no errors" outcome
+export type PubmedCallType = "esearch" | "esummary" | "efetch";
+
+interface CallTypeDiagnostics {
+  requests: number; // top-level fetchWithRetry calls
+  attempts: number; // total attempts across those calls — attempts > requests means at least one retry happened
+  fetchMs: number; // sum of every attempt's own duration (genuine latency, including one that timed out)
+  backoffMs: number; // sum of time slept between attempts, waiting to retry
+  rateLimitWaitMs: number; // sum of time slept in our own self-throttle before a request was even sent
+  statusCounts: Record<string, number>;
+}
+
+function emptyCallTypeDiagnostics(): CallTypeDiagnostics {
+  return { requests: 0, attempts: 0, fetchMs: 0, backoffMs: 0, rateLimitWaitMs: 0, statusCounts: {} };
+}
+
+function emptyDiagnostics(): Record<PubmedCallType, CallTypeDiagnostics> {
+  return { esearch: emptyCallTypeDiagnostics(), esummary: emptyCallTypeDiagnostics(), efetch: emptyCallTypeDiagnostics() };
+}
+
+let diagnostics: Record<PubmedCallType, CallTypeDiagnostics> = emptyDiagnostics();
+
+// Callers reset this once per unit of work they want a timing breakdown
+// for (scripts/ingest-pubmed-orcid.ts resets it once per faculty member, so
+// a per-person distribution — not just a run-wide total — is directly
+// observable from the log).
+export function resetPubmedDiagnostics(): void {
+  diagnostics = emptyDiagnostics();
+}
+
+export function getPubmedDiagnostics(): Record<PubmedCallType, CallTypeDiagnostics> {
+  return diagnostics;
+}
+
+// One line, safe to log unconditionally (never PII, never a secret) —
+// mirrors this file's existing [pubmed-query-too-broad]/[pubmed-affiliation]
+// bracket-tag convention.
+export function formatPubmedDiagnostics(d: Record<PubmedCallType, CallTypeDiagnostics> = diagnostics): string {
+  const parts = (["esearch", "esummary", "efetch"] as const)
+    .filter((t) => d[t].requests > 0)
+    .map((t) => {
+      const c = d[t];
+      const retries = c.attempts - c.requests;
+      const statuses = Object.entries(c.statusCounts)
+        .map(([k, v]) => `${k}×${v}`)
+        .join(",");
+      return `${t}: ${c.requests} req/${c.attempts} attempt(s)${retries > 0 ? ` (${retries} retried)` : ""}, fetch=${c.fetchMs}ms, backoff=${c.backoffMs}ms, rateLimitWait=${c.rateLimitWaitMs}ms [${statuses}]`;
+    });
+  return parts.join(" · ");
+}
+
+function recordAttempt(callType: PubmedCallType, info: FetchAttemptInfo): void {
+  const d = diagnostics[callType];
+  d.attempts++;
+  d.fetchMs += info.attemptMs;
+  d.backoffMs += info.backoffMs;
+  const key = info.status !== null ? String(info.status) : `error:${info.errorMessage ?? "unknown"}`;
+  d.statusCounts[key] = (d.statusCounts[key] ?? 0) + 1;
+}
+
 // A real, per-process rate limiter (elapsed-time-based, not a flat sleep per
 // call) — NCBI allows 3 req/sec without a key, 10/sec with one. Module-level
 // state so it throttles across every call this process makes, not just
 // within one function.
 let lastRequestAt = 0;
 
-async function rateLimit(): Promise<void> {
+async function rateLimit(callType: PubmedCallType): Promise<void> {
   const rps = process.env.NCBI_API_KEY ? 10 : 3;
   const minIntervalMs = 1000 / rps;
   const wait = minIntervalMs - (Date.now() - lastRequestAt);
-  if (wait > 0) await sleep(wait);
+  if (wait > 0) {
+    diagnostics[callType].rateLimitWaitMs += wait;
+    await sleep(wait);
+  }
   lastRequestAt = Date.now();
 }
 
@@ -78,10 +156,11 @@ export async function searchPubmedByAuthor(facultyName: string, _affiliationHint
   const term = `${toPubmedQueryName(facultyName)}[Author]`;
   const url = `${EUTILS_BASE}/esearch.fcgi?db=pubmed&term=${encodeURIComponent(term)}&retmax=${ESEARCH_RETMAX}&${eutilsParams()}`;
 
-  await rateLimit();
+  await rateLimit("esearch");
+  diagnostics.esearch.requests++;
   let res: Response;
   try {
-    res = await fetchWithRetry(url);
+    res = await fetchWithRetry(url, {}, { onAttempt: (info) => recordAttempt("esearch", info) });
   } catch (err) {
     throw new PubmedUnavailableError("PubMed esearch request failed after exhausting retries", { cause: err });
   }
@@ -255,10 +334,11 @@ export async function getPubmedAffiliations(pmids: string[]): Promise<Map<string
 
   const url = `${EUTILS_BASE}/efetch.fcgi?db=pubmed&id=${encodeURIComponent(pmids.join(","))}&rettype=abstract&${eutilsParams("xml")}`;
 
-  await rateLimit();
+  await rateLimit("efetch");
+  diagnostics.efetch.requests++;
   let res: Response;
   try {
-    res = await fetchWithRetry(url);
+    res = await fetchWithRetry(url, {}, { onAttempt: (info) => recordAttempt("efetch", info) });
   } catch (err) {
     throw new PubmedUnavailableError("PubMed efetch request failed after exhausting retries", { cause: err });
   }
@@ -276,10 +356,11 @@ export async function getPubmedRecords(pmids: string[]): Promise<PubmedRecord[]>
 
   const url = `${EUTILS_BASE}/esummary.fcgi?db=pubmed&id=${encodeURIComponent(pmids.join(","))}&${eutilsParams()}`;
 
-  await rateLimit();
+  await rateLimit("esummary");
+  diagnostics.esummary.requests++;
   let res: Response;
   try {
-    res = await fetchWithRetry(url);
+    res = await fetchWithRetry(url, {}, { onAttempt: (info) => recordAttempt("esummary", info) });
   } catch (err) {
     throw new PubmedUnavailableError("PubMed esummary request failed after exhausting retries", { cause: err });
   }

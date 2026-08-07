@@ -24,10 +24,29 @@ function defaultIsRetryableStatus(status: number): boolean {
   return status === 429 || status >= 500;
 }
 
+// docs/phase5-findings.md (Session 13 diagnostic): "successful after N
+// silent retries" and "successful on the first try" are indistinguishable
+// from a caller's return value alone — the caller just gets a Response
+// either way. onAttempt is the deliberate seam that fixes that: one call
+// per attempt, whether it ended in a response, a retryable status, or a
+// thrown error (timeout/network), always carrying that attempt's own
+// wall-clock duration and the backoff delay (if any) that follows it. Purely
+// additive and opt-in — omitting it is byte-for-byte the prior behavior, so
+// every existing caller/test is unaffected.
+export interface FetchAttemptInfo {
+  attempt: number; // 0-indexed
+  status: number | null; // null when the attempt threw (network error/timeout) rather than returning a Response
+  ok: boolean; // true only on the attempt that fetchWithRetry is about to return (or its final failed attempt)
+  attemptMs: number; // this attempt's own wall-clock duration (fetch call to settle, timeout or not)
+  backoffMs: number; // delay slept AFTER this attempt, before the next one — 0 on the last attempt
+  errorMessage: string | null; // set when this attempt threw (e.g. "AbortError: This operation was aborted" on a timeout)
+}
+
 export interface FetchWithRetryOptions {
   maxAttempts?: number;
   timeoutMs?: number;
   isRetryableStatus?: (status: number) => boolean;
+  onAttempt?: (info: FetchAttemptInfo) => void;
 }
 
 const DEFAULT_MAX_ATTEMPTS = 4;
@@ -52,19 +71,29 @@ export async function fetchWithRetry(
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
+    const attemptStart = Date.now();
     try {
       const res = await fetch(url, { ...init, signal: controller.signal });
-      if (!isRetryableStatus(res.status)) return res;
+      const attemptMs = Date.now() - attemptStart;
+      if (!isRetryableStatus(res.status)) {
+        opts.onAttempt?.({ attempt, status: res.status, ok: true, attemptMs, backoffMs: 0, errorMessage: null });
+        return res;
+      }
 
       lastError = new Error(`HTTP ${res.status}`);
       const isLastAttempt = attempt === maxAttempts - 1;
+      const backoffMs = isLastAttempt ? 0 : backoffDelayMs(attempt, parseRetryAfterMs(res.headers.get("retry-after")));
+      opts.onAttempt?.({ attempt, status: res.status, ok: false, attemptMs, backoffMs, errorMessage: null });
       if (isLastAttempt) break;
-      await sleep(backoffDelayMs(attempt, parseRetryAfterMs(res.headers.get("retry-after"))));
+      await sleep(backoffMs);
     } catch (err) {
+      const attemptMs = Date.now() - attemptStart;
       lastError = err instanceof Error ? err : new Error(String(err));
       const isLastAttempt = attempt === maxAttempts - 1;
+      const backoffMs = isLastAttempt ? 0 : backoffDelayMs(attempt);
+      opts.onAttempt?.({ attempt, status: null, ok: false, attemptMs, backoffMs, errorMessage: lastError.message });
       if (isLastAttempt) break;
-      await sleep(backoffDelayMs(attempt));
+      await sleep(backoffMs);
     } finally {
       clearTimeout(timer);
     }

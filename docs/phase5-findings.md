@@ -512,3 +512,153 @@ cache's own "make the expensive thing amortize" instinct from Session
 10), but shouldn't be built until the retry-under-sustained-load
 hypothesis is confirmed or ruled out, since a wrong theory here risks
 "fixing" a symptom instead of the cause.
+
+## Session 13 — diagnosing the 8.6x slowdown (no fix implemented)
+
+Scope, per direct instruction: diagnose only. No parallelization, no
+caching, no concurrency, no batching restructure. Report the cause,
+measured, and stop.
+
+**The leading hypothesis (NCBI rate limiting) was tested first, as asked,
+and is ruled out.** Verified `NCBI_API_KEY` is configured in `.env.local`
+and actually sent (`api_key` param confirmed in the outgoing URL). Verified
+NCBI's current documented limits directly against their own docs
+(`eutilities.github.io/site/API_Key/usageandkey`, not training data or the
+prior session's framing): 3 req/s without a key, 10 req/s with one,
+429 on excess. Added real, keepable instrumentation (`lib/http.ts`'s new
+`onAttempt` hook on `fetchWithRetry`, wired through `lib/pubmed.ts`'s three
+network calls) that separates, per request: status code, attempt count,
+time spent in our own rate-limiter's self-throttle, time spent in
+backoff-after-a-retryable-response, and each attempt's own genuine
+duration — the exact seam needed to tell "succeeded first try" apart from
+"succeeded after a silent retry," which no prior session's summary output
+could distinguish.
+
+**Measured live against production**, a bounded 10-minute diagnostic run
+(56 faculty, 168 individual PubMed requests — esearch+esummary+efetch):
+**zero 429s. One timeout** (`Ziegler, A.`: esummary attempt 1 aborted at
+the 15s per-attempt ceiling, `TypeError: This operation was aborted`,
+retried, succeeded in the second attempt) — a real, rare (1/56 people),
+genuine-latency event, not a rate-limit rejection, and not close to
+explaining an 8.6x gap on its own. The computed aggregate request rate
+this job generates (even fully loaded with `efetch`) is ~0.06 req/s —
+nowhere near either the 3 or 10 req/s ceiling. Rate limiting is not the
+cause.
+
+**A second, unrelated but consequential discovery made while testing the
+rate-limit hypothesis**: `.github/workflows/ingest-pubmed-orcid.yml`
+references `secrets.NCBI_API_KEY`, `vars.NCBI_TOOL_NAME`, and
+`vars.NCBI_EMAIL` — but `gh secret list` / `gh variable list` against the
+real repo show **none of the three are actually configured**. Every real
+scheduled run of this job has been running at the unauthenticated 3 req/s
+tier, not the 10 req/s tier every prior session's measurements (including
+this one) assumed and benefited from via a locally-configured
+`.env.local` key that was never propagated to the actual GitHub secret.
+This doesn't explain the 8.6x gap either (rate limiting is ruled out
+regardless of key presence), but it means every session's "X minutes for
+a full cycle" number was measured under materially better network
+conditions than production has ever actually had. **This is a one-line
+config fix** (add the `NCBI_API_KEY` secret and the two `vars` in the repo
+settings) — flagging it and stopping for confirmation rather than adding
+it myself, per this session's instructions.
+
+**The actual cause: serial per-merge database round-trips, not PubMed at
+all.** The same diagnostic run's per-person breakdown makes this
+unambiguous. `applyCandidate`'s `MATCH` branch
+(`scripts/ingest-pubmed-orcid.ts`) issues two `SELECT` queries against the
+live production database for every candidate that merges into an existing
+row — **unconditionally, even in `--dry-run`** (only the subsequent
+`UPDATE`/`INSERT` writes are gated on `!dryRun`; the reads that decide
+*whether* to write are not). Each query is a real network round trip at
+production's own previously-measured latency (65–190ms, Session 10). Two
+sequential, un-batched round trips per merge, done one candidate at a
+time inside a `for` loop with no batching.
+
+The data: of 56 people, the 6 highest-cost had `other` (this job's own
+code, not NCBI) between 17.9s and 35.8s — and **four of the six had zero
+new candidates at all** (every single one of their PubMed hits already
+matched an existing row): `MacKay, A.` (35,790ms, 0 new), `Adams, A.`
+(35,678ms, 0 new), `Pearson, D.` (35,191ms, 0 new), `Perez, K.` (34,811ms,
+0 new), `Roman, O.` (18,053ms, 0 new), `Constantine, R.` (17,903ms, 0
+new). Dividing each by ~150ms (the expected cost of one merge's two
+sequential round trips) implies 232–239 merges for the four biggest — a
+near-exact match for the `retmax=250` cap these are known common-surname
+cases (confirmed via the same `[pubmed-query-too-broad]` log line
+Sessions 11/12 already used to identify them). Pearson's-r between new-
+candidate count and `other` time across all 56 people is **−0.29** —
+*more* new candidates correlates with *less* "other" time, the opposite
+of what an efetch-driven or insert-driven theory would predict, and
+exactly what the merge-cost theory predicts (a new/insert candidate costs
+nothing extra in dry-run mode; only a merge does). In total across the
+56-person sample: **79.1% of all wall-clock time (412.8s of 521.8s) was
+this "other" bucket** — PubMed's own network time (`fetch` + `backoff` +
+`rateLimitWait` summed across esearch/esummary/efetch) was the remaining
+~21%.
+
+**This is not new to `efetch` or Session 12.** The two-`SELECT`-per-merge
+pattern is old, unchanged code — present since before Session 10. Applying
+the same ~150ms/merge estimate to Session 11's baseline (4,347 merges,
+229 people, ~23 minutes / 1,380s total): merge cost alone accounts for
+≈652s — **≈47% of that entire "successful" 23-minute run**, already,
+before `efetch` ever entered the picture. `efetch` (Session 12) added a
+real, measured, secondary cost on top of an already-large existing one; it
+did not create the underlying problem, and fixing `efetch`'s own cost in
+isolation (this diagnostic's original assignment) would not have been
+sufficient — a finding this diagnosis surfaced by measuring, not by
+assuming the brief's own framing was complete.
+
+**Recommended fix, sized, not implemented.** Batch the `MATCH` branch's
+two queries the same way `existingListCache` already batches the initial
+candidate-matching read (Session 10's own "make the expensive thing
+amortize" precedent, applied one step further): since every matching
+`publication_id` is already known before the per-candidate loop starts
+(from `existingListCache`'s in-memory index), the publication-row and
+author-row fetches for *all* of a person's merges could be issued as one
+or two `WHERE id IN (...)` queries up front, collapsing what's currently
+`O(merges)` sequential round trips into a small constant number per
+person regardless of merge count. This is a genuinely scoped change
+(touches `applyCandidate`'s `MATCH` branch and its caller's loop shape,
+not the cursor/ceiling/cache machinery Session 10 already built) —
+estimated to cut the dominant cost by roughly the same order of magnitude
+the `existingList` cache itself cut the original per-candidate reload
+problem in Session 10, but not attempted this session per its own scope.
+
+**Should the wall-clock ceiling also bound total elapsed time, not just
+starting new faculty?** Yes, explicitly recommended. This diagnosis
+demonstrates the gap is real and not theoretical: a single faculty member
+already costs up to ~39 seconds of unavoidable, un-interruptible serial
+work under today's code, with no way for the ceiling to intervene
+mid-person. Even after the batching fix above, some worst-case person
+will still exist; a soft per-person time budget (log a warning and
+continue past whatever's left for that person, without abandoning
+already-decided outcomes) would make the ceiling's stated guarantee ("this
+job writes its cursor and exits cleanly within budget") actually hold in
+the worst case, rather than being a best-effort approximation that this
+session proved can already be violated 3x over on ordinary production
+data.
+
+**Instrumentation, kept**: `lib/http.ts`'s `onAttempt` hook (opt-in,
+zero behavior change for every existing caller that doesn't pass it) and
+`lib/pubmed.ts`'s `resetPubmedDiagnostics`/`getPubmedDiagnostics`/
+`formatPubmedDiagnostics`, wired into `scripts/ingest-pubmed-orcid.ts`'s
+`sweepPubmed` as a `[pubmed-timing]` log line per faculty member (reset
+before, logged in a `finally` after, so it fires even when a person is
+skipped). This is real production visibility this job will need regardless
+of which fix lands next — not diagnostic-session scaffolding to be torn
+out.
+
+**Tests**: `tests/pubmed.test.ts` — `onAttempt`/diagnostics tests covering
+a clean single-attempt success, a 429-then-200 retry (attempts=2,
+requests=1, both status codes recorded, non-zero backoff), a
+fully-exhausted network failure (tracked under an `error:` key, not
+dropped), reset-isolation between two calls, and `formatPubmedDiagnostics`
+only including call types actually used. Full suite: 1,050 passing (1,044
+prior + 6 new), `tsc --noEmit` clean.
+
+**Scope discipline, explicitly**: no parallelization, caching, concurrency,
+or batching restructure implemented, as instructed — the recommended fix
+above is sized and described, not built. No production writes; the
+bounded diagnostic run was `--dry-run`, same posture as every prior
+production-facing session. Write-routing for `not_ucf`/`ambiguous`
+candidates remains unchanged (`pending_merge`, same as Session 12 left
+it) — still blocked on the same schema-decision-plus-review-UI gap.
