@@ -17,8 +17,19 @@ import { config } from "dotenv";
 import path from "node:path";
 import { createClient, type Client } from "@libsql/client";
 import { getOrcidWorks, OrcidUnavailableError, type OrcidWork } from "../lib/orcid";
-import { buildPubmedAuthorQuery, getPubmedRecords, PubmedUnavailableError, searchPubmedByAuthor } from "../lib/pubmed";
-import { mergeAuthors, mergeMetadata, normalizeTitle, promoteFromNeedsMetadata, type ExistingAuthor, type MatchableExisting, type MergeableExisting, type PublicationMetadata } from "../lib/matching";
+import { buildPubmedAuthorQuery, getPubmedAffiliations, getPubmedRecords, PubmedUnavailableError, searchPubmedByAuthor } from "../lib/pubmed";
+import {
+  classifyAffiliationPlausibility,
+  mergeAuthors,
+  mergeMetadata,
+  normalizeTitle,
+  promoteFromNeedsMetadata,
+  type AffiliationPlausibility,
+  type ExistingAuthor,
+  type MatchableExisting,
+  type MergeableExisting,
+  type PublicationMetadata,
+} from "../lib/matching";
 import { buildAuthorInputs, findCandidateMatch } from "../lib/scholar-ingest";
 import { getSetting, setSetting } from "../lib/settings";
 import type { CrossrefResolutionAuthor, Faculty, PublicationSource, PublicationStatus } from "../lib/types";
@@ -153,6 +164,16 @@ export interface RunSummary {
   pubmedQueriedViaDisplayNameFallback: number;
   merged: number;
   insertedNew: number;
+  // docs/phase5-findings.md #2 (Session 12): classified only for genuinely
+  // new PubMed candidates (a match/merge never needs an affiliation check —
+  // we already trust the row it's merging into). "confirmed" candidates
+  // insert exactly as before; "not_ucf"/"ambiguous" ALSO still insert (a
+  // plausibility signal, never a hard exclusion) — these three counts exist
+  // so a human can see the split before deciding whether a real run is
+  // safe, not to gate anything in this script.
+  pubmedAffiliationConfirmed: number;
+  pubmedAffiliationNotUcf: number;
+  pubmedAffiliationAmbiguous: number;
   skipped: SkippedFaculty[];
   dryRun: boolean;
   // Resumability (docs/phase5-findings.md #3) — unset when this run was
@@ -394,12 +415,41 @@ async function sweepPubmed(client: Client, f: Faculty, roster: Faculty[], nowIso
     const records = await getPubmedRecords(pmids);
     summary.pubmedRecordsFetched += records.length;
 
+    // Affiliation only ever informs the INSERT decision, never a merge — a
+    // record that already matches something in the table is trusted by
+    // virtue of matching, so fetching efetch for it would be pure waste.
+    // This pre-pass is also the Session 12 cost fix: measured against
+    // production, efetching every fetched record (not just the new ones)
+    // added enough wall-clock to threaten the 25-minute ceiling.
+    const existingList = await existingListCache.get(client);
+    const newPmids = new Set(records.filter((r) => findCandidateMatch(r.title, r.doi, existingList).type !== "MATCH").map((r) => r.pmid));
+
+    let affiliationsByPmid = new Map<string, string[]>();
+    if (newPmids.size > 0) {
+      try {
+        affiliationsByPmid = await getPubmedAffiliations([...newPmids]);
+      } catch (err) {
+        // Affiliation is a signal, not a gate — if efetch itself is down,
+        // every new candidate this person just falls into "ambiguous"
+        // (empty affiliation list) below, not a skipped person. Only
+        // esearch/esummary failures (below) should skip the whole person.
+        if (!(err instanceof PubmedUnavailableError)) throw err;
+      }
+    }
+
     for (const record of records) {
       const candidate: Candidate = {
         doi: record.doi, title: record.title, url: record.url, journal: record.journal,
         year: record.year, volume: record.volume, issue: record.issue, pages: record.pages,
         authors: record.authors,
       };
+      if (newPmids.has(record.pmid)) {
+        const bucket: AffiliationPlausibility = classifyAffiliationPlausibility(affiliationsByPmid.get(record.pmid) ?? []);
+        if (bucket === "confirmed") summary.pubmedAffiliationConfirmed++;
+        else if (bucket === "not_ucf") summary.pubmedAffiliationNotUcf++;
+        else summary.pubmedAffiliationAmbiguous++;
+        console.log(`[pubmed-affiliation] ${f.display_name} (wp_id ${f.wp_id ?? "?"}): pmid ${record.pmid} -> ${bucket}`);
+      }
       applyOutcome(summary, await applyCandidate(client, candidate, roster, nowIso, dryRun, "pubmed", existingListCache));
     }
   } catch (err) {
@@ -424,6 +474,9 @@ function emptySummary(dryRun: boolean): RunSummary {
     pubmedQueriedViaDisplayNameFallback: 0,
     merged: 0,
     insertedNew: 0,
+    pubmedAffiliationConfirmed: 0,
+    pubmedAffiliationNotUcf: 0,
+    pubmedAffiliationAmbiguous: 0,
     skipped: [],
     dryRun,
     orcidCursorAdvancedTo: null,
@@ -541,6 +594,12 @@ function printSummary(s: RunSummary): void {
   console.log(`${s.facultyProcessedViaPubmed} faculty processed via PubMed · ${s.pubmedRecordsFetched} PubMed record(s) fetched`);
   console.log(`${s.pubmedQueriedViaFullName} faculty queried via full_name, ${s.pubmedQueriedViaDisplayNameFallback} via display_name fallback (review these)`);
   console.log(`${s.merged} merged into existing records · ${s.insertedNew} new pending_merge/needs_metadata rows created`);
+  const pubmedNewTotal = s.pubmedAffiliationConfirmed + s.pubmedAffiliationNotUcf + s.pubmedAffiliationAmbiguous;
+  if (pubmedNewTotal > 0) {
+    console.log(
+      `New PubMed candidates by affiliation plausibility: ${s.pubmedAffiliationConfirmed} confirmed UCF · ${s.pubmedAffiliationNotUcf} plausibly not UCF · ${s.pubmedAffiliationAmbiguous} ambiguous (no affiliation data) — of ${pubmedNewTotal} total`
+    );
+  }
 
   if (s.orcidCursorAdvancedTo !== null || s.pubmedCursorAdvancedTo !== null) {
     console.log(

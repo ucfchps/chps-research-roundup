@@ -2,9 +2,12 @@
 // eutils.ncbi.nlm.nih.gov esummary pulls for three actual CHPS publications
 // (§5 Layer 3, §13 item 10). See also lib/names.ts's toPubmedQueryName /
 // fromPubmedAuthorName, tested in tests/names.test.ts.
+import { readFileSync } from "node:fs";
+import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { buildPubmedAuthorQuery, getPubmedRecords, parsePubmedYear, searchPubmedByAuthor } from "../lib/pubmed";
+import { buildPubmedAuthorQuery, extractAffiliationsFromXml, getPubmedAffiliations, getPubmedRecords, parsePubmedYear, searchPubmedByAuthor } from "../lib/pubmed";
 import sampleSummaries from "./fixtures/pubmed/sample-summaries.json";
+import { withFakeTimers } from "./helpers/fake-timers";
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), { status });
@@ -225,5 +228,111 @@ describe("buildPubmedAuthorQuery — prefers full_name, falls back to display_na
       queryName: "Lee EM",
       source: "display_name_fallback",
     });
+  });
+});
+
+// docs/phase5-findings.md #2 (Session 12): real, untrimmed efetch captures —
+// see tests/fixtures/api/README.md for exactly what each real PMID proves.
+const NORTE_AND_COLLISION_XML = readFileSync(
+  path.join(__dirname, "fixtures", "api", "pubmed-efetch-norte-and-collision.xml"),
+  "utf-8"
+);
+const OLD_NO_AFFILIATION_XML = readFileSync(path.join(__dirname, "fixtures", "api", "pubmed-efetch-old-no-affiliation.xml"), "utf-8");
+
+describe("extractAffiliationsFromXml — real efetch captures", () => {
+  it("affiliation present and UCF-matching (real Norte G. paper, single author with a match)", () => {
+    const result = extractAffiliationsFromXml(NORTE_AND_COLLISION_XML);
+    const affiliations = result.get("41765003")!;
+    expect(affiliations.length).toBeGreaterThan(0);
+    expect(affiliations.some((a) => a.includes("University of Central Florida"))).toBe(true);
+  });
+
+  it("affiliation present but on only the 5th of 6 authors, not the first (real Norte G. co-authored paper)", () => {
+    const result = extractAffiliationsFromXml(NORTE_AND_COLLISION_XML);
+    const affiliations = result.get("42246438")!;
+    expect(affiliations).toHaveLength(6); // one per author, all 6 have SOME affiliation coded
+    expect(affiliations[0]).toContain("University of Toledo"); // first author — not UCF
+    expect(affiliations.some((a) => a.includes("University of Central Florida"))).toBe(true); // Norte, 5th of 6
+  });
+
+  it("affiliation present and clearly non-UCF (real global name-collision papers, Chinese institutions)", () => {
+    const result = extractAffiliationsFromXml(NORTE_AND_COLLISION_XML);
+    for (const pmid of ["42561073", "42561035", "42561017"]) {
+      const affiliations = result.get(pmid)!;
+      expect(affiliations.length).toBeGreaterThan(0);
+      expect(affiliations.some((a) => a.includes("University of Central Florida"))).toBe(false);
+    }
+  });
+
+  it("captures every <AffiliationInfo> block when an author has more than one (real dual-institution author)", () => {
+    const result = extractAffiliationsFromXml(NORTE_AND_COLLISION_XML);
+    const affiliations = result.get("42561073")!;
+    // Palmer PI has two AffiliationInfo blocks, both University of Edinburgh —
+    // both must survive extraction, not just the first.
+    const edinburgh = affiliations.filter((a) => a.includes("University of Edinburgh"));
+    expect(edinburgh.length).toBeGreaterThanOrEqual(2);
+  });
+
+  it("affiliation absent on every author (real 1970s records — a genuine PubMed coverage gap, not a parse failure)", () => {
+    const result = extractAffiliationsFromXml(OLD_NO_AFFILIATION_XML);
+    for (const pmid of ["120000", "150000", "200000"]) {
+      expect(result.has(pmid)).toBe(true);
+      expect(result.get(pmid)).toEqual([]);
+    }
+  });
+
+  it("decodes XML entities in affiliation text (real '&amp;' in the Norte lab name)", () => {
+    const result = extractAffiliationsFromXml(NORTE_AND_COLLISION_XML);
+    const affiliations = result.get("42268385")!;
+    expect(affiliations.some((a) => a.includes("Neuroplasticity, & Sarcopenia"))).toBe(true);
+    expect(affiliations.some((a) => a.includes("&amp;"))).toBe(false);
+  });
+
+  it("malformed XML never throws — returns an empty map rather than crashing", () => {
+    expect(() => extractAffiliationsFromXml("<PubmedArticleSet><PubmedArticle><unclosed")).not.toThrow();
+    expect(extractAffiliationsFromXml("<PubmedArticleSet><PubmedArticle><unclosed")).toEqual(new Map());
+    expect(() => extractAffiliationsFromXml("")).not.toThrow();
+    expect(() => extractAffiliationsFromXml("not xml at all, just text")).not.toThrow();
+  });
+
+  it("a PubmedArticle with no PMID at all is skipped, not crashed on or mis-keyed", () => {
+    const xml = "<PubmedArticleSet><PubmedArticle><MedlineCitation><Article><ArticleTitle>No PMID here</ArticleTitle></Article></MedlineCitation></PubmedArticle></PubmedArticleSet>";
+    expect(extractAffiliationsFromXml(xml).size).toBe(0);
+  });
+});
+
+describe("getPubmedAffiliations — network layer", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("batches all pmids into a single efetch call (comma-joined), not one request per pmid", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(NORTE_AND_COLLISION_XML, { status: 200 })));
+    await getPubmedAffiliations(["42268385", "42246438"]);
+    expect(vi.mocked(fetch).mock.calls).toHaveLength(1);
+    const [url] = vi.mocked(fetch).mock.calls[0] as [string];
+    expect(url).toContain("id=42268385%2C42246438");
+    expect(url).toContain("efetch.fcgi");
+  });
+
+  it("requests retmode=xml exactly once — never a duplicated retmode= param (a real NCBI 500, confirmed live)", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response(NORTE_AND_COLLISION_XML, { status: 200 })));
+    await getPubmedAffiliations(["42268385"]);
+    const [url] = vi.mocked(fetch).mock.calls[0] as [string];
+    expect(url.match(/retmode=/g)).toHaveLength(1);
+    expect(url).toContain("retmode=xml");
+  });
+
+  it("returns an empty map for an empty pmid list without making a request", async () => {
+    vi.stubGlobal("fetch", vi.fn());
+    const result = await getPubmedAffiliations([]);
+    expect(result).toEqual(new Map());
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it("wraps a network failure in PubmedUnavailableError, same as the other PubMed calls", async () => {
+    // fetchWithRetry's real exponential backoff would otherwise add real
+    // wall-clock delay here (tests/helpers/fake-timers.ts's own header notes
+    // this exact failure mode has caused real flakes in this repo before).
+    vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new TypeError("network down")));
+    await withFakeTimers(() => expect(getPubmedAffiliations(["1"])).rejects.toThrow(/PubMed efetch/));
   });
 });

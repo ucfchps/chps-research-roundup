@@ -31,8 +31,12 @@ async function rateLimit(): Promise<void> {
   lastRequestAt = Date.now();
 }
 
-function eutilsParams(): string {
-  const params = new URLSearchParams({ retmode: "json" });
+// retmode defaults to "json" (esearch/esummary, the pre-existing callers) —
+// efetch needs "xml" instead (that's the only mode carrying per-author
+// affiliation) and must override it here, not append a second retmode= to
+// the URL: NCBI 500s on a duplicated query param (confirmed live).
+function eutilsParams(retmode: "json" | "xml" = "json"): string {
+  const params = new URLSearchParams({ retmode });
   if (process.env.NCBI_TOOL_NAME) params.set("tool", process.env.NCBI_TOOL_NAME);
   if (process.env.NCBI_EMAIL) params.set("email", process.env.NCBI_EMAIL);
   if (process.env.NCBI_API_KEY) params.set("api_key", process.env.NCBI_API_KEY);
@@ -196,6 +200,72 @@ function mapDocsum(uid: string, doc: EsummaryDocsum): PubmedRecord | null {
     pages: absentIfBlank(doc.pages),
     authors,
   };
+}
+
+// docs/phase5-findings.md #2 (Session 12): efetch's fuller XML is the only
+// PubMed endpoint that carries per-author affiliation at all — esummary
+// structurally doesn't (confirmed 0/4,027 real yield, Session 2). A narrow,
+// purpose-built extraction, not a general XML parser: PubMed's own DTD for
+// this shape is stable, and the real captured cases this must handle (see
+// tests/fixtures/api/pubmed-efetch-*.xml, captured live 2026-08-07) are:
+// affiliation present and UCF-matching; present but on a LATER author, not
+// the first (a real Norte, CHPS-faculty paper — author 4 of 6); present and
+// clearly non-UCF (real global name-collision papers); a single author with
+// MULTIPLE <AffiliationInfo> blocks (dual-institution authors, real, not
+// hypothetical); and absent on every author (a genuine PubMed coverage gap
+// on pre-1990s records — confirmed on 3 real records, not a parsing
+// failure to guard against). Never throws on unexpected input — anything
+// this can't confidently extract just yields an empty affiliation list for
+// that pmid, which classifyAffiliationPlausibility (lib/matching.ts)
+// already treats as "ambiguous," never as "excluded."
+function decodeXmlEntities(s: string): string {
+  return s.replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&amp;/g, "&");
+}
+
+export function extractAffiliationsFromXml(xml: string): Map<string, string[]> {
+  const result = new Map<string, string[]>();
+  const articleRe = /<PubmedArticle>([\s\S]*?)<\/PubmedArticle>/g;
+  let articleMatch: RegExpExecArray | null;
+  while ((articleMatch = articleRe.exec(xml)) !== null) {
+    const articleXml = articleMatch[1];
+    const pmidMatch = /<PMID[^>]*>(\d+)<\/PMID>/.exec(articleXml);
+    if (!pmidMatch) continue;
+
+    const affiliations: string[] = [];
+    const affiliationRe = /<Affiliation>([\s\S]*?)<\/Affiliation>/g;
+    let affMatch: RegExpExecArray | null;
+    while ((affMatch = affiliationRe.exec(articleXml)) !== null) {
+      const decoded = decodeXmlEntities(affMatch[1]).trim();
+      if (decoded) affiliations.push(decoded);
+    }
+    result.set(pmidMatch[1], affiliations);
+  }
+  return result;
+}
+
+// Batched exactly like getPubmedRecords (comma-joined pmids, one request) —
+// callers should further narrow `pmids` to only candidates that survive a
+// cheaper pre-filter first (Session 12 measured efetch's own per-request
+// latency as comparable to esummary's, but its payload is 6-11x larger;
+// fetching it for every PubMed record, not just genuinely new ones,
+// measured as adding enough wall-clock to threaten the 25-minute ceiling —
+// see docs/phase5-findings.md #2).
+export async function getPubmedAffiliations(pmids: string[]): Promise<Map<string, string[]>> {
+  if (pmids.length === 0) return new Map();
+
+  const url = `${EUTILS_BASE}/efetch.fcgi?db=pubmed&id=${encodeURIComponent(pmids.join(","))}&rettype=abstract&${eutilsParams("xml")}`;
+
+  await rateLimit();
+  let res: Response;
+  try {
+    res = await fetchWithRetry(url);
+  } catch (err) {
+    throw new PubmedUnavailableError("PubMed efetch request failed after exhausting retries", { cause: err });
+  }
+  if (!res.ok) throw new PubmedUnavailableError(`PubMed efetch returned ${res.status}`);
+
+  const xml = await res.text();
+  return extractAffiliationsFromXml(xml);
 }
 
 // Batches every pmid into a single esummary call (comma-joined) — NCBI

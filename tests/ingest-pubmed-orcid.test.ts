@@ -146,6 +146,16 @@ describe("runIngestPubmedOrcid — integration", () => {
           if (!opts.esummary) throw new Error(`unexpected esummary fetch: ${url}`);
           return typeof opts.esummary === "function" ? opts.esummary() : opts.esummary;
         }
+        if (url.includes("efetch.fcgi")) {
+          // Session 12: sweepPubmed now efetches affiliation for genuinely
+          // new candidates. None of these tests assert on affiliation
+          // buckets — an empty AuthorList (no coded affiliation, a real
+          // shape per tests/fixtures/api/pubmed-efetch-old-no-affiliation.xml)
+          // is a valid, uneventful response for every id requested here.
+          const ids = new URL(url).searchParams.get("id")?.split(",") ?? [];
+          const articles = ids.map((id) => `<PubmedArticle><MedlineCitation><PMID>${id}</PMID></MedlineCitation></PubmedArticle>`).join("");
+          return new Response(`<PubmedArticleSet>${articles}</PubmedArticleSet>`, { status: 200 });
+        }
         throw new Error(`unrouted fetch: ${url}`);
       })
     );

@@ -3,6 +3,7 @@
 // hatch this module deliberately does not call.
 import { describe, expect, it } from "vitest";
 import {
+  classifyAffiliationPlausibility,
   findMatch,
   isUcfAffiliation,
   mergeAuthors,
@@ -137,6 +138,39 @@ describe("isUcfAffiliation", () => {
     expect(isUcfAffiliation(null)).toBe(false);
     expect(isUcfAffiliation(undefined)).toBe(false);
     expect(isUcfAffiliation("")).toBe(false);
+  });
+});
+
+// docs/phase5-findings.md #2 (Session 12): a plausibility signal, not a
+// gate — every candidate still reaches the merge engine regardless of
+// bucket. See tests/pubmed.test.ts for the real-fixture XML extraction this
+// consumes.
+describe("classifyAffiliationPlausibility", () => {
+  it("confirmed — at least one author's affiliation matches UCF", () => {
+    expect(classifyAffiliationPlausibility(["University of Central Florida, Orlando, FL"])).toBe("confirmed");
+  });
+
+  it("confirmed — a match anywhere in a multi-author list, not just the first", () => {
+    expect(classifyAffiliationPlausibility(["University of Toledo, OH", "Univ. of Central Florida", "High Point University, NC"])).toBe(
+      "confirmed"
+    );
+  });
+
+  it("not_ucf — affiliation data present on every author, none of it UCF", () => {
+    expect(classifyAffiliationPlausibility(["Chinese Academy of Sciences, Beijing", "University of Edinburgh, UK"])).toBe("not_ucf");
+  });
+
+  it("ambiguous — no affiliation data at all (empty list), never treated as evidence either way", () => {
+    expect(classifyAffiliationPlausibility([])).toBe("ambiguous");
+  });
+
+  it("never a hard exclusion signal by itself — 'not_ucf' and 'ambiguous' are both distinct from 'confirmed', not from each other's callers' behavior", () => {
+    // The distinction exists for reporting; nothing in this function decides
+    // whether a candidate is inserted — see scripts/ingest-pubmed-orcid.ts's
+    // sweepPubmed, which calls applyCandidate for every candidate regardless
+    // of bucket.
+    expect(["not_ucf", "ambiguous"]).toContain(classifyAffiliationPlausibility([]));
+    expect(["not_ucf", "ambiguous"]).toContain(classifyAffiliationPlausibility(["Some Other University"]));
   });
 });
 

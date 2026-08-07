@@ -18,7 +18,7 @@ its own session.
 | # | Finding | Session | Severity | Status | Remediation |
 |---|---|---|---|---|---|
 | 1 | `sync-roster`, `release-buffer`, `refresh-metadata` have no GitHub Actions workflow — CLI-only in practice, contradicts §9's "Daily"/"Every 6h" claim; `release-buffer` specifically confirmed stalled (13+ days with nothing promoted) as a direct consequence | 0, 2 | **High** | Open | Add `.github/workflows/*.yml` for all three, matching the existing `ingest-*.yml` pattern (cron + `concurrency: group`), or explicitly document them as human-run and drop the "Daily" claim from §9 |
-| 2 | PubMed structurally cannot capture author affiliation (`PubmedRecordAuthor` has no such field; confirmed 0/4,027 real yield), **and** `searchPubmedByAuthor` deliberately searches by author name only — no affiliation filtering anywhere in the PubMed candidate path. Session 11's dry run against production proved these are one problem, not two: for a common surname, the unfiltered global author-name search returns up to `retmax=250` records with no UCF connection at all, and nothing downstream re-filters them (PubMed candidates skip Crossref's `isUcfAffiliation` gate entirely — that gate only ever applied to Crossref candidates). Measured: 89 of 229 active faculty (39%) hit the `retmax=250` cap this run — surnames like Chen S. (104,584 total matches worldwide), Wang X. (257,622), Zhu Y. (68,329) — and the dry run predicted 28,088 new `pending_merge`/`needs_metadata` rows against a table that currently holds 5,797, with no bulk disposal path (#4) to clean up whatever fraction of that is noise | 2, 11 | **High** (raised from Medium — Session 11 demonstrated real, large-scale impact, not a theoretical gap) | **Open — now a hard blocker on running this job for real at full scale** | Capture affiliation via `efetch` (richer than `esummary`) and use it as a plausibility signal on PubMed candidates before insert — not a hard exclusion gate (the existing no-affiliation-filter choice was deliberate, to avoid dropping a real UCF paper carrying a visiting-scholar/prior-job affiliation string; the fix is narrowing the net, not closing it). **Ordering constraint: this must land before this job is ever run for-real at full unscoped scale, and a disposal path (#4) should exist before that write too, not after it.** The current 5,797-row `publications` table is the residue of a job that has never once passed roster position 27 — Session 10 made the job *able* to complete a cycle, and Session 11's dry run proved that completing a cycle without an affiliation filter multiplies noise rather than fixing the coverage gap it was built to close |
+| 2 | PubMed structurally cannot capture author affiliation via `esummary` (`PubmedRecordAuthor` has no such field; confirmed 0/4,027 real yield), and `searchPubmedByAuthor` deliberately searches by author name only — no affiliation filtering anywhere in the PubMed candidate path (Session 11: 89/229 faculty hit `retmax=250`, 28,088 predicted new rows against a 5,797-row table). **Session 12 built and measured the fix live against production**: `efetch`-based affiliation classification (`confirmed`/`not_ucf`/`ambiguous`), applied as a plausibility signal, never an exclusion. Real result on the 87/229 faculty this run reached before its ceiling: of 7,695 new PubMed candidates, only **302 (3.9%) are affiliation-confirmed** — 6,987 (90.8%) are `not_ucf`, 406 (5.3%) are `ambiguous`. Confirms the original hypothesis at real scale, and confirms it's *not* confined to the 89 flagged common-surname cases: even the 65 non-over-broad faculty in this run's sample showed 82.3% `not_ucf`. **A second, newly-discovered blocker**: `efetch` measured 8.6x slower per-faculty-member in this sustained real run than short-burst calibration predicted (51.7s/person vs. an expected ~6s/person) — the wall-clock ceiling only stops *starting* new faculty, so it doesn't bound this; the run took 74m56s real wall-clock to reach 87/229 faculty, which would exceed even the original 30-minute CI timeout that finding #3 was built to fix. **This job cannot be scheduled again until this second cost problem is solved too** — the affiliation fix is necessary but not sufficient | 2, 11, 12 | **High** (raised from Medium — Session 11 demonstrated real, large-scale impact; Session 12 confirmed it precisely and found a second blocker) | **Affiliation classification: built, tested, measured — code shipped this session (dry-run validated only, no production writes). Cost/scheduling: still Open, now the harder half of the blocker** | Affiliation: done, see "Session 12" below for the full implementation. Remaining: either (a) batch `efetch` in smaller chunks with per-chunk ceiling checks instead of one big per-person call, (b) tighten the wall-clock ceiling to also bound in-flight-person time, not just "starting a new person," or (c) profile *why* this run's real per-person cost was 8.6x the calibration estimate (silent retries under sustained load is the leading hypothesis — no exhausted-retry errors appeared in the log besides one, which is consistent with retries succeeding late rather than failing outright, but this needs its own investigation before trusting any fix) |
 | 3 | `ingest-pubmed-orcid` has never completed a scheduled run: 202/229 faculty never reached, 40/47 ORCID holders never checked — 13 consecutive CI timeouts at the 30-minute mark, every run restarting from roster position 1 with no resume state | 2 | **High** | **Fixed** (Session 10) | Two independent settings-backed cursors (`orcid_sweep_cursor`, `pubmed_sweep_cursor`), wp_id-keyed, position re-derived from the current roster every run; a ~25-minute wall-clock ceiling that stops starting new faculty and writes the cursor cleanly; `pubmed_sweep_cycle_completed_at` recorded + logged on a genuine full-roster cycle. See "Session 10 — the sweep fix" below for the diagnosis, the load-bearing `applyCandidate` cache fix, and measured before/after |
 | 4 | No disposal path for rejected/duplicate publications — `possible_duplicates` has a read side (flagging) but no write side (resolving); a reject action would additionally need to resolve the pair atomically to avoid the mutual-hold "deadlock" `getUnresolvedDuplicatePublicationIds` enforces by design | 2 | Medium | Open | Build the resolve/reject action; must clear both `possible_duplicates` rows in the same transaction the disposal itself commits in |
 | 5 | Ingester concurrency: two overlapping runs of the same job race on a shared read-then-write with no lock. A title-only (no-DOI) candidate produces silent duplicate rows; a DOI-bearing collision is caught by the `UNIQUE` constraint but throws **uncaught**, aborting the *entire remaining sweep* for every other candidate in that run — not just the colliding one | 3 | **High** | Open | `concurrency: { group: <job-name>, cancel-in-progress: false }` on each ingest workflow (already used by `ingest-crossref.yml`'s own job — just not consistently as a deliberate cross-run-race defense); worth pairing with a per-candidate try/catch so one collision doesn't drop unrelated candidates in the same run |
@@ -335,3 +335,180 @@ zero false positives and COMMS will need a way to bulk-clear whatever
 remains. Scheduler restoration and the concurrency fix (#5) stay a separate
 track behind both of those — nothing about this session changes that
 ordering.
+
+## Session 12 — PubMed affiliation capture, measured live (no production writes)
+
+Closes the affiliation half of finding #2. Scope, per direct instruction:
+affiliation capture and measurement only. No disposal path, no scheduler
+restoration, no concurrency fix. No production writes — dry run only, same
+posture as Session 11.
+
+**1. Recon, real captures before any parser was written.** Pulled raw,
+untrimmed `efetch` XML (`rettype=abstract&retmode=xml`) for 6 real PMIDs —
+3 real Norte, G. (CHPS faculty) papers and 3 from a live `Chen S[Author]`
+esearch (the same global-collision surname used elsewhere) — plus 3
+arbitrary 1970s PMIDs, saved as `tests/fixtures/api/pubmed-efetch-norte-
+and-collision.xml` and `pubmed-efetch-old-no-affiliation.xml`. Confirmed
+directly, not assumed: UCF affiliation text present and matching; UCF
+affiliation present but on author 4 of 6, not the first (Norte's own
+co-authored paper — proves "check every author" isn't optional); clearly
+non-UCF affiliation (Chinese institutions, the Chen S. collisions); a real
+author with **two** `<AffiliationInfo>` blocks on one `<Author>`
+(dual-institution authors, a real shape); and affiliation coded on **zero**
+authors across all 3 old records (a genuine PubMed coverage gap, confirmed
+live, not a parsing failure to guard against hypothetically).
+
+**2. Cost measured before designing around it.** `efetch`'s own per-request
+latency (batched by pmid list, same pattern as `esummary`) measured close
+to `esummary`'s (0.9x–1.9x at matched batch sizes) despite a 6–11x larger
+payload. Extrapolated added cost for `efetch`-ing every fetched record:
+≈275s (4.6 min), which would have pushed the ~23-minute baseline cycle to
+≈27.6 min, over the 25-minute ceiling. Design response: only `efetch`
+candidates that survive the existing in-memory match check (i.e., ones
+about to become a real `applyCandidate` insert decision, not a merge) —
+semantically correct, since affiliation only matters for the insert
+decision, and a real cost cut (merged candidates never fetch affiliation
+at all).
+
+One real bug caught by this measurement pass, not by inspection: `efetch`
+needs `retmode=xml`, but the shared `eutilsParams()` helper hardcoded
+`retmode=json` with no override — appending a second `retmode=` to the URL
+string doesn't override it, it produces a live NCBI **500** (confirmed via
+direct `curl`, not assumed). Fixed by giving `eutilsParams()` a real
+parameter (`"json" | "xml"`) instead of a hardcoded default.
+
+**3. Implemented as a plausibility signal, never a hard exclusion.**
+`classifyAffiliationPlausibility` (`lib/matching.ts`, next to the existing
+`isUcfAffiliation`) returns `"confirmed"` (any author's affiliation
+matches UCF), `"not_ucf"` (affiliation data exists, none of it matches —
+a real signal, not an absence of one), or `"ambiguous"` (no affiliation
+data retrievable at all — genuinely unknown, not evidence either way).
+Every PubMed candidate still reaches `applyCandidate` regardless of
+bucket — nothing is filtered out of the pipeline; the classification is
+purely informational this session (see the write-routing note below for
+why).
+
+**Write-routing, and why nothing changed there this session.** The
+obvious next step — route `not_ucf`/`ambiguous` candidates to a different
+`publications.status` for human review — was considered and rejected for
+now: reusing the existing `needs_metadata` status looked like the natural
+fit (it already has a full review UI, `app/admin/needs-metadata/`), but
+`lib/matching.ts::promoteFromNeedsMetadata` auto-promotes any
+`needs_metadata` row to `pending_merge` the instant a merge attaches a
+non-null DOI — and these PubMed candidates almost always already have a
+real DOI. That would silently defeat the review gate on the very next
+sighting of the same paper, a worse bug than the one being fixed. A
+correct "flagged" state needs either a new `PublicationStatus` value or a
+new column — schema work with no review UI to pair it with, which is
+disposal-path-adjacent scope this session explicitly excluded. Every
+candidate this session still inserts as `pending_merge`, exactly as
+before; the three-bucket counts are real, measured, and exposed in
+`RunSummary` and the run's own log line, but don't yet gate anything
+written to the database. Flagged as a real gap, not silently decided.
+
+**4. Measured live against production — the number that matters most.**
+Ran with the identical `--dry-run` posture as Session 11. The sweep hit
+its wall-clock ceiling at **87 of 229 faculty** (see the timing finding
+below for why). Of those 87:
+
+```
+47 faculty with ORCID processed · 309 ORCID work(s) fetched
+87 faculty processed via PubMed · 10,747 PubMed record(s) fetched
+3,111 merged into existing records · 7,695 new candidates
+New PubMed candidates by affiliation plausibility:
+  302 confirmed UCF (3.9%) · 6,987 plausibly not UCF (90.8%) · 406 ambiguous (5.3%)
+```
+
+Broken out for the 22 (of the original 89) common-surname/`retmax=250`
+faculty who fell within this run's 87-person prefix: 4,449 of the 7,695
+new candidates (58%) came from just these 22 people, and of those, **97.0%
+are `not_ucf`** (37 confirmed, 4,314 not_ucf, 98 ambiguous) — the extreme
+case behaves exactly as hypothesized.
+
+The more important number is the other 65 faculty, who never triggered
+the `retmax=250` warning at all: 3,246 new candidates, and **82.3% still
+`not_ucf`** (265 confirmed, 2,673 not_ucf, 308 ambiguous). The noise
+problem is not confined to the flagged common-surname group — it's
+pervasive across ordinary-surname faculty too, just less extreme in
+per-person volume. Real, observed cases from this run: Formby, C. and
+Chaput, M. both show a handful of recent `confirmed` UCF papers alongside
+many older `not_ucf` results — very likely their own genuine work from
+earlier in their careers at a different institution, exactly the
+"visiting scholar/prior job" scenario the no-hard-exclusion design exists
+to protect, still correctly reaching the pipeline rather than being
+dropped.
+
+**Before/after, against the 28,088 baseline**: Session 11's naive dry run
+(no affiliation awareness) predicted 28,088 new rows for the full,
+unscoped 229-person roster. This run's affiliation-aware sample, extrapolated
+at the same ~3.9% confirmed rate across a full cycle, suggests the
+genuinely-relevant count is on the order of hundreds to low thousands, not
+tens of thousands — an order-of-magnitude reduction. This is an
+extrapolation from a partial (87/229) sample, not a full-roster
+measurement — a real full-cycle number requires resolving the timing
+problem below first.
+
+**A second, newly-discovered blocker — timing, not affiliation.** This
+run's real wall-clock cost badly exceeded the pre-implementation
+extrapolation: 74 minutes 56 seconds to reach 87/229 faculty, vs. Session
+11's baseline of ~23 minutes for the full 229. That's **51.7s/faculty
+member measured, against roughly 6s/faculty member predicted from the
+cost calibration — an 8.6x gap**, not the ~2x the calibration's own
+worst-case extrapolation anticipated. The wall-clock ceiling did exactly
+what it was built to do (stopped starting new faculty, wrote the cursor
+cleanly, no crash) — but it only ever bounded *starting new people*, never
+total elapsed time, and this run demonstrates that gap is not
+theoretical: at this real per-person cost, the job would very likely
+exceed even the original 30-minute CI `timeout-minutes` that finding #3
+was built to survive, reintroducing that exact failure mode. One real
+error surfaced during the run (`Buchanan, C., wp_id 1284: unexpected
+error: terminated`, a genuine transient network failure, not a code bug —
+the cursor advanced past it cleanly, exactly as designed), but that alone
+doesn't explain an 8.6x slowdown; no other exhausted-retry errors appear
+in the log, which is consistent with (not proof of) many individual
+requests silently retrying and eventually succeeding under sustained load
+rather than failing outright — NCBI behaving differently under an hour of
+sustained traffic than under this session's short, paced calibration
+bursts. Root cause not confirmed this session; flagged honestly as
+unresolved rather than guessed at.
+
+**Tests**: `tests/pubmed.test.ts` — `extractAffiliationsFromXml` against
+the real fixtures (present/matching, present-on-non-first-author-only,
+present/non-matching, absent-on-every-author, multiple `AffiliationInfo`
+blocks per author, entity decoding, malformed XML never throws, a
+`PubmedArticle` missing `<PMID>` is skipped not mis-keyed) and
+`getPubmedAffiliations`'s network layer (batches into one call, the
+`retmode=xml` regression guard, empty input short-circuits, network
+failure wraps in `PubmedUnavailableError`). `tests/matching.test.ts` —
+`classifyAffiliationPlausibility`'s three buckets. Three pre-existing test
+files (`tests/idempotency/mid-run-resume.test.ts`,
+`tests/ingest-pubmed-orcid.test.ts`,
+`tests/idempotency/ingest-pubmed-orcid-resume.test.ts`) needed their
+hand-rolled fetch mocks extended to route `efetch.fcgi` — the two that
+actually exercised a genuinely-new (non-merge) PubMed candidate were
+timing out for real (an unmocked `efetch` call fell through to each
+mock's `throw new Error("unrouted: ...")`, which `fetchWithRetry` then
+retried with real, un-faked exponential backoff) — fixed by routing
+`efetch.fcgi` to a valid empty-affiliation response, confirmed by the
+throughput-measurement test dropping from a multi-second real delay to
+452ms. Full suite: 1,044 passing (1,027 prior + 17 new), `tsc --noEmit`
+clean, `TURSO_DATABASE_URL`/`TURSO_AUTH_TOKEN` unset.
+
+**Scope discipline, explicitly**: no scheduler restored, no concurrency
+fix, no disposal path, no production writes. The one production access
+this session made beyond the dry run itself was read-only recon (a handful
+of real `esearch`/`efetch` calls to capture fixtures and calibrate
+latency) — no database writes, confirmed.
+
+**Recommendation for the next session on this job**: the timing finding
+above, not the disposal path, is now the harder blocker. Affiliation
+classification is done and measured; a real write is still unsafe, but
+now for a different reason than before — not "too much noise" (that's
+solved), but "the job may not finish inside any CI-safe timeout with
+`efetch` enabled." Investigate the 8.6x gap before trusting any fix to it
+— batching `efetch` into smaller per-chunk requests with their own ceiling
+checks is the most promising lever (mirrors the existing `existingList`
+cache's own "make the expensive thing amortize" instinct from Session
+10), but shouldn't be built until the retry-under-sustained-load
+hypothesis is confirmed or ruled out, since a wrong theory here risks
+"fixing" a symptom instead of the cause.

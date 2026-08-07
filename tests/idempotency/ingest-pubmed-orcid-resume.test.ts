@@ -61,6 +61,17 @@ function esummaryResponse(records: Array<{ uid: string; title: string; doi?: str
   return jsonResponse({ result });
 }
 
+// Session 12 (docs/phase5-findings.md #2): sweepPubmed now efetches
+// affiliation for genuinely new candidates. None of THIS file's tests
+// assert on affiliation buckets — they're about the cursor/cache/ceiling
+// machinery — so an empty AuthorList (no coded affiliation, a real shape
+// per tests/fixtures/api/pubmed-efetch-old-no-affiliation.xml) for every
+// requested id is a valid, uneventful stand-in.
+function efetchResponse(ids: string[]): Response {
+  const articles = ids.map((id) => `<PubmedArticle><MedlineCitation><PMID>${id}</PMID></MedlineCitation></PubmedArticle>`).join("");
+  return new Response(`<PubmedArticleSet>${articles}</PubmedArticleSet>`, { status: 200 });
+}
+
 // Every faculty member in these tests has a UNIQUE, empty PubMed/ORCID
 // result by default (no candidates) unless a test overrides it for a
 // specific person — keeps each test's assertions about WHO got swept clean,
@@ -260,6 +271,7 @@ describe("ingest-pubmed-orcid resumability", () => {
         if (url.includes("esummary.fcgi")) {
           return currentlyOnPerson1 ? esummaryResponse([{ uid: "500", title: "Person 1's Real Paper", doi: "10.1/person1-paper" }]) : esummaryResponse([]);
         }
+        if (url.includes("efetch.fcgi")) return efetchResponse(new URL(url).searchParams.get("id")?.split(",") ?? []);
         throw new Error(`unrouted: ${url}`);
       })
     );
@@ -426,6 +438,7 @@ describe("★ throughput measurement — existingList reload, before vs after", 
         const url = String(input);
         if (url.includes("esearch.fcgi")) return esearchResponse(records.map((r) => r.uid));
         if (url.includes("esummary.fcgi")) return esummaryResponse(records);
+        if (url.includes("efetch.fcgi")) return efetchResponse(new URL(url).searchParams.get("id")?.split(",") ?? []);
         throw new Error(`unrouted: ${url}`);
       })
     );

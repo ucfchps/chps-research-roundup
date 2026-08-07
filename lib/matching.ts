@@ -34,6 +34,31 @@ export function isUcfAffiliation(affiliation: string | null | undefined): boolea
   return affiliation ? UCF_AFFILIATION_PATTERN.test(affiliation) : false;
 }
 
+// docs/phase5-findings.md #2 (Session 12): a plausibility signal, never a
+// hard exclusion — PubMed's searchPubmedByAuthor deliberately has no
+// affiliation filter of its own (a real UCF paper carrying a visiting-
+// scholar/prior-job affiliation string must not be silently dropped), so a
+// common-surname query returns a lot of genuinely unrelated, same-named
+// authors worldwide (Session 11: 89/229 faculty, up to 257,622 global
+// matches for one surname). This never gates whether a candidate reaches
+// the merge engine — every candidate is still attempted — it only
+// classifies what's known about it for a human reviewer:
+//   "confirmed"  — at least one author's affiliation string matches UCF
+//   "not_ucf"    — affiliation data exists for at least one author, and
+//                  NONE of it matches — a real, specific signal this is
+//                  probably someone else's paper, not an absence of data
+//   "ambiguous"  — no affiliation data at all was retrievable (PubMed's own
+//                  affiliation-capture coverage is incomplete — confirmed
+//                  real, e.g. every pre-1990s record) — genuinely unknown,
+//                  not evidence either way
+export type AffiliationPlausibility = "confirmed" | "not_ucf" | "ambiguous";
+
+export function classifyAffiliationPlausibility(affiliations: string[]): AffiliationPlausibility {
+  if (affiliations.some((a) => isUcfAffiliation(a))) return "confirmed";
+  if (affiliations.length > 0) return "not_ucf";
+  return "ambiguous";
+}
+
 // Lowercase, strip the https://doi.org/ prefix — so a bare DOI and a
 // URL-prefixed DOI for the same paper compare equal.
 export function normalizeDoi(doi: string | null): string | null {

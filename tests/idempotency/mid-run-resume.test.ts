@@ -70,6 +70,16 @@ function stubEsearchEsummaryByCallOrder(faculty: typeof FACULTY) {
           },
         });
       }
+      if (url.includes("efetch.fcgi")) {
+        // Session 12: sweepPubmed now efetches affiliation for genuinely new
+        // candidates. This test's assertions are all about doi/title/merge
+        // counts, not affiliation buckets — an empty AuthorList (no coded
+        // affiliation, a real shape per tests/fixtures/api/pubmed-efetch-
+        // old-no-affiliation.xml) is a valid, uneventful response here.
+        const ids = new URL(url).searchParams.get("id")?.split(",") ?? [];
+        const articles = ids.map((id) => `<PubmedArticle><MedlineCitation><PMID>${id}</PMID></MedlineCitation></PubmedArticle>`).join("");
+        return new Response(`<PubmedArticleSet>${articles}</PubmedArticleSet>`, { status: 200 });
+      }
       throw new Error(`unrouted: ${url}`);
     })
   );
