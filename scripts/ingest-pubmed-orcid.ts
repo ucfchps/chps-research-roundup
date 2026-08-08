@@ -139,6 +139,97 @@ export function createExistingListCache(): ExistingListCache {
   };
 }
 
+type PubRowDetail = MergeableExisting & { status: PublicationStatus };
+
+// docs/phase5-findings.md #2 (Session 14): applyCandidate's MATCH branch
+// read a matched publication's full row + its authors from the database
+// on EVERY candidate, unconditionally — even in dry-run, since only the
+// eventual write is gated. Measured against production: 79% of a
+// diagnostic run's wall-clock, dominated by faculty whose PubMed hits
+// mostly already existed in the table — an all-merge candidate set near
+// the retmax=250 cap cost 30+ seconds of nothing but this. Same shape of
+// fix as ExistingListCache above, one level deeper: batch the read
+// (preloadMergeDetails), keep it fresh via upsert() after each real write
+// so a SECOND candidate in the SAME sweep matching the SAME
+// publication_id still sees the first candidate's merge result, not a
+// stale pre-fetched snapshot — this is what makes the batching a pure
+// performance change rather than a behavior change; the old per-candidate
+// fresh read had that same self-consistency property, just by accident of
+// re-querying every time.
+export interface MergeDetailCache {
+  get(client: Client, publicationId: number): Promise<{ pubRow: PubRowDetail; authorRows: ExistingAuthor[] }>;
+  upsert(publicationId: number, pubRow: PubRowDetail, authorRows: ExistingAuthor[]): void;
+}
+
+export function createMergeDetailCache(): MergeDetailCache {
+  const pubRows = new Map<number, PubRowDetail>();
+  const authorRows = new Map<number, ExistingAuthor[]>();
+  return {
+    async get(client: Client, publicationId: number) {
+      if (!pubRows.has(publicationId)) {
+        // Fallback for an id that preloadMergeDetails somehow didn't cover
+        // (shouldn't happen in practice — callers preload every matched id
+        // before this is ever called) — correct either way, just without
+        // the batching win for this one id.
+        const pubRow = (
+          await client.execute({
+            sql: "SELECT doi, title, url, journal, year, volume, issue, pages, source, status FROM publications WHERE id = ?",
+            args: [publicationId],
+          })
+        ).rows[0] as unknown as PubRowDetail;
+        const authors = (
+          await client.execute({
+            sql: "SELECT id, faculty_id, name, role, role_set_by, role_set_at, position FROM publication_authors WHERE publication_id = ? ORDER BY position",
+            args: [publicationId],
+          })
+        ).rows as unknown as ExistingAuthor[];
+        pubRows.set(publicationId, pubRow);
+        authorRows.set(publicationId, authors);
+      }
+      return { pubRow: pubRows.get(publicationId)!, authorRows: authorRows.get(publicationId)! };
+    },
+    upsert(publicationId: number, pubRow: PubRowDetail, authors: ExistingAuthor[]): void {
+      pubRows.set(publicationId, pubRow);
+      authorRows.set(publicationId, authors);
+    },
+  };
+}
+
+// A single person's PubMed candidate set is capped at retmax=250 (§13
+// item 10), well under SQLite/libSQL's ~999 bound-parameter limit — this
+// couldn't overflow a single IN (...) clause today. Chunked anyway rather
+// than assumed: retmax is this file's own constant, not a database limit,
+// and a future change to it (or a caller batching across multiple people)
+// must not silently break by exceeding the real DB-imposed ceiling.
+const MERGE_DETAIL_CHUNK_SIZE = 200;
+
+async function preloadMergeDetails(client: Client, cache: MergeDetailCache, publicationIds: number[]): Promise<void> {
+  const uniqueIds = [...new Set(publicationIds)];
+  for (let i = 0; i < uniqueIds.length; i += MERGE_DETAIL_CHUNK_SIZE) {
+    const chunk = uniqueIds.slice(i, i + MERGE_DETAIL_CHUNK_SIZE);
+    const placeholders = chunk.map(() => "?").join(",");
+
+    const pubRowsResult = await client.execute({
+      sql: `SELECT id, doi, title, url, journal, year, volume, issue, pages, source, status FROM publications WHERE id IN (${placeholders})`,
+      args: chunk,
+    });
+    const authorRowsResult = await client.execute({
+      sql: `SELECT id, publication_id, faculty_id, name, role, role_set_by, role_set_at, position FROM publication_authors WHERE publication_id IN (${placeholders}) ORDER BY publication_id, position`,
+      args: chunk,
+    });
+
+    const authorsByPubId = new Map<number, ExistingAuthor[]>();
+    for (const row of authorRowsResult.rows as unknown as (ExistingAuthor & { publication_id: number })[]) {
+      const list = authorsByPubId.get(row.publication_id) ?? [];
+      list.push(row);
+      authorsByPubId.set(row.publication_id, list);
+    }
+    for (const row of pubRowsResult.rows as unknown as (PubRowDetail & { id: number })[]) {
+      cache.upsert(row.id, row, authorsByPubId.get(row.id) ?? []);
+    }
+  }
+}
+
 export function parseArgs(argv: string[]): RunOptions {
   const dryRun = argv.includes("--dry-run");
   const facultyFlag = argv.find((a) => a === "--faculty" || a.startsWith("--faculty="));
@@ -222,7 +313,8 @@ async function applyCandidate(
   nowIso: string,
   dryRun: boolean,
   source: PublicationSource,
-  existingListCache: ExistingListCache
+  existingListCache: ExistingListCache,
+  mergeDetailCache: MergeDetailCache
 ): Promise<"merged" | "inserted"> {
   const existingList = await existingListCache.get(client);
   const matchResult = findCandidateMatch(candidate.title, candidate.doi, existingList);
@@ -233,18 +325,7 @@ async function applyCandidate(
   const incomingAuthors = buildAuthorInputs(candidate.authors, roster, nowIso);
 
   if (matchResult.type === "MATCH") {
-    const pubRow = (
-      await client.execute({
-        sql: "SELECT doi, title, url, journal, year, volume, issue, pages, source, status FROM publications WHERE id = ?",
-        args: [matchResult.publicationId],
-      })
-    ).rows[0] as unknown as MergeableExisting & { status: PublicationStatus };
-    const authorRows = (
-      await client.execute({
-        sql: "SELECT id, faculty_id, name, role, role_set_by, role_set_at, position FROM publication_authors WHERE publication_id = ? ORDER BY position",
-        args: [matchResult.publicationId],
-      })
-    ).rows as unknown as ExistingAuthor[];
+    const { pubRow, authorRows } = await mergeDetailCache.get(client, matchResult.publicationId);
 
     const mergedMetadata = mergeMetadata(pubRow, incomingMetadata, source);
     const mergedAuthors = mergeAuthors(authorRows, incomingAuthors, source);
@@ -259,17 +340,25 @@ async function applyCandidate(
           mergedMetadata.pages, promotion.status, promotion.promoted ? nowIso : null, matchResult.publicationId,
         ],
       });
+      // Captures each new author's real id (lastInsertRowid), not just
+      // reusing the placeholder null MergedAuthor carried — the upserted
+      // cache entry below must hold real ExistingAuthor rows, or a LATER
+      // candidate in this sweep matching this same publication would see
+      // an author it can't correctly resolve as update-vs-insert.
+      const updatedAuthorRows: ExistingAuthor[] = [];
       for (const a of mergedAuthors) {
         if (a.id === null) {
-          await client.execute({
+          const result = await client.execute({
             sql: `INSERT INTO publication_authors (publication_id, faculty_id, name, role, role_set_by, role_set_at, position) VALUES (?, ?, ?, ?, ?, ?, ?)`,
             args: [matchResult.publicationId, a.faculty_id, a.name, a.role, a.role_set_by, a.role_set_at, a.position],
           });
+          updatedAuthorRows.push({ ...a, id: Number(result.lastInsertRowid) });
         } else {
           await client.execute({
             sql: `UPDATE publication_authors SET faculty_id=?, role=?, role_set_by=?, role_set_at=? WHERE id=?`,
             args: [a.faculty_id, a.role, a.role_set_by, a.role_set_at, a.id],
           });
+          updatedAuthorRows.push({ ...a, id: a.id });
         }
       }
       // The matched row's own doi/title_normalized may have just changed
@@ -277,6 +366,10 @@ async function applyCandidate(
       // findMatch-relevant fields current so a LATER candidate in this same
       // sweep matches against the row's new identity, not its stale one.
       existingListCache.upsert({ id: matchResult.publicationId, doi: mergedMetadata.doi, title_normalized: mergedMetadata.title_normalized });
+      // Same reasoning, one level deeper: a LATER candidate in this sweep
+      // matching this SAME publication_id must see THIS merge's result,
+      // not the pre-loaded snapshot from before the loop started.
+      mergeDetailCache.upsert(matchResult.publicationId, { ...mergedMetadata, source: pubRow.source, status: promotion.status }, updatedAuthorRows);
     }
     return "merged";
   }
@@ -356,11 +449,22 @@ async function sweepOrcid(
   nowIso: string,
   dryRun: boolean,
   summary: RunSummary,
-  crossref: typeof import("../lib/crossref")
+  crossref: typeof import("../lib/crossref"),
+  runStartedAt: number,
+  ceilingMs: number
 ): Promise<void> {
   if (!f.orcid) return;
   summary.facultyWithOrcidProcessed++;
   const existingListCache = createExistingListCache(); // fresh per person, never shared — see the cache's own header comment
+  // No upfront preloadMergeDetails here: unlike PubMed's candidate set,
+  // ORCID's isn't known until each work is resolved via Crossref inside
+  // the loop below, one network call at a time — nothing to batch ahead
+  // of time. Session 10's own diagnosis measured ORCID+Crossref at ~40s
+  // total for all 47 real holders, never the bottleneck; this cache still
+  // gives ORCID the same per-sweep self-consistency PubMed's gets (a
+  // second work matching the same publication sees the first's merge),
+  // just via its lazy per-id fallback path rather than a batch preload.
+  const mergeDetailCache = createMergeDetailCache();
 
   let works: OrcidWork[];
   try {
@@ -376,7 +480,26 @@ async function sweepOrcid(
 
   const surnameHint = f.display_name.split(",")[0].trim();
 
-  for (const work of works) {
+  // docs/phase5-findings.md #2 (Session 14): the wall-clock ceiling used to
+  // only ever gate STARTING a new faculty member — a single person's own
+  // work could run uninterrupted regardless of how far over budget it went
+  // (Session 13 measured up to ~39s of uninterruptible per-person cost
+  // before this fix). Checked once per work/record, not just once per
+  // person — the person's own cursor still advances afterward (the same
+  // "attempted, however far it got" philosophy every other stop condition
+  // here already uses), so nothing here changes what "resumable" means.
+  for (let i = 0; i < works.length; i++) {
+    if (Date.now() - runStartedAt > ceilingMs) {
+      summary.stoppedByWallClockCeiling.orcid = true;
+      summary.skipped.push({
+        wpId: f.wp_id,
+        displayName: f.display_name,
+        source: "orcid",
+        error: `wall-clock ceiling hit mid-sweep — ${works.length - i} of ${works.length} ORCID work(s) not evaluated this cycle`,
+      });
+      break;
+    }
+    const work = works[i];
     try {
       let resolution = work.doi ? await crossref.resolveByDoi(work.doi) : null;
       if (resolution) summary.resolvedViaDoi++;
@@ -392,7 +515,7 @@ async function sweepOrcid(
           year: resolution.year, volume: resolution.volume, issue: resolution.issue, pages: resolution.pages,
           authors: resolution.authors,
         };
-        applyOutcome(summary, await applyCandidate(client, candidate, roster, nowIso, dryRun, "orcid", existingListCache));
+        applyOutcome(summary, await applyCandidate(client, candidate, roster, nowIso, dryRun, "orcid", existingListCache, mergeDetailCache));
       } else {
         summary.orcidNeedsMetadata++;
         applyOutcome(summary, await applyOrcidNeedsMetadata(client, work, f.id, nowIso, dryRun, existingListCache));
@@ -407,9 +530,19 @@ async function sweepOrcid(
   }
 }
 
-async function sweepPubmed(client: Client, f: Faculty, roster: Faculty[], nowIso: string, dryRun: boolean, summary: RunSummary): Promise<void> {
+async function sweepPubmed(
+  client: Client,
+  f: Faculty,
+  roster: Faculty[],
+  nowIso: string,
+  dryRun: boolean,
+  summary: RunSummary,
+  runStartedAt: number,
+  ceilingMs: number
+): Promise<void> {
   summary.facultyProcessedViaPubmed++;
   const existingListCache = createExistingListCache(); // fresh per person, never shared with the ORCID sweep or any other person
+  const mergeDetailCache = createMergeDetailCache(); // fresh per person — preloaded below, before the candidate loop
 
   const query = buildPubmedAuthorQuery(f);
   if (query.source === "full_name") {
@@ -437,8 +570,22 @@ async function sweepPubmed(client: Client, f: Faculty, roster: Faculty[], nowIso
     // This pre-pass is also the Session 12 cost fix: measured against
     // production, efetching every fetched record (not just the new ones)
     // added enough wall-clock to threaten the 25-minute ceiling.
+    //
+    // Session 14 extends this SAME pre-pass one step further: it already
+    // computes every record's match status once, so the set of matched
+    // publicationIds is free to collect here too — preloading them in one
+    // or two batched queries (preloadMergeDetails) instead of the
+    // per-candidate queries applyCandidate used to run itself is the fix
+    // for docs/phase5-findings.md #2's measured 79%-of-wall-clock finding.
     const existingList = await existingListCache.get(client);
-    const newPmids = new Set(records.filter((r) => findCandidateMatch(r.title, r.doi, existingList).type !== "MATCH").map((r) => r.pmid));
+    const newPmids = new Set<string>();
+    const matchedPublicationIds: number[] = [];
+    for (const r of records) {
+      const matchResult = findCandidateMatch(r.title, r.doi, existingList);
+      if (matchResult.type === "MATCH") matchedPublicationIds.push(matchResult.publicationId);
+      else newPmids.add(r.pmid);
+    }
+    await preloadMergeDetails(client, mergeDetailCache, matchedPublicationIds);
 
     let affiliationsByPmid = new Map<string, string[]>();
     if (newPmids.size > 0) {
@@ -453,7 +600,26 @@ async function sweepPubmed(client: Client, f: Faculty, roster: Faculty[], nowIso
       }
     }
 
-    for (const record of records) {
+    // docs/phase5-findings.md #2 (Session 14): same reasoning as sweepOrcid's
+    // identical check above — this is the loop the ceiling previously had
+    // no way to intervene in mid-person. Checked once per record, after the
+    // batching fix above already collapsed the dominant per-record cost;
+    // this is now defense-in-depth against whatever's left (the per-record
+    // WRITEs in a real run are still O(records) — batching only fixed the
+    // reads, since dry-run, the only thing measured so far, never reaches
+    // the write path at all).
+    for (let i = 0; i < records.length; i++) {
+      if (Date.now() - runStartedAt > ceilingMs) {
+        summary.stoppedByWallClockCeiling.pubmed = true;
+        summary.skipped.push({
+          wpId: f.wp_id,
+          displayName: f.display_name,
+          source: "pubmed",
+          error: `wall-clock ceiling hit mid-sweep — ${records.length - i} of ${records.length} PubMed record(s) not evaluated this cycle`,
+        });
+        break;
+      }
+      const record = records[i];
       const candidate: Candidate = {
         doi: record.doi, title: record.title, url: record.url, journal: record.journal,
         year: record.year, volume: record.volume, issue: record.issue, pages: record.pages,
@@ -466,7 +632,7 @@ async function sweepPubmed(client: Client, f: Faculty, roster: Faculty[], nowIso
         else summary.pubmedAffiliationAmbiguous++;
         console.log(`[pubmed-affiliation] ${f.display_name} (wp_id ${f.wp_id ?? "?"}): pmid ${record.pmid} -> ${bucket}`);
       }
-      applyOutcome(summary, await applyCandidate(client, candidate, roster, nowIso, dryRun, "pubmed", existingListCache));
+      applyOutcome(summary, await applyCandidate(client, candidate, roster, nowIso, dryRun, "pubmed", existingListCache, mergeDetailCache));
     }
   } catch (err) {
     if (err instanceof PubmedUnavailableError) {
@@ -521,17 +687,36 @@ function emptySummary(dryRun: boolean): RunSummary {
 // skipped forward, not retried indefinitely" true: the cursor has no notion
 // of retry count to exhaust, it simply never re-targets someone whose
 // attempt already completed, however it completed.
-async function attemptOrcidSweep(client: Client, f: Faculty, roster: Faculty[], nowIso: string, dryRun: boolean, summary: RunSummary, crossref: typeof import("../lib/crossref")): Promise<void> {
+async function attemptOrcidSweep(
+  client: Client,
+  f: Faculty,
+  roster: Faculty[],
+  nowIso: string,
+  dryRun: boolean,
+  summary: RunSummary,
+  crossref: typeof import("../lib/crossref"),
+  runStartedAt: number,
+  ceilingMs: number
+): Promise<void> {
   try {
-    await sweepOrcid(client, f, roster, nowIso, dryRun, summary, crossref);
+    await sweepOrcid(client, f, roster, nowIso, dryRun, summary, crossref, runStartedAt, ceilingMs);
   } catch (err) {
     summary.skipped.push({ wpId: f.wp_id, displayName: f.display_name, source: "orcid", error: `unexpected error: ${err instanceof Error ? err.message : String(err)}` });
   }
 }
 
-async function attemptPubmedSweep(client: Client, f: Faculty, roster: Faculty[], nowIso: string, dryRun: boolean, summary: RunSummary): Promise<void> {
+async function attemptPubmedSweep(
+  client: Client,
+  f: Faculty,
+  roster: Faculty[],
+  nowIso: string,
+  dryRun: boolean,
+  summary: RunSummary,
+  runStartedAt: number,
+  ceilingMs: number
+): Promise<void> {
   try {
-    await sweepPubmed(client, f, roster, nowIso, dryRun, summary);
+    await sweepPubmed(client, f, roster, nowIso, dryRun, summary, runStartedAt, ceilingMs);
   } catch (err) {
     summary.skipped.push({ wpId: f.wp_id, displayName: f.display_name, source: "pubmed", error: `unexpected error: ${err instanceof Error ? err.message : String(err)}` });
   }
@@ -551,8 +736,11 @@ export async function runIngestPubmedOrcid(client: Client, opts: RunOptions): Pr
   if (opts.facultyWpId) {
     const f = roster.find((r) => r.wp_id === opts.facultyWpId);
     if (f) {
-      await sweepOrcid(client, f, roster, nowIso, opts.dryRun, summary, crossref);
-      await sweepPubmed(client, f, roster, nowIso, opts.dryRun, summary);
+      // Infinity, not DEFAULT_WALL_CLOCK_CEILING_MS — this path bypasses
+      // the ceiling entirely, per the comment above; the mid-sweep check
+      // both functions now do must never trigger here either.
+      await sweepOrcid(client, f, roster, nowIso, opts.dryRun, summary, crossref, Date.now(), Infinity);
+      await sweepPubmed(client, f, roster, nowIso, opts.dryRun, summary, Date.now(), Infinity);
     }
     return summary;
   }
@@ -576,7 +764,7 @@ export async function runIngestPubmedOrcid(client: Client, opts: RunOptions): Pr
       summary.stoppedByWallClockCeiling.orcid = true;
       break;
     }
-    await attemptOrcidSweep(client, f, roster, nowIso, opts.dryRun, summary, crossref);
+    await attemptOrcidSweep(client, f, roster, nowIso, opts.dryRun, summary, crossref, runStartedAt, ceilingMs);
     summary.orcidCursorAdvancedTo = f.wp_id;
     if (!opts.dryRun) await writeCursor(client, ORCID_CURSOR_KEY, f.wp_id);
   }
@@ -594,7 +782,7 @@ export async function runIngestPubmedOrcid(client: Client, opts: RunOptions): Pr
       summary.stoppedByWallClockCeiling.pubmed = true;
       break;
     }
-    await attemptPubmedSweep(client, f, roster, nowIso, opts.dryRun, summary);
+    await attemptPubmedSweep(client, f, roster, nowIso, opts.dryRun, summary, runStartedAt, ceilingMs);
     summary.pubmedCursorAdvancedTo = f.wp_id;
     if (!opts.dryRun) await writeCursor(client, PUBMED_CURSOR_KEY, f.wp_id);
   }

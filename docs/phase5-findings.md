@@ -18,7 +18,7 @@ its own session.
 | # | Finding | Session | Severity | Status | Remediation |
 |---|---|---|---|---|---|
 | 1 | `sync-roster`, `release-buffer`, `refresh-metadata` have no GitHub Actions workflow — CLI-only in practice, contradicts §9's "Daily"/"Every 6h" claim; `release-buffer` specifically confirmed stalled (13+ days with nothing promoted) as a direct consequence | 0, 2 | **High** | Open | Add `.github/workflows/*.yml` for all three, matching the existing `ingest-*.yml` pattern (cron + `concurrency: group`), or explicitly document them as human-run and drop the "Daily" claim from §9 |
-| 2 | PubMed structurally cannot capture author affiliation via `esummary` (`PubmedRecordAuthor` has no such field; confirmed 0/4,027 real yield), and `searchPubmedByAuthor` deliberately searches by author name only — no affiliation filtering anywhere in the PubMed candidate path (Session 11: 89/229 faculty hit `retmax=250`, 28,088 predicted new rows against a 5,797-row table). **Session 12 built and measured the fix live against production**: `efetch`-based affiliation classification (`confirmed`/`not_ucf`/`ambiguous`), applied as a plausibility signal, never an exclusion. Real result on the 87/229 faculty this run reached before its ceiling: of 7,695 new PubMed candidates, only **302 (3.9%) are affiliation-confirmed** — 6,987 (90.8%) are `not_ucf`, 406 (5.3%) are `ambiguous`. Confirms the original hypothesis at real scale, and confirms it's *not* confined to the 89 flagged common-surname cases: even the 65 non-over-broad faculty in this run's sample showed 82.3% `not_ucf`. **A second, newly-discovered blocker**: `efetch` measured 8.6x slower per-faculty-member in this sustained real run than short-burst calibration predicted (51.7s/person vs. an expected ~6s/person) — the wall-clock ceiling only stops *starting* new faculty, so it doesn't bound this; the run took 74m56s real wall-clock to reach 87/229 faculty, which would exceed even the original 30-minute CI timeout that finding #3 was built to fix. **This job cannot be scheduled again until this second cost problem is solved too** — the affiliation fix is necessary but not sufficient | 2, 11, 12 | **High** (raised from Medium — Session 11 demonstrated real, large-scale impact; Session 12 confirmed it precisely and found a second blocker) | **Affiliation classification: built, tested, measured — code shipped this session (dry-run validated only, no production writes). Cost/scheduling: still Open, now the harder half of the blocker** | Affiliation: done, see "Session 12" below for the full implementation. Remaining: either (a) batch `efetch` in smaller chunks with per-chunk ceiling checks instead of one big per-person call, (b) tighten the wall-clock ceiling to also bound in-flight-person time, not just "starting a new person," or (c) profile *why* this run's real per-person cost was 8.6x the calibration estimate (silent retries under sustained load is the leading hypothesis — no exhausted-retry errors appeared in the log besides one, which is consistent with retries succeeding late rather than failing outright, but this needs its own investigation before trusting any fix) |
+| 2 | PubMed structurally cannot capture author affiliation via `esummary`, and `searchPubmedByAuthor` deliberately searches by author name only. **Session 12 fixed and measured affiliation classification** (`efetch`-based, `confirmed`/`not_ucf`/`ambiguous`, plausibility signal never an exclusion): of 7,695 new candidates in that run's sample, only 3.9% were affiliation-confirmed. That session also found a second blocker: 8.6x slower per-faculty than calibration predicted (51.7s/person). **Session 13 diagnosed the cause: not NCBI rate limiting** (zero 429s across 56 faculty measured) **but two unconditional `SELECT` queries per merging candidate in `applyCandidate`'s `MATCH` branch, run serially, even in `--dry-run`** — 79.1% of that run's wall-clock. **Session 14 fixed it**: batched the same way `existingListCache` already batches its own read (`preloadMergeDetails`, a `WHERE id IN (...)` query per person instead of 2×N), and measured the result live against production. Same people, before/after: MacKay, A. 35,790ms→976ms (36.7x), Adams, A. 35,678ms→948ms (37.6x), Pearson, D. 35,191ms→856ms (41.1x), Perez, K. 34,811ms→944ms (36.9x). A 10-minute bounded run now reaches **142 faculty** (vs. 87 pre-fix in the same window), with real per-request network time, not batching overhead, now the dominant remaining cost. Also fixed: the wall-clock ceiling now bounds total elapsed time, not just gates starting new faculty (a single person could previously run uninterrupted regardless of budget) | 2, 11, 12, 13, 14 | Was **High**; **downgraded to Low** — both the affiliation classification and the cost blocker it depended on are now built, tested, and measured live against production | **Closed for code purposes.** Both halves shipped this session's predecessors and this session (all `--dry-run`, no production writes yet). What remains isn't a code fix: (a) the write-routing decision for `not_ucf`/`ambiguous` candidates (still `pending_merge`, deliberately deferred — needs a schema decision paired with a review UI, disposal-path-adjacent scope explicitly out of bounds across Sessions 12–14), and (b) an actual real (non-`--dry-run`) invocation, which has never happened in this job's history | Reuse the `existingListCache`/`MergeDetailCache` batching pattern for the identical `applyCandidate` shape in `ingest-crossref.ts`/`ingest-scholar.ts` if either script's own throughput ever becomes the bottleneck there too (separate, independent copies — confirmed via grep, zero shared code, so this session's fix has zero effect on either) |
 | 3 | `ingest-pubmed-orcid` has never completed a scheduled run: 202/229 faculty never reached, 40/47 ORCID holders never checked — 13 consecutive CI timeouts at the 30-minute mark, every run restarting from roster position 1 with no resume state | 2 | **High** | **Fixed** (Session 10) | Two independent settings-backed cursors (`orcid_sweep_cursor`, `pubmed_sweep_cursor`), wp_id-keyed, position re-derived from the current roster every run; a ~25-minute wall-clock ceiling that stops starting new faculty and writes the cursor cleanly; `pubmed_sweep_cycle_completed_at` recorded + logged on a genuine full-roster cycle. See "Session 10 — the sweep fix" below for the diagnosis, the load-bearing `applyCandidate` cache fix, and measured before/after |
 | 4 | No disposal path for rejected/duplicate publications — `possible_duplicates` has a read side (flagging) but no write side (resolving); a reject action would additionally need to resolve the pair atomically to avoid the mutual-hold "deadlock" `getUnresolvedDuplicatePublicationIds` enforces by design | 2 | Medium | Open | Build the resolve/reject action; must clear both `possible_duplicates` rows in the same transaction the disposal itself commits in |
 | 5 | Ingester concurrency: two overlapping runs of the same job race on a shared read-then-write with no lock. A title-only (no-DOI) candidate produces silent duplicate rows; a DOI-bearing collision is caught by the `UNIQUE` constraint but throws **uncaught**, aborting the *entire remaining sweep* for every other candidate in that run — not just the colliding one | 3 | **High** | Open | `concurrency: { group: <job-name>, cancel-in-progress: false }` on each ingest workflow (already used by `ingest-crossref.yml`'s own job — just not consistently as a deliberate cross-run-race defense); worth pairing with a per-candidate try/catch so one collision doesn't drop unrelated candidates in the same run |
@@ -662,3 +662,201 @@ bounded diagnostic run was `--dry-run`, same posture as every prior
 production-facing session. Write-routing for `not_ucf`/`ambiguous`
 candidates remains unchanged (`pending_merge`, same as Session 12 left
 it) — still blocked on the same schema-decision-plus-review-UI gap.
+
+## Session 14 — the batching fix, the ceiling fix, and the dry-run decision
+
+Implements the fix Session 13 sized (not implemented there, per that
+session's own diagnose-only scope) plus two related decisions. All three
+requested changes shipped; measured live against production, keyed and
+unkeyed, both labeled explicitly per instruction. No production writes —
+`--dry-run` throughout, same posture as every session on this job to date.
+
+### 1. Batching `applyCandidate`'s `MATCH` branch
+
+`preloadMergeDetails` + `MergeDetailCache` (`scripts/ingest-pubmed-orcid.ts`,
+next to `ExistingListCache`, same shape): `sweepPubmed`'s existing pre-pass
+(already computing match/no-match once per record for Session 12's
+affiliation-cost fix) now also collects the set of matched
+`publication_id`s and preloads their full row + author rows in one or two
+`WHERE id IN (...)` queries, chunked at 200 ids — PubMed's own
+`retmax=250` cap means a single person's candidate set can't exceed
+SQLite/libSQL's ~999 bound-parameter limit today, but this is chunked
+defensively rather than assumed, since `retmax` is this file's own
+constant, not a database-imposed one.
+
+**Self-consistency preserved exactly**, not just approximated: the old
+per-candidate fresh `SELECT` meant a second candidate in the same sweep
+matching the same `publication_id` always saw the first candidate's
+already-applied merge. Batching once, up front, would have broken that —
+so `MergeDetailCache.upsert()` is called after every real write (mirroring
+`ExistingListCache`'s own pattern exactly), including capturing each
+newly-inserted author's real `lastInsertRowid` rather than reusing the
+placeholder `id: null` a `MergedAuthor` carries. A new test
+(`tests/idempotency/ingest-pubmed-orcid-resume.test.ts`) proves this
+directly: two candidates for the same real paper (a real observed shape —
+an ahead-of-print record and its later indexed version, same DOI,
+different PMIDs) both merge into one row; the field the first candidate
+fills is confirmed to survive the second candidate's own merge computation
+unchanged, which only holds if the second candidate saw the row as it
+existed *after* the first merge, not a stale pre-loaded snapshot.
+
+**Measured, not assumed**: a new throughput test seeds 100 pre-existing
+publications, sends 100 matching PubMed candidates, and asserts the
+`WHERE id IN` queries fire exactly once each (not 200) — mirroring
+Session 10's own `existingList` throughput test pattern one level deeper.
+
+### 2. The wall-clock ceiling now bounds total elapsed time
+
+Session 13's own recommendation, implemented: `sweepPubmed`'s per-record
+loop and `sweepOrcid`'s per-work loop each now check the ceiling before
+every iteration, not just once between faculty members. A person's cursor
+still advances afterward regardless of whether their sweep completed or
+was cut short — the same "attempted, however far it got" philosophy every
+other stop condition on this job already uses (a genuinely unexpected
+error, a `PubmedUnavailableError`, and now a mid-sweep ceiling cutoff all
+land in the identical place). A cutoff mid-person is visible in
+`summary.skipped` with an explicit `N of M records not evaluated this
+cycle` count, distinguishable from a real error. The `--faculty`
+single-person debug path is unaffected — it passes `Infinity` explicitly,
+preserving its existing "bypasses the ceiling entirely" behavior exactly.
+Proven with a dedicated test using a synthetic 3,000-candidate sweep (real
+PubMed batches are capped at 250; this is purely to make the interrupt
+reliably land mid-loop against fast local SQLite) and a calibrated
+ceiling — confirms the cut lands partway through one person's own loop,
+not at the boundary between two people.
+
+### 3. The dry-run isolation decision — explicit, not accidental
+
+Assessed, not silently changed. `--dry-run` reads real production data
+unconditionally (`existingListCache`'s initial classification read, and
+now `MergeDetailCache`'s preload) — writes are gated, reads are not.
+**Decision: keep it that way.** Two reasons, not one:
+
+- **It's load-bearing, not an oversight.** Sessions 11, 12, and 13 all
+  depended on exactly this property to produce real, actionable numbers
+  from production without ever writing to it — the entire diagnostic
+  methodology this pack has used since Session 11 assumes `--dry-run`
+  reads the real table. Gating reads would make dry-run "rehearse" against
+  an empty or synthetic dataset, which is a different, less useful tool,
+  not a safer version of the same one.
+- **The cost problem this session fixed WAS the reason to reconsider it,
+  and it's now fixed.** Before batching, a dry-run could cost tens of
+  seconds per faculty member in pure read load with zero corresponding
+  write — a legitimate isolation concern. After batching, dry-run's read
+  cost is the same small constant a real run pays for the same reads (the
+  ones a real run needs anyway, to decide what to write) — there's no
+  longer a meaningful "dry-run taxes production harder than a real run
+  would" gap to close.
+
+No code changed for this decision — it's the absence of a change, made
+deliberately and documented here rather than left to be re-discovered (or
+re-litigated) by whoever reads this code next.
+
+### Measured, live against production — keyed and unkeyed, both labeled
+
+**Per-person, same people, before (Session 13) vs. after (this session),
+keyed** (local `.env.local` `NCBI_API_KEY` — see the caveat below):
+
+| Faculty | Before (`other`) | After (`other`) | Speedup |
+|---|---|---|---|
+| MacKay, A. | 35,790ms | 976ms | 36.7x |
+| Adams, A. | 35,678ms | 948ms | 37.6x |
+| Pearson, D. | 35,191ms | 856ms | 41.1x |
+| Perez, K. | 34,811ms | 944ms | 36.9x |
+| Roman, O. | 18,053ms | 495ms | 36.5x |
+| Constantine, R. | 17,903ms | 722ms | 24.8x |
+| Chen, S. | 28,135ms | 1,053ms | 26.7x |
+| Zhu, Y. | 29,477ms | 1,203ms | 24.5x |
+
+**Environment caveat, stated exactly per instruction**: `NCBI_API_KEY`
+exists in `.env.local` but is confirmed absent from the actual GitHub
+repo's secrets (`gh secret list`) despite the workflow referencing it —
+every real scheduled run of this job has always run on the unauthenticated
+3 req/s tier, never the 10 req/s tier local measurements benefit from. I
+did not set the secret — that's explicitly the user's own action this
+session, not mine, and no key value was written to any file, commit, or
+log here.
+
+**Two full 10-minute bounded runs, same roster order, both `--dry-run`
+against production:**
+
+| | Keyed (local) | Unkeyed (local, approximates CI) |
+|---|---|---|
+| Faculty reached in 10 min | 142 | 117 |
+| Avg. per faculty | 4.23s | 5.13s |
+| Real 429s observed | 0 | 3 (all retried, all succeeded) |
+| Genuine NCBI timeouts (exhausted retries, ~60-65s each) | 1 (Ferretti, C.) | 2 (Ferretti, C. again; Schwitters, R.) |
+
+Unkeyed is **1.21x slower** than keyed post-fix — real, but far smaller
+than the pre-fix gap, because the remaining cost is dominated by genuine
+PubMed network latency (esearch/esummary/efetch each still take hundreds
+of ms to multiple seconds, key or no key), not by rate-limit rejections.
+The self-throttle's own floor (333ms unkeyed vs. 100ms keyed) rarely binds
+in practice, since real per-call latency already exceeds it most of the
+time — confirmed directly: `rateLimitWait` in the logged
+`[pubmed-timing]` lines is near-zero in the large majority of both runs'
+samples.
+
+**One reproducible, real, NCBI-side phenomenon, unrelated to this
+session's fix**: `Ferretti, C.` (wp_id 1047) hit the identical
+exhausted-after-4-attempts `esummary` timeout in *both* the keyed and
+unkeyed runs (64.6s and 64.3s respectively), and `Schwitters, R.` (wp_id
+22437) — the same person named in Session 12's own error log — hit it a
+third time in the unkeyed run. Genuinely reproducible across independent
+invocations and sessions; not something a request-rate fix touches. The
+existing skip-and-advance handling worked correctly all three times — the
+cursor moved past each of them cleanly, no aborted run, no stuck state.
+
+### Projection: a full 229-faculty cycle vs. the 30-minute CI timeout
+
+Extrapolating each run's measured people/second directly (`600s ÷
+observed count`, applied to the full 229-faculty roster — a deliberately
+conservative method, since it amortizes the fixed ~40-90s ORCID-phase cost
+over the smaller sampled count rather than the larger full-roster count,
+which if anything overstates the full-cycle time slightly):
+
+- **Keyed**: 229 × 4.23s ≈ 968s ≈ **16.1 minutes** — 9 minutes of margin
+  under the 25-minute internal ceiling, 14 minutes under the 30-minute CI
+  timeout.
+- **Unkeyed (approximates CI's actual current environment)**: 229 × 5.13s
+  ≈ 1,174s ≈ **19.6 minutes** — 5.4 minutes of margin under the internal
+  ceiling, 10.4 minutes under the CI timeout.
+
+**These are projections from partial (117–142 of 229) samples, explicitly
+labeled as such — not a full-cycle measurement.** The one real risk not
+captured by the average: the reproducible ~60-65s NCBI-side timeouts
+observed above. A full cycle sees roughly 2x the faculty either 10-minute
+sample did, so encountering 2-4 such events (rather than 1-3) is a
+reasonable expectation, adding roughly 2-4 minutes on top of either
+projection. Even at that pessimistic end, both projections stay under the
+30-minute CI timeout; the unkeyed case could approach the 25-minute
+*internal* ceiling, in which case the ceiling does exactly what it was
+built to do (Session 10, hardened this session) — stops cleanly, writes
+the cursor, and the cycle finishes on the next scheduled invocation rather
+than failing.
+
+**Bottom line**: once the GitHub secret is configured (the user's own
+pending action), this job should complete a full cycle in roughly 16
+minutes; even in the unauthenticated environment it's been running in this
+whole time, it should complete in roughly 20 minutes, comfortably inside
+both the internal ceiling and the CI timeout that originally motivated
+this entire multi-session effort.
+
+### Tests and scope discipline
+
+`tests/idempotency/ingest-pubmed-orcid-resume.test.ts`: the merge-batching
+throughput test (100 merges, `WHERE id IN` fires once not 200 times), the
+self-consistency test (second candidate sees first's merge result), and
+the mid-sweep ceiling interrupt test (a synthetic 3,000-candidate sweep
+proves the cut lands inside one person's loop, not just between people).
+Full suite: 1,053 passing (1,050 prior + 3 new), `tsc --noEmit` clean.
+`onAttempt`/diagnostics instrumentation from Session 13 kept intact and
+is what made every measurement in this section possible — this job now
+has permanent, real timing visibility it didn't have three sessions ago.
+
+No parallelization, caching beyond what's described, or concurrency was
+added — the `MergeDetailCache`/`ExistingListCache` pattern is
+per-person-sequential, same as before, just no longer re-querying data it
+already has. Write-routing for `not_ucf`/`ambiguous` candidates remains
+unchanged (still `pending_merge`) — unrelated to this session's scope.
+Committed locally only, not pushed, per instruction.
